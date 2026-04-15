@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   computeTaxFromTransactions,
   DoctorProfile,
@@ -18,6 +20,8 @@ import {
   DeductibilityStatus,
 } from "blackpine-engine";
 import { loadState, saveState, clearState } from "./lib/storage";
+import { colors, radii, shadows, spacing, typography } from "./lib/theme";
+import { formatMAD, formatTime } from "./lib/format";
 
 const defaultProfile: DoctorProfile = {
   id: "demo",
@@ -44,7 +48,6 @@ const defaultTransactions: Transaction[] = [
   { id: "c6", type: "CHARGE", amount: 18000, date: "2026-12-31", category: "honoraires_comptable" },
 ];
 
-const fmt = (n: number) => n.toLocaleString("fr-FR") + " MAD";
 const newId = () => Math.random().toString(36).slice(2, 9);
 
 export default function App() {
@@ -54,8 +57,8 @@ export default function App() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showTrace, setShowTrace] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // ---- LOAD ON STARTUP ----
   useEffect(() => {
     (async () => {
       const persisted = await loadState();
@@ -66,12 +69,10 @@ export default function App() {
     })();
   }, []);
 
-  // ---- SAVE ON CHANGE (debounced) ----
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (loading) return; // don't save during initial load
+    if (loading) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
-
     setSaving(true);
     saveTimer.current = setTimeout(async () => {
       try {
@@ -83,7 +84,6 @@ export default function App() {
         setSaving(false);
       }
     }, 600);
-
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
@@ -93,6 +93,9 @@ export default function App() {
     () => computeTaxFromTransactions(profile, transactions, 2026, "2026-12-31"),
     [profile, transactions]
   );
+
+  const recettes = transactions.filter((t) => t.type === "RECETTE");
+  const charges = transactions.filter((t) => t.type === "CHARGE");
 
   const addTransaction = (type: TransactionType) => {
     setTransactions((prev) => [
@@ -136,37 +139,65 @@ export default function App() {
     );
   };
 
+  const onDateChange = (_: unknown, selected?: Date) => {
+    if (Platform.OS !== "ios") setShowDatePicker(false);
+    if (selected) {
+      const iso = selected.toISOString().split("T")[0];
+      setProfile({ ...profile, activityStartDate: iso });
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1a1a1a" />
+        <ActivityIndicator size="large" color={colors.brand} />
         <Text style={styles.loadingText}>Chargement de vos données…</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* HEADER */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Blackpine Cabinet</Text>
-          <Text style={styles.subtitle}>Démo interactive du moteur fiscal</Text>
+          <Text style={styles.brandMark}>BLACKPINE</Text>
+          <Text style={styles.brandSub}>Cabinet · Démo moteur fiscal</Text>
         </View>
         <SaveIndicator saving={saving} lastSavedAt={lastSavedAt} />
       </View>
 
+      {/* HERO RESULT */}
       <View style={styles.heroCard}>
-        <Text style={styles.heroLabel}>Impôt à payer (estimé)</Text>
-        <Text style={styles.heroNumber}>{fmt(result.tax.taxDue)}</Text>
-        <Text style={styles.heroMeta}>
-          Régime: {result.tax.regime}  ·  Règle: {result.tax.payableRule}
-        </Text>
+        <Text style={styles.heroLabel}>Impôt à payer · estimation 2026</Text>
+        <Text style={styles.heroNumber}>{formatMAD(result.tax.taxDue)}</Text>
+        <View style={styles.heroChips}>
+          <Chip label={`Régime ${result.tax.regime}`} />
+          <Chip label={`Calculé sur ${result.tax.payableRule}`} />
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Profil du médecin</Text>
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Personnes à charge</Text>
+      {/* QUICK STATS */}
+      <View style={styles.statsRow}>
+        <StatCard
+          label="Recettes"
+          value={formatMAD(result.breakdown.totalRecettes)}
+          accent={colors.recette}
+        />
+        <StatCard
+          label="Charges"
+          value={formatMAD(result.breakdown.totalCharges)}
+          accent={colors.charge}
+        />
+      </View>
+
+      {/* PROFILE */}
+      <Section title="Profil">
+        <Field label="Personnes à charge">
           <TextInput
             style={styles.input}
             value={String(profile.dependentsCount)}
@@ -175,20 +206,40 @@ export default function App() {
               setProfile({ ...profile, dependentsCount: Math.max(0, parseInt(v) || 0) })
             }
           />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Date début activité (AAAA-MM-JJ)</Text>
-          <TextInput
-            style={styles.input}
-            value={profile.activityStartDate}
-            onChangeText={(v) => setProfile({ ...profile, activityStartDate: v })}
-          />
-        </View>
-      </View>
+        </Field>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Transactions ({transactions.length})</Text>
-        {transactions.map((t) => (
+        <Field label="Date de début d'activité">
+          <Pressable
+            style={styles.input}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.inputText}>
+              {new Date(profile.activityStartDate).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </Text>
+          </Pressable>
+        </Field>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={new Date(profile.activityStartDate)}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            onChange={onDateChange}
+            maximumDate={new Date()}
+          />
+        )}
+      </Section>
+
+      {/* TRANSACTIONS */}
+      <Section title={`Transactions · ${transactions.length}`}>
+        {recettes.length > 0 && (
+          <Text style={styles.groupLabel}>Recettes ({recettes.length})</Text>
+        )}
+        {recettes.map((t) => (
           <TransactionRow
             key={t.id}
             transaction={t}
@@ -196,60 +247,90 @@ export default function App() {
             onDelete={() => deleteTransaction(t.id)}
           />
         ))}
+
+        {charges.length > 0 && (
+          <Text style={[styles.groupLabel, { marginTop: spacing.md }]}>
+            Charges ({charges.length})
+          </Text>
+        )}
+        {charges.map((t) => (
+          <TransactionRow
+            key={t.id}
+            transaction={t}
+            onChange={(patch) => updateTransaction(t.id, patch)}
+            onDelete={() => deleteTransaction(t.id)}
+          />
+        ))}
+
         <View style={styles.addRow}>
           <Pressable
-            style={[styles.addBtn, styles.addRecette]}
+            style={[styles.addBtn, { backgroundColor: colors.recette }]}
             onPress={() => addTransaction("RECETTE")}
           >
             <Text style={styles.addBtnText}>+ Recette</Text>
           </Pressable>
           <Pressable
-            style={[styles.addBtn, styles.addCharge]}
+            style={[styles.addBtn, { backgroundColor: colors.charge }]}
             onPress={() => addTransaction("CHARGE")}
           >
             <Text style={styles.addBtnText}>+ Charge</Text>
           </Pressable>
         </View>
-      </View>
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Résultat fiscal</Text>
-        <Row label="Recettes" value={fmt(result.breakdown.totalRecettes)} />
-        <Row label="Charges" value={fmt(result.breakdown.totalCharges)} />
-        <Row label="Charges déductibles" value={fmt(result.breakdown.totalChargesDeductibles)} />
-        <Row label="Réintégrations" value={fmt(result.breakdown.totalReintegrations)} />
-        <Row label="Résultat fiscal" value={fmt(result.breakdown.resultatFiscal)} bold />
-      </View>
+      {/* BREAKDOWN */}
+      <Section title="Résultat fiscal">
+        <Row label="Total recettes" value={formatMAD(result.breakdown.totalRecettes)} />
+        <Row label="Total charges" value={formatMAD(result.breakdown.totalCharges)} />
+        <Row
+          label="Charges déductibles"
+          value={formatMAD(result.breakdown.totalChargesDeductibles)}
+        />
+        <Row
+          label="Réintégrations"
+          value={formatMAD(result.breakdown.totalReintegrations)}
+          muted
+        />
+        <Divider />
+        <Row label="Résultat fiscal" value={formatMAD(result.breakdown.resultatFiscal)} bold />
+      </Section>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Calcul de l'impôt</Text>
-        <Row label="IR brut" value={fmt(result.tax.ir.grossIR)} />
-        <Row label="Déduction familiale" value={`− ${fmt(result.tax.familyDeduction)}`} />
-        <Row label="CM due" value={fmt(result.tax.cm.cmDue)} />
+      {/* TAX */}
+      <Section title="Calcul de l'impôt">
+        <Row label="IR brut" value={formatMAD(result.tax.ir.grossIR)} />
+        <Row
+          label="Déduction familiale"
+          value={`− ${formatMAD(result.tax.familyDeduction)}`}
+        />
+        <Row label="Cotisation minimale" value={formatMAD(result.tax.cm.cmDue)} />
         {result.tax.cm.exempted && (
-          <Text style={styles.note}>CM exemptée (moins de 36 mois d'activité)</Text>
+          <Text style={styles.note}>CM exemptée — moins de 36 mois d'activité</Text>
         )}
-      </View>
+      </Section>
 
       {result.tax.warnings.length > 0 && (
         <View style={[styles.section, styles.warningSection]}>
-          <Text style={styles.sectionTitle}>⚠ Avertissements</Text>
+          <Text style={styles.sectionTitle}>Avertissements</Text>
           {result.tax.warnings.map((w, i) => (
-            <Text key={i} style={styles.warningText}>{w}</Text>
+            <Text key={i} style={styles.warningText}>
+              · {w}
+            </Text>
           ))}
         </View>
       )}
 
       <Pressable style={styles.traceToggle} onPress={() => setShowTrace((s) => !s)}>
         <Text style={styles.traceToggleText}>
-          {showTrace ? "Masquer" : "Voir"} le détail du calcul
+          {showTrace ? "Masquer le détail" : "Voir le détail du calcul"}
         </Text>
       </Pressable>
 
       {showTrace && (
         <View style={styles.section}>
           {result.tax.trace.map((line, i) => (
-            <Text key={i} style={styles.traceLine}>{line}</Text>
+            <Text key={i} style={styles.traceLine}>
+              {line}
+            </Text>
           ))}
         </View>
       )}
@@ -258,41 +339,94 @@ export default function App() {
         <Text style={styles.resetBtnText}>Réinitialiser les données</Text>
       </Pressable>
 
-      <Text style={styles.footer}>Config fiscale: {result.configVersion}</Text>
+      <Text style={styles.footer}>Config fiscale · {result.configVersion}</Text>
 
-      <StatusBar style="auto" />
+      <StatusBar style="dark" />
     </ScrollView>
   );
 }
+
+/* -------- Building blocks -------- */
 
 function SaveIndicator({ saving, lastSavedAt }: { saving: boolean; lastSavedAt: string | null }) {
   if (saving) {
     return (
       <View style={styles.saveIndicator}>
-        <ActivityIndicator size="small" color="#888" />
+        <ActivityIndicator size="small" color={colors.textTertiary} />
         <Text style={styles.saveText}>Sauvegarde…</Text>
       </View>
     );
   }
   if (!lastSavedAt) return null;
-  const time = new Date(lastSavedAt);
-  const hh = String(time.getHours()).padStart(2, "0");
-  const mm = String(time.getMinutes()).padStart(2, "0");
   return (
     <View style={styles.saveIndicator}>
       <View style={styles.dot} />
-      <Text style={styles.saveText}>Sauvegardé à {hh}:{mm}</Text>
+      <Text style={styles.saveText}>Sauvegardé · {formatTime(lastSavedAt)}</Text>
     </View>
   );
 }
 
-function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View style={styles.row}>
-      <Text style={[styles.rowLabel, bold && styles.bold]}>{label}</Text>
-      <Text style={[styles.rowValue, bold && styles.bold]}>{value}</Text>
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
     </View>
   );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+function Chip({ label }: { label: string }) {
+  return (
+    <View style={styles.chip}>
+      <Text style={styles.chipText}>{label}</Text>
+    </View>
+  );
+}
+
+function StatCard({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <View style={styles.statCard}>
+      <View style={[styles.statAccent, { backgroundColor: accent }]} />
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+    </View>
+  );
+}
+
+function Row({
+  label,
+  value,
+  bold,
+  muted,
+}: {
+  label: string;
+  value: string;
+  bold?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <View style={styles.row}>
+      <Text style={[styles.rowLabel, bold && styles.rowBold, muted && styles.rowMuted]}>
+        {label}
+      </Text>
+      <Text style={[styles.rowValue, bold && styles.rowBold, muted && styles.rowMuted]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function Divider() {
+  return <View style={styles.divider} />;
 }
 
 function TransactionRow({
@@ -308,173 +442,419 @@ function TransactionRow({
   const ratio = transaction.professionalUseRatio ?? 1;
 
   return (
-    <View style={[styles.txRow, isRecette ? styles.txRecette : styles.txCharge]}>
-      <View style={styles.txTop}>
-        <Text style={[styles.txBadge, isRecette ? styles.badgeRecette : styles.badgeCharge]}>
-          {isRecette ? "RECETTE" : "CHARGE"}
-        </Text>
-        <Pressable onPress={onDelete} hitSlop={10}>
-          <Text style={styles.deleteBtn}>×</Text>
-        </Pressable>
-      </View>
+    <View style={styles.txRow}>
+      <View style={[styles.txAccent, { backgroundColor: isRecette ? colors.recette : colors.charge }]} />
+      <View style={styles.txContent}>
+        <View style={styles.txTop}>
+          <TextInput
+            style={styles.txCategory}
+            value={transaction.category}
+            onChangeText={(v) => onChange({ category: v })}
+            placeholder="Catégorie"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <Pressable onPress={onDelete} hitSlop={12} style={styles.deleteBtn}>
+            <Text style={styles.deleteBtnText}>×</Text>
+          </Pressable>
+        </View>
 
-      <TextInput
-        style={styles.txCategory}
-        value={transaction.category}
-        onChangeText={(v) => onChange({ category: v })}
-        placeholder="Catégorie"
-      />
-      <TextInput
-        style={styles.txAmount}
-        value={String(transaction.amount)}
-        keyboardType="numeric"
-        onChangeText={(v) => onChange({ amount: parseFloat(v) || 0 })}
-        placeholder="0"
-      />
+        <TextInput
+          style={styles.txAmount}
+          value={String(transaction.amount)}
+          keyboardType="numeric"
+          onChangeText={(v) => onChange({ amount: parseFloat(v) || 0 })}
+          placeholder="0"
+          placeholderTextColor={colors.textTertiary}
+        />
 
-      {!isRecette && (
-        <View style={styles.txDeductibility}>
-          <Text style={styles.txDeductLabel}>Déductibilité:</Text>
-          <View style={styles.pillRow}>
-            {(["FULLY_DEDUCTIBLE", "PARTIALLY_DEDUCTIBLE", "NOT_DEDUCTIBLE"] as DeductibilityStatus[]).map(
-              (status) => (
-                <Pressable
-                  key={status}
-                  style={[
-                    styles.pill,
-                    transaction.deductibilityStatus === status && styles.pillActive,
-                  ]}
-                  onPress={() => onChange({ deductibilityStatus: status })}
-                >
-                  <Text
+        {!isRecette && (
+          <View style={styles.txDeductibility}>
+            <View style={styles.pillRow}>
+              {(["FULLY_DEDUCTIBLE", "PARTIALLY_DEDUCTIBLE", "NOT_DEDUCTIBLE"] as DeductibilityStatus[]).map(
+                (status) => (
+                  <Pressable
+                    key={status}
                     style={[
-                      styles.pillText,
-                      transaction.deductibilityStatus === status && styles.pillTextActive,
+                      styles.pill,
+                      transaction.deductibilityStatus === status && styles.pillActive,
                     ]}
+                    onPress={() => onChange({ deductibilityStatus: status })}
                   >
-                    {status === "FULLY_DEDUCTIBLE" ? "100%" : status === "PARTIALLY_DEDUCTIBLE" ? "Partiel" : "Aucune"}
-                  </Text>
-                </Pressable>
-              )
+                    <Text
+                      style={[
+                        styles.pillText,
+                        transaction.deductibilityStatus === status && styles.pillTextActive,
+                      ]}
+                    >
+                      {status === "FULLY_DEDUCTIBLE"
+                        ? "Déductible"
+                        : status === "PARTIALLY_DEDUCTIBLE"
+                        ? "Partielle"
+                        : "Non déductible"}
+                    </Text>
+                  </Pressable>
+                )
+              )}
+            </View>
+            {transaction.deductibilityStatus === "PARTIALLY_DEDUCTIBLE" && (
+              <View style={styles.ratioRow}>
+                <Text style={styles.ratioLabel}>Part professionnelle</Text>
+                <TextInput
+                  style={styles.ratioInput}
+                  value={String(ratio)}
+                  keyboardType="decimal-pad"
+                  onChangeText={(v) =>
+                    onChange({
+                      professionalUseRatio: Math.min(1, Math.max(0, parseFloat(v) || 0)),
+                    })
+                  }
+                />
+              </View>
             )}
           </View>
-          {transaction.deductibilityStatus === "PARTIALLY_DEDUCTIBLE" && (
-            <View style={styles.ratioRow}>
-              <Text style={styles.txDeductLabel}>Part pro (0–1):</Text>
-              <TextInput
-                style={styles.ratioInput}
-                value={String(ratio)}
-                keyboardType="decimal-pad"
-                onChangeText={(v) =>
-                  onChange({ professionalUseRatio: Math.min(1, Math.max(0, parseFloat(v) || 0)) })
-                }
-              />
-            </View>
-          )}
-        </View>
-      )}
+        )}
+      </View>
     </View>
   );
 }
 
+/* -------- Styles -------- */
+
 const styles = StyleSheet.create({
   loadingContainer: {
-    flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#f7f7f5",
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bg,
   },
-  loadingText: { marginTop: 12, color: "#888", fontSize: 14 },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.textSecondary,
+    ...typography.caption,
+  },
 
-  container: { flex: 1, backgroundColor: "#f7f7f5" },
-  content: { padding: 20, paddingTop: 60, paddingBottom: 60 },
+  container: { flex: 1, backgroundColor: colors.bg },
+  content: {
+    padding: spacing.lg,
+    paddingTop: 64,
+    paddingBottom: 64,
+  },
+
   header: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "flex-end", marginBottom: 20,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: spacing.xl,
   },
-  title: { fontSize: 28, fontWeight: "700", color: "#1a1a1a" },
-  subtitle: { fontSize: 14, color: "#888" },
+  brandMark: {
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: 2,
+    color: colors.brand,
+  },
+  brandSub: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
 
-  saveIndicator: { flexDirection: "row", alignItems: "center", gap: 6, paddingBottom: 4 },
-  saveText: { fontSize: 11, color: "#888" },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#3a8a3a" },
+  saveIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingBottom: 4,
+  },
+  saveText: { fontSize: 11, color: colors.textTertiary },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.success,
+  },
 
   heroCard: {
-    backgroundColor: "#1a1a1a", borderRadius: 16, padding: 24, marginBottom: 20,
+    backgroundColor: colors.surfaceDark,
+    borderRadius: radii.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+    ...shadows.hero,
   },
-  heroLabel: { color: "#aaa", fontSize: 13, marginBottom: 8 },
-  heroNumber: { color: "#fff", fontSize: 34, fontWeight: "700" },
-  heroMeta: { color: "#999", fontSize: 12, marginTop: 12 },
+  heroLabel: {
+    color: colors.textOnDarkMuted,
+    ...typography.caption,
+    marginBottom: spacing.sm,
+  },
+  heroNumber: {
+    color: colors.textOnDark,
+    ...typography.display,
+  },
+  heroChips: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  chip: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  chipText: {
+    color: colors.textOnDark,
+    fontSize: 11,
+    fontWeight: "500",
+  },
 
-  section: { backgroundColor: "#fff", borderRadius: 12, padding: 16, marginBottom: 14 },
+  statsRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    overflow: "hidden",
+    ...shadows.card,
+  },
+  statAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
+  statLabel: {
+    color: colors.textSecondary,
+    ...typography.caption,
+    marginBottom: 4,
+  },
+  statValue: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: "700",
+  },
+
+  section: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.card,
+  },
   sectionTitle: {
-    fontSize: 12, fontWeight: "600", color: "#666",
-    textTransform: "uppercase", marginBottom: 12, letterSpacing: 0.5,
+    ...typography.micro,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    marginBottom: spacing.md,
   },
 
-  field: { marginBottom: 12 },
-  fieldLabel: { fontSize: 13, color: "#666", marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, fontSize: 15 },
-
-  row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 6 },
-  rowLabel: { fontSize: 15, color: "#444" },
-  rowValue: { fontSize: 15, color: "#1a1a1a" },
-  bold: { fontWeight: "700" },
-
-  txRow: { borderRadius: 10, padding: 12, marginBottom: 10, borderWidth: 1 },
-  txRecette: { backgroundColor: "#f0f9f0", borderColor: "#cfe7cf" },
-  txCharge: { backgroundColor: "#fbf5f0", borderColor: "#ead8c6" },
-  txTop: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-  txBadge: {
-    fontSize: 10, fontWeight: "700", paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 4, overflow: "hidden",
+  field: { marginBottom: spacing.md },
+  fieldLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: 6,
   },
-  badgeRecette: { backgroundColor: "#2d6a2d", color: "#fff" },
-  badgeCharge: { backgroundColor: "#8a4a1f", color: "#fff" },
-  deleteBtn: { fontSize: 22, color: "#999", paddingHorizontal: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
+  },
+  inputText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+  },
+
+  groupLabel: {
+    ...typography.micro,
+    color: colors.textTertiary,
+    textTransform: "uppercase",
+    marginBottom: spacing.sm,
+  },
+
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 7,
+  },
+  rowLabel: { fontSize: 14, color: colors.textPrimary },
+  rowValue: { fontSize: 14, color: colors.textPrimary },
+  rowBold: { fontWeight: "700" },
+  rowMuted: { color: colors.textSecondary },
+
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
+  },
+
+  txRow: {
+    flexDirection: "row",
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.sm,
+    marginBottom: spacing.sm,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  txAccent: { width: 3 },
+  txContent: { flex: 1, padding: spacing.md },
+  txTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
   txCategory: {
-    borderWidth: 1, borderColor: "#ddd", borderRadius: 6, padding: 8,
-    marginBottom: 6, backgroundColor: "#fff", fontSize: 14,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    paddingVertical: 4,
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.sm,
+  },
+  deleteBtnText: {
+    fontSize: 22,
+    color: colors.textTertiary,
+    lineHeight: 24,
   },
   txAmount: {
-    borderWidth: 1, borderColor: "#ddd", borderRadius: 6, padding: 10,
-    backgroundColor: "#fff", fontSize: 17, fontWeight: "600",
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  txDeductibility: { marginTop: 10 },
-  txDeductLabel: { fontSize: 12, color: "#666", marginBottom: 6 },
-  pillRow: { flexDirection: "row", gap: 6 },
+  txDeductibility: { marginTop: spacing.md },
+  pillRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   pill: {
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14,
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#ddd",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  pillActive: { backgroundColor: "#1a1a1a", borderColor: "#1a1a1a" },
-  pillText: { fontSize: 12, color: "#444" },
-  pillTextActive: { color: "#fff", fontWeight: "600" },
-  ratioRow: { flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 },
+  pillActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  pillText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  pillTextActive: {
+    color: colors.textOnDark,
+    fontWeight: "600",
+  },
+  ratioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  ratioLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
   ratioInput: {
-    borderWidth: 1, borderColor: "#ddd", borderRadius: 6, padding: 6,
-    backgroundColor: "#fff", fontSize: 14, width: 70,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.xs,
+    padding: 6,
+    backgroundColor: colors.surface,
+    fontSize: 13,
+    width: 70,
+    color: colors.textPrimary,
   },
 
-  addRow: { flexDirection: "row", gap: 10, marginTop: 8 },
-  addBtn: { flex: 1, padding: 12, borderRadius: 8, alignItems: "center" },
-  addRecette: { backgroundColor: "#2d6a2d" },
-  addCharge: { backgroundColor: "#8a4a1f" },
-  addBtnText: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  addRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  addBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: radii.sm,
+    alignItems: "center",
+  },
+  addBtnText: {
+    color: colors.textOnDark,
+    fontWeight: "600",
+    fontSize: 14,
+  },
 
-  warningSection: { backgroundColor: "#fff8e6", borderWidth: 1, borderColor: "#f0d878" },
-  warningText: { fontSize: 13, color: "#7a5800", paddingVertical: 3 },
-  note: { fontSize: 12, color: "#888", marginTop: 6, fontStyle: "italic" },
+  warningSection: {
+    backgroundColor: colors.warningSoft,
+    borderWidth: 1,
+    borderColor: "#E8C470",
+  },
+  warningText: {
+    fontSize: 13,
+    color: colors.warning,
+    paddingVertical: 3,
+  },
+
+  note: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: 6,
+    fontStyle: "italic",
+  },
 
   traceToggle: {
-    padding: 12, alignItems: "center", backgroundColor: "#eee",
-    borderRadius: 8, marginBottom: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: colors.brandSoft,
+    borderRadius: radii.sm,
+    marginBottom: spacing.md,
   },
-  traceToggleText: { fontSize: 13, color: "#444", fontWeight: "600" },
-  traceLine: { fontSize: 11, color: "#666", paddingVertical: 2, fontFamily: "Courier" },
+  traceToggleText: {
+    fontSize: 13,
+    color: colors.brand,
+    fontWeight: "600",
+  },
+
+  traceLine: {
+    ...typography.mono,
+    color: colors.textSecondary,
+    paddingVertical: 2,
+  },
 
   resetBtn: {
-    padding: 12, alignItems: "center", backgroundColor: "#fff",
-    borderRadius: 8, marginBottom: 14, borderWidth: 1, borderColor: "#e0c0c0",
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.dangerSoft,
   },
-  resetBtnText: { fontSize: 13, color: "#a04a4a", fontWeight: "600" },
+  resetBtnText: {
+    fontSize: 13,
+    color: colors.danger,
+    fontWeight: "600",
+  },
 
-  footer: { fontSize: 11, color: "#aaa", textAlign: "center", marginTop: 12 },
+  footer: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    textAlign: "center",
+    marginTop: spacing.md,
+  },
 });
