@@ -22,6 +22,18 @@ import {
 import { loadState, saveState, clearState } from "./lib/storage";
 import { colors, radii, shadows, spacing, typography } from "./lib/theme";
 import { formatMAD, formatTime } from "./lib/format";
+import { CategoryPicker } from "./components/CategoryPicker";
+import {
+  applyCategoryDefaults,
+  getCategoryById,
+  Category,
+} from "blackpine-engine";
+
+
+function getCategoryLabel(categoryId: string): string {
+  const cat = getCategoryById(2026, categoryId);
+  return cat?.labelFr ?? categoryId;
+}
 
 const defaultProfile: DoctorProfile = {
   id: "demo",
@@ -58,6 +70,7 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [showTrace, setShowTrace] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState<{ txId: string; type: TransactionType } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -97,19 +110,30 @@ export default function App() {
   const recettes = transactions.filter((t) => t.type === "RECETTE");
   const charges = transactions.filter((t) => t.type === "CHARGE");
 
-  const addTransaction = (type: TransactionType) => {
-    setTransactions((prev) => [
-      ...prev,
-      {
-        id: newId(),
-        type,
-        amount: 0,
-        date: "2026-12-31",
-        category: type === "RECETTE" ? "consultation" : "autre",
-        deductibilityStatus: type === "CHARGE" ? "FULLY_DEDUCTIBLE" : undefined,
-      },
-    ]);
-  };
+const addTransaction = (type: TransactionType) => {
+  const id = newId();
+  setTransactions((prev) => [
+    ...prev,
+    {
+      id,
+      type,
+      amount: 0,
+      date: "2026-12-31",
+      category: type === "RECETTE" ? "consultation" : "autre",
+      deductibilityStatus: type === "CHARGE" ? "FULLY_DEDUCTIBLE" : undefined,
+    },
+  ]);
+  setPickerOpen({ txId: id, type });
+};
+
+const handleCategorySelect = (txId: string, category: Category) => {
+  const defaults = applyCategoryDefaults(category.id, result.tax.regime, 2026);
+  updateTransaction(txId, {
+    category: category.id,
+    deductibilityStatus: defaults.deductibilityStatus,
+    professionalUseRatio: defaults.professionalUseRatio,
+  });
+};
 
   const updateTransaction = (id: string, patch: Partial<Transaction>) => {
     setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -245,6 +269,7 @@ export default function App() {
             transaction={t}
             onChange={(patch) => updateTransaction(t.id, patch)}
             onDelete={() => deleteTransaction(t.id)}
+            onPickCategory={() => setPickerOpen({ txId: t.id, type: t.type })}
           />
         ))}
 
@@ -259,6 +284,7 @@ export default function App() {
             transaction={t}
             onChange={(patch) => updateTransaction(t.id, patch)}
             onDelete={() => deleteTransaction(t.id)}
+            onPickCategory={() => setPickerOpen({ txId: t.id, type: t.type })}
           />
         ))}
 
@@ -342,6 +368,15 @@ export default function App() {
       <Text style={styles.footer}>Config fiscale · {result.configVersion}</Text>
 
       <StatusBar style="dark" />
+      {pickerOpen && (
+        <CategoryPicker
+          visible={true}
+          type={pickerOpen.type}
+          fiscalYear={2026}
+          onClose={() => setPickerOpen(null)}
+          onSelect={(cat) => handleCategorySelect(pickerOpen.txId, cat)}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -433,10 +468,12 @@ function TransactionRow({
   transaction,
   onChange,
   onDelete,
+  onPickCategory,
 }: {
   transaction: Transaction;
   onChange: (patch: Partial<Transaction>) => void;
   onDelete: () => void;
+  onPickCategory: () => void;
 }) {
   const isRecette = transaction.type === "RECETTE";
   const ratio = transaction.professionalUseRatio ?? 1;
@@ -446,13 +483,15 @@ function TransactionRow({
       <View style={[styles.txAccent, { backgroundColor: isRecette ? colors.recette : colors.charge }]} />
       <View style={styles.txContent}>
         <View style={styles.txTop}>
-          <TextInput
-            style={styles.txCategory}
-            value={transaction.category}
-            onChangeText={(v) => onChange({ category: v })}
-            placeholder="Catégorie"
-            placeholderTextColor={colors.textTertiary}
-          />
+          <Pressable
+            style={styles.txCategoryBtn}
+            onPress={onPickCategory}
+          >
+            <Text style={styles.txCategoryText}>
+              {getCategoryLabel(transaction.category)}
+            </Text>
+            <Text style={styles.txCategoryEdit}>Modifier</Text>
+          </Pressable>
           <Pressable onPress={onDelete} hitSlop={12} style={styles.deleteBtn}>
             <Text style={styles.deleteBtnText}>×</Text>
           </Pressable>
@@ -856,5 +895,29 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     textAlign: "center",
     marginTop: spacing.md,
+  },
+
+  txCategoryBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  txCategoryText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  txCategoryEdit: {
+    fontSize: 11,
+    color: colors.brand,
+    fontWeight: "600",
   },
 });
