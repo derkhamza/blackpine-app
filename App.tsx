@@ -30,7 +30,7 @@ import {
 } from "blackpine-engine";
 import { AddTransactionModal } from "./components/AddTransactionModal";
 import { useDatePicker } from "./lib/useDatePicker";
-
+import { ExplainScreen } from "./components/ExplainScreen";
 
 function getCategoryLabel(categoryId: string): string {
   const cat = getCategoryById(2026, categoryId);
@@ -75,7 +75,7 @@ export default function App() {
   const [addModalType, setAddModalType] = useState<TransactionType | null>(null);
   const [pickerOpenForExisting, setPickerOpenForExisting] = useState<{ txId: string; type: TransactionType } | null>(null);
   const transactionDatePicker = useDatePicker();
-
+  const [explainOpen, setExplainOpen] = useState(false);
   useEffect(() => {
     (async () => {
       const persisted = await loadState();
@@ -351,10 +351,11 @@ const handleCategoryChange = (txId: string, category: Category) => {
         </View>
       )}
 
-      <Pressable style={styles.traceToggle} onPress={() => setShowTrace((s) => !s)}>
-        <Text style={styles.traceToggleText}>
-          {showTrace ? "Masquer le détail" : "Voir le détail du calcul"}
-        </Text>
+      <Pressable
+        style={styles.explainBtn}
+        onPress={() => setExplainOpen(true)}
+      >
+        <Text style={styles.explainBtnText}>Comprendre mon impôt →</Text>
       </Pressable>
 
       {showTrace && (
@@ -398,6 +399,12 @@ const handleCategoryChange = (txId: string, category: Category) => {
       {transactionDatePicker.isVisible && transactionDatePicker.pickerProps && (
         <DateTimePicker {...transactionDatePicker.pickerProps} />
       )}
+
+      <ExplainScreen
+        visible={explainOpen}
+        onClose={() => setExplainOpen(false)}
+        computation={result}
+      />
     </ScrollView>
   );
 }
@@ -974,5 +981,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: spacing.xl,
   },
-
+  explainBtn: {
+    paddingVertical: 16,
+    alignItems: "center",
+    backgroundColor: colors.brand,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
+    ...shadows.card,
+  },
+  explainBtnText: {
+    color: colors.textOnDark,
+    fontWeight: "600",
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
 });
