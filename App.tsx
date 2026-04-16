@@ -28,6 +28,8 @@ import {
   getCategoryById,
   Category,
 } from "blackpine-engine";
+import { AddTransactionModal } from "./components/AddTransactionModal";
+import { useDatePicker } from "./lib/useDatePicker";
 
 
 function getCategoryLabel(categoryId: string): string {
@@ -70,7 +72,9 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [showTrace, setShowTrace] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState<{ txId: string; type: TransactionType } | null>(null);
+  const [addModalType, setAddModalType] = useState<TransactionType | null>(null);
+  const [pickerOpenForExisting, setPickerOpenForExisting] = useState<{ txId: string; type: TransactionType } | null>(null);
+  const transactionDatePicker = useDatePicker();
 
   useEffect(() => {
     (async () => {
@@ -110,23 +114,11 @@ export default function App() {
   const recettes = transactions.filter((t) => t.type === "RECETTE");
   const charges = transactions.filter((t) => t.type === "CHARGE");
 
-const addTransaction = (type: TransactionType) => {
-  const id = newId();
-  setTransactions((prev) => [
-    ...prev,
-    {
-      id,
-      type,
-      amount: 0,
-      date: "2026-12-31",
-      category: type === "RECETTE" ? "consultation" : "autre",
-      deductibilityStatus: type === "CHARGE" ? "FULLY_DEDUCTIBLE" : undefined,
-    },
-  ]);
-  setPickerOpen({ txId: id, type });
+const handleCreate = (tx: Omit<Transaction, "id">) => {
+  setTransactions((prev) => [...prev, { ...tx, id: newId() }]);
 };
 
-const handleCategorySelect = (txId: string, category: Category) => {
+const handleCategoryChange = (txId: string, category: Category) => {
   const defaults = applyCategoryDefaults(category.id, result.tax.regime, 2026);
   updateTransaction(txId, {
     category: category.id,
@@ -260,6 +252,14 @@ const handleCategorySelect = (txId: string, category: Category) => {
 
       {/* TRANSACTIONS */}
       <Section title={`Transactions · ${transactions.length}`}>
+        {transactions.length === 0 && (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyTitle}>Aucune transaction</Text>
+            <Text style={styles.emptyText}>
+              Commencez par ajouter votre première recette ou charge.
+            </Text>
+          </View>
+        )}        
         {recettes.length > 0 && (
           <Text style={styles.groupLabel}>Recettes ({recettes.length})</Text>
         )}
@@ -269,7 +269,10 @@ const handleCategorySelect = (txId: string, category: Category) => {
             transaction={t}
             onChange={(patch) => updateTransaction(t.id, patch)}
             onDelete={() => deleteTransaction(t.id)}
-            onPickCategory={() => setPickerOpen({ txId: t.id, type: t.type })}
+            onPickCategory={() => setPickerOpenForExisting({ txId: t.id, type: t.type })}
+            onPickDate={() =>
+              transactionDatePicker.show(t.date, (iso) => updateTransaction(t.id, { date: iso }))
+            }
           />
         ))}
 
@@ -284,20 +287,23 @@ const handleCategorySelect = (txId: string, category: Category) => {
             transaction={t}
             onChange={(patch) => updateTransaction(t.id, patch)}
             onDelete={() => deleteTransaction(t.id)}
-            onPickCategory={() => setPickerOpen({ txId: t.id, type: t.type })}
+            onPickCategory={() => setPickerOpenForExisting({ txId: t.id, type: t.type })}
+            onPickDate={() =>
+              transactionDatePicker.show(t.date, (iso) => updateTransaction(t.id, { date: iso }))
+            }
           />
         ))}
 
         <View style={styles.addRow}>
           <Pressable
             style={[styles.addBtn, { backgroundColor: colors.recette }]}
-            onPress={() => addTransaction("RECETTE")}
+            onPress={() => setAddModalType("RECETTE")}
           >
             <Text style={styles.addBtnText}>+ Recette</Text>
           </Pressable>
           <Pressable
             style={[styles.addBtn, { backgroundColor: colors.charge }]}
-            onPress={() => addTransaction("CHARGE")}
+            onPress={() => setAddModalType("CHARGE")}
           >
             <Text style={styles.addBtnText}>+ Charge</Text>
           </Pressable>
@@ -368,14 +374,29 @@ const handleCategorySelect = (txId: string, category: Category) => {
       <Text style={styles.footer}>Config fiscale · {result.configVersion}</Text>
 
       <StatusBar style="dark" />
-      {pickerOpen && (
+      {addModalType && (
+        <AddTransactionModal
+          visible={true}
+          type={addModalType}
+          regime={result.tax.regime}
+          fiscalYear={2026}
+          onClose={() => setAddModalType(null)}
+          onCreate={handleCreate}
+        />
+      )}
+
+      {pickerOpenForExisting && (
         <CategoryPicker
           visible={true}
-          type={pickerOpen.type}
+          type={pickerOpenForExisting.type}
           fiscalYear={2026}
-          onClose={() => setPickerOpen(null)}
-          onSelect={(cat) => handleCategorySelect(pickerOpen.txId, cat)}
+          onClose={() => setPickerOpenForExisting(null)}
+          onSelect={(cat) => handleCategoryChange(pickerOpenForExisting.txId, cat)}
         />
+      )}
+
+      {transactionDatePicker.isVisible && transactionDatePicker.pickerProps && (
+        <DateTimePicker {...transactionDatePicker.pickerProps} />
       )}
     </ScrollView>
   );
@@ -469,11 +490,13 @@ function TransactionRow({
   onChange,
   onDelete,
   onPickCategory,
+  onPickDate,
 }: {
   transaction: Transaction;
   onChange: (patch: Partial<Transaction>) => void;
   onDelete: () => void;
   onPickCategory: () => void;
+  onPickDate: () => void;
 }) {
   const isRecette = transaction.type === "RECETTE";
   const ratio = transaction.professionalUseRatio ?? 1;
@@ -497,14 +520,15 @@ function TransactionRow({
           </Pressable>
         </View>
 
-        <TextInput
-          style={styles.txAmount}
-          value={String(transaction.amount)}
-          keyboardType="numeric"
-          onChangeText={(v) => onChange({ amount: parseFloat(v) || 0 })}
-          placeholder="0"
-          placeholderTextColor={colors.textTertiary}
-        />
+        <Pressable style={styles.txDateBtn} onPress={onPickDate}>
+          <Text style={styles.txDateText}>
+            📅 {new Date(transaction.date).toLocaleDateString("fr-FR", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </Text>
+        </Pressable>
 
         {!isRecette && (
           <View style={styles.txDeductibility}>
@@ -920,4 +944,35 @@ const styles = StyleSheet.create({
     color: colors.brand,
     fontWeight: "600",
   },
+  txDateBtn: {
+    marginTop: spacing.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    alignSelf: "flex-start",
+    backgroundColor: colors.surface,
+    borderRadius: radii.xs,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  txDateText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  emptyState: {
+    paddingVertical: spacing.xl,
+    alignItems: "center",
+  },
+  emptyTitle: {
+    ...typography.h2,
+    color: colors.textPrimary,
+    marginBottom: 6,
+  },
+  emptyText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: "center",
+    paddingHorizontal: spacing.xl,
+  },
+
 });
