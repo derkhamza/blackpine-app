@@ -14,6 +14,8 @@ import { CategoryPicker } from "../components/CategoryPicker";
 import { AddTransactionModal } from "../components/AddTransactionModal";
 import { useDatePicker } from "../lib/useDatePicker";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { Image } from "react-native";
+import { ReceiptCapture } from "../components/ReceiptCapture";
 
 export function TransactionsScreen() {
   const { transactions, updateTransaction, deleteTransaction, addTransaction, result } = useApp();
@@ -187,6 +189,13 @@ function TransactionRow({
               </View>
             )}
           </View>
+        )}
+
+        {!isRecette && (
+            <ReceiptCapture
+                uri={transaction.receiptUri}
+                onChange={(newUri) => onChange({ receiptUri: newUri })}
+            />
         )}
       </View>
     </View>

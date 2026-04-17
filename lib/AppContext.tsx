@@ -1,11 +1,11 @@
-import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import {
   computeTaxFromTransactions,
   DoctorProfile,
   FullTaxComputation,
   Transaction,
 } from "blackpine-engine";
-import { loadState, saveState, clearState } from "./storage";
+import { loadState, saveState, clearState, setOnboarded } from "./storage";
 
 const defaultProfile: DoctorProfile = {
   id: "demo",
@@ -36,6 +36,7 @@ interface AppState {
   loading: boolean;
   saving: boolean;
   lastSavedAt: string | null;
+  onboarded: boolean;
 
   profile: DoctorProfile;
   transactions: Transaction[];
@@ -46,14 +47,18 @@ interface AppState {
   updateTransaction: (id: string, patch: Partial<Transaction>) => void;
   deleteTransaction: (id: string) => void;
   reset: () => Promise<void>;
+  completeOnboarding: (profile: DoctorProfile, withDemoData: boolean) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
+
+const newId = () => Math.random().toString(36).slice(2, 9);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [onboarded, setOnboardedState] = useState(false);
   const [profile, setProfileState] = useState<DoctorProfile>(defaultProfile);
   const [transactions, setTransactions] = useState<Transaction[]>(defaultTransactions);
 
@@ -64,6 +69,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (persisted.profile) setProfileState(persisted.profile);
       if (persisted.transactions.length > 0) setTransactions(persisted.transactions);
       setLastSavedAt(persisted.lastSavedAt);
+      setOnboardedState(persisted.onboarded);
       setLoading(false);
     })();
   }, []);
@@ -72,6 +78,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (loading) return;
+    if (!onboarded) return; // don't save until onboarding is complete
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaving(true);
     saveTimer.current = setTimeout(async () => {
@@ -87,30 +94,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [profile, transactions, loading]);
+  }, [profile, transactions, loading, onboarded]);
 
-  const result = computeTaxFromTransactions(profile, transactions, 2026, "2026-12-31");
-
-  const newId = () => Math.random().toString(36).slice(2, 9);
+  const result = useMemo(
+    () => computeTaxFromTransactions(profile, transactions, 2026, "2026-12-31"),
+    [profile, transactions]
+  );
 
   const value: AppState = {
     loading,
     saving,
     lastSavedAt,
+    onboarded,
     profile,
     transactions,
     result,
+
     setProfile: setProfileState,
-    addTransaction: (tx) => setTransactions((prev) => [...prev, { ...tx, id: newId() }]),
+
+    addTransaction: (tx) =>
+      setTransactions((prev) => [...prev, { ...tx, id: newId() }]),
+
     updateTransaction: (id, patch) =>
       setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t))),
+
     deleteTransaction: (id) =>
       setTransactions((prev) => prev.filter((t) => t.id !== id)),
+
     reset: async () => {
       await clearState();
       setProfileState(defaultProfile);
       setTransactions(defaultTransactions);
       setLastSavedAt(null);
+      setOnboardedState(false);
+    },
+
+    completeOnboarding: async (newProfile, withDemoData) => {
+      setProfileState(newProfile);
+      setTransactions(withDemoData ? defaultTransactions : []);
+      await setOnboarded(true);
+      await saveState(newProfile, withDemoData ? defaultTransactions : []);
+      setOnboardedState(true);
     },
   };
 

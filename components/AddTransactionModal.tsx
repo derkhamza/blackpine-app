@@ -20,6 +20,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { ReceiptCapture } from "./ReceiptCapture";
 
 interface Props {
   visible: boolean;
@@ -47,6 +48,7 @@ export function AddTransactionModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const selectedRef = useRef(false);
+  const [receiptUri, setReceiptUri] = useState<string | undefined>(undefined);
 
   // Reset whenever the modal opens
     useEffect(() => {
@@ -82,14 +84,15 @@ const handleSave = () => {
 
   const defaults = applyCategoryDefaults(category.id, regime, fiscalYear);
 
-  onCreate({
+    onCreate({
     type,
     amount: n,
     date,
     category: category.id,
     deductibilityStatus: type === "CHARGE" ? defaults.deductibilityStatus : undefined,
     professionalUseRatio: type === "CHARGE" ? defaults.professionalUseRatio : undefined,
-  });
+    receiptUri,
+    });
   onClose();
 };
   const onDateChange = (_: unknown, selected?: Date) => {
@@ -195,6 +198,57 @@ const handleSave = () => {
               </View>
             </View>
           )}
+        
+            {step === "date" && (
+            <View style={styles.dateSection}>
+                <Text style={styles.label}>Date</Text>
+                <Pressable style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.dateBtnText}>
+                    {new Date(date).toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    })}
+                </Text>
+                </Pressable>
+
+                <View style={styles.quickDates}>
+                <QuickDate
+                    label="Aujourd'hui"
+                    onPress={() => setDate(new Date().toISOString().split("T")[0])}
+                />
+                <QuickDate
+                    label="Hier"
+                    onPress={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - 1);
+                    setDate(d.toISOString().split("T")[0]);
+                    }}
+                />
+                </View>
+
+                {showDatePicker && (
+                <DateTimePicker
+                    value={new Date(date)}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={onDateChange}
+                    maximumDate={new Date()}
+                />
+                )}
+
+                {type === "CHARGE" && (
+                <ReceiptCapture uri={receiptUri} onChange={setReceiptUri} />
+                )}
+
+                <Pressable
+                style={[styles.primaryBtn, { backgroundColor: accent }]}
+                onPress={handleSave}
+                >
+                <Text style={styles.primaryBtnText}>Enregistrer</Text>
+                </Pressable>
+            </View>
+            )}
 
           {/* DATE STEP */}
           {step === "date" && (
