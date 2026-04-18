@@ -21,6 +21,7 @@ import {
   View,
 } from "react-native";
 import { ReceiptCapture } from "./ReceiptCapture";
+import { tapLight, tapSuccess } from "../lib/haptics";
 
 interface Props {
   visible: boolean;
@@ -65,6 +66,7 @@ export function AddTransactionModal({
     }, [visible]);
 
 const handleCategorySelected = (cat: Category) => {
+  tapLight();
   selectedRef.current = true;
   setCategory(cat);
   setPickerOpen(false);
@@ -93,6 +95,7 @@ const handleSave = () => {
     professionalUseRatio: type === "CHARGE" ? defaults.professionalUseRatio : undefined,
     receiptUri,
     });
+  tapSuccess();
   onClose();
 };
   const onDateChange = (_: unknown, selected?: Date) => {

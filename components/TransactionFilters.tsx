@@ -10,6 +10,7 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { TransactionType } from "blackpine-engine";
 import { colors, radii, spacing, typography } from "../lib/theme";
+import { Icon } from "../lib/icons";
 
 export type SortField = "date" | "amount";
 export type SortOrder = "desc" | "asc";
@@ -70,7 +71,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
             onPress={() => update({ query: "" })}
             hitSlop={8}
           >
-            <Text style={styles.clearBtnText}>✕</Text>
+            <Icon name="close" size={14} color={colors.textTertiary} />
           </Pressable>
         )}
       </View>
@@ -98,16 +99,19 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
 
         {/* Sort toggle */}
         <Pressable
-          style={styles.sortBtn}
-          onPress={() =>
-            update({
-              sortField: filters.sortField === "date" ? "amount" : "date",
-            })
-          }
-        >
-          <Text style={styles.sortBtnText}>
-            {filters.sortField === "date" ? "📅 Date" : "💰 Montant"}
-          </Text>
+            style={styles.sortBtn}
+            onPress={() =>
+                update({
+                sortField: filters.sortField === "date" ? "amount" : "date",
+                })
+            }
+            >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Icon name="sort" size={14} color={colors.textSecondary} />
+                <Text style={styles.sortBtnText}>
+                {filters.sortField === "date" ? "Date" : "Montant"}
+                </Text>
+            </View>
         </Pressable>
 
         <Pressable
@@ -153,7 +157,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
             style={styles.clearDateBtn}
             onPress={() => update({ dateFrom: null, dateTo: null })}
           >
-            <Text style={styles.clearDateText}>✕</Text>
+            <Icon name="close" size={14} color={colors.textTertiary} />
           </Pressable>
         )}
       </View>

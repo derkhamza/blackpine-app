@@ -5,6 +5,8 @@ import { saveReceipt, deleteReceipt } from "../lib/receipts";
 import { extractReceipt, OcrExtraction } from "../lib/api";
 import { OcrPreview } from "./OcrPreview";
 import { colors, radii, spacing, typography } from "../lib/theme";
+import { Icon } from "../lib/icons";
+import { tapLight, tapSuccess } from "../lib/haptics";
 
 interface Props {
   uri: string | undefined;
@@ -53,6 +55,7 @@ export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props)
     try {
       const permanent = await saveReceipt(tempUri);
       onChange(permanent);
+      tapSuccess();
 
       // Run OCR in background if callbacks provided
       if (onOcrAmount || onOcrDate) {
@@ -119,7 +122,7 @@ export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props)
               onPress={() => pickImage(true)}
               disabled={saving}
             >
-              <Text style={styles.captureBtnIcon}>📷</Text>
+              <Icon name="camera" size={18} color={colors.textPrimary} />
               <Text style={styles.captureBtnText}>Photographier</Text>
             </Pressable>
             <Pressable
@@ -127,7 +130,7 @@ export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props)
               onPress={() => pickImage(false)}
               disabled={saving}
             >
-              <Text style={styles.captureBtnIcon}>🖼️</Text>
+              <Icon name="gallery" size={18} color={colors.textPrimary} />
               <Text style={styles.captureBtnText}>Galerie</Text>
             </Pressable>
           </View>

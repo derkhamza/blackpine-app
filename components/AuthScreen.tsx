@@ -37,20 +37,7 @@ export function AuthScreen({ onAuth }: Props) {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={styles.brandMark}>BLACKPINE</Text>
-      <Text style={styles.title}>
-        {mode === "login" ? "Connexion" : "Créer un compte"}
-      </Text>
-      <Text style={styles.subtitle}>
-        {mode === "login"
-          ? "Connectez-vous pour synchroniser vos données"
-          : "Créez un compte pour sauvegarder dans le cloud"}
-      </Text>
+    <View style={[styles.container, styles.content]}>
 
       <View style={styles.form}>
         <Text style={styles.label}>Email</Text>
@@ -100,13 +87,13 @@ export function AuthScreen({ onAuth }: Props) {
             : "Déjà un compte ? Se connecter"}
         </Text>
       </Pressable>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, paddingTop: 80 },
+  container: { backgroundColor: "transparent" },
+  content: { padding: spacing.lg, paddingTop: spacing.lg },
   brandMark: {
     fontSize: 14,
     fontWeight: "700",

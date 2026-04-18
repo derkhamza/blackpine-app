@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -75,6 +76,13 @@ export function ProfileScreen() {
   if (checkingAuth) return null;
 
   return (
+
+  <ScrollView
+    style={styles.container}
+    contentContainerStyle={styles.content}
+    keyboardShouldPersistTaps="handled"
+  >
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}></ScrollView>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.screenTitle}>Profil</Text>
@@ -173,7 +181,8 @@ export function ProfileScreen() {
         Blackpine Cabinet · Config fiscale {result.configVersion}
       </Text>
     </ScrollView>
-  );
+  </ScrollView>
+);
 }
 
 function practiceLabel(type: string): string {

@@ -3,7 +3,7 @@ import { DoctorProfile, Transaction } from "blackpine-engine";
 
 // For development: your PC's local IP. Change this to your real server URL in production.
 // Find your local IP by running `ipconfig` in Windows terminal and looking for your Wi-Fi IPv4 address.
-const API_BASE = "http://192.168.0.173:3001";
+const API_BASE = "https://justifier-factsheet-grapple.ngrok-free.dev";
 
 const KEYS = {
   TOKEN: "blackpine.auth.token.v1",

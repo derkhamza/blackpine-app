@@ -4,6 +4,7 @@ import { useApp } from "../lib/AppContext";
 import { generateTaxSummaryPdf } from "../lib/exportPdf";
 import { generateTransactionsExcel } from "../lib/exportExcel";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { Icon } from "../lib/icons";
 
 export function ExportButtons() {
   const { result, profile, transactions } = useApp();
@@ -49,7 +50,7 @@ export function ExportButtons() {
         {exportingPdf ? (
           <ActivityIndicator size="small" color={colors.textOnDark} />
         ) : (
-          <Text style={styles.exportIcon}>📄</Text>
+          <Icon name="pdf" size={24} color={colors.textOnDark} />
         )}
         <View style={styles.exportTextGroup}>
           <Text style={styles.exportBtnTitle}>Résumé fiscal PDF</Text>
@@ -67,7 +68,7 @@ export function ExportButtons() {
         {exportingExcel ? (
           <ActivityIndicator size="small" color={colors.textOnDark} />
         ) : (
-          <Text style={styles.exportIcon}>📊</Text>
+          <Icon name="excel" size={24} color={colors.textOnDark} />
         )}
         <View style={styles.exportTextGroup}>
           <Text style={styles.exportBtnTitle}>Transactions Excel</Text>
@@ -108,7 +109,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     gap: spacing.md,
   },
-  exportIcon: { fontSize: 24 },
   exportTextGroup: { flex: 1 },
   exportBtnTitle: {
     fontSize: 14,

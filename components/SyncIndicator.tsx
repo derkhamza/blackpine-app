@@ -1,5 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SyncStatus } from "../lib/syncService";
+import { Icon } from "../lib/icons";
 import { colors, spacing } from "../lib/theme";
 import { formatTime } from "../lib/format";
 
@@ -18,12 +19,11 @@ export function SyncIndicator({
   lastSyncedAt,
   isAuthenticated,
 }: Props) {
-  // Priority: syncing > saving > synced/saved
   if (syncStatus === "syncing") {
     return (
       <View style={styles.row}>
         <ActivityIndicator size="small" color={colors.brand} />
-        <Text style={styles.text}>Synchronisation…</Text>
+        <Text style={styles.text}>Sync…</Text>
       </View>
     );
   }
@@ -40,8 +40,8 @@ export function SyncIndicator({
   if (syncStatus === "error") {
     return (
       <View style={styles.row}>
-        <View style={[styles.dot, { backgroundColor: colors.danger }]} />
-        <Text style={[styles.text, { color: colors.danger }]}>Erreur de sync</Text>
+        <Icon name="syncError" size={14} color={colors.danger} />
+        <Text style={[styles.text, { color: colors.danger }]}>Erreur sync</Text>
       </View>
     );
   }
@@ -49,8 +49,8 @@ export function SyncIndicator({
   if (isAuthenticated && syncStatus === "synced" && lastSyncedAt) {
     return (
       <View style={styles.row}>
-        <View style={[styles.dot, { backgroundColor: colors.success }]} />
-        <Text style={styles.text}>Synchronisé · {formatTime(lastSyncedAt)}</Text>
+        <Icon name="syncDone" size={14} color={colors.success} />
+        <Text style={styles.text}>Sync · {formatTime(lastSyncedAt)}</Text>
       </View>
     );
   }
@@ -58,9 +58,9 @@ export function SyncIndicator({
   if (lastSavedAt) {
     return (
       <View style={styles.row}>
-        <View style={[styles.dot, { backgroundColor: isAuthenticated ? colors.success : colors.textTertiary }]} />
+        <Icon name="check" size={12} color={colors.textTertiary} />
         <Text style={styles.text}>
-          {isAuthenticated ? "Sauvegardé" : "Local"} · {formatTime(lastSavedAt)}
+          {isAuthenticated ? "Sauvé" : "Local"} · {formatTime(lastSavedAt)}
         </Text>
       </View>
     );
@@ -73,13 +73,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
     paddingBottom: 4,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   text: {
     fontSize: 11,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, View, Pressable, TextInput, Image } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, Pressable, TextInput, Image } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Transaction,
@@ -21,6 +21,8 @@ import {
 import { applyFilters } from "../lib/transactionFilters";
 import { useDatePicker } from "../lib/useDatePicker";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { tapLight, tapWarning } from "../lib/haptics";
+import { Icon } from "../lib/icons";
 
 export function TransactionsScreen() {
   const { transactions, updateTransaction, deleteTransaction, addTransaction, result } = useApp();
@@ -53,6 +55,9 @@ export function TransactionsScreen() {
   };
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -122,7 +127,7 @@ export function TransactionsScreen() {
               key={t.id}
               transaction={t}
               onChange={(patch) => updateTransaction(t.id, patch)}
-              onDelete={() => deleteTransaction(t.id)}
+              onDelete={() => { tapWarning(); deleteTransaction(t.id); }}
               onPickCategory={() =>
                 setPickerOpenForExisting({ txId: t.id, type: t.type })
               }
@@ -144,7 +149,7 @@ export function TransactionsScreen() {
               key={t.id}
               transaction={t}
               onChange={(patch) => updateTransaction(t.id, patch)}
-              onDelete={() => deleteTransaction(t.id)}
+              onDelete={() => { tapWarning(); deleteTransaction(t.id); }}
               onPickCategory={() =>
                 setPickerOpenForExisting({ txId: t.id, type: t.type })
               }
@@ -163,7 +168,7 @@ export function TransactionsScreen() {
             key={t.id}
             transaction={t}
             onChange={(patch) => updateTransaction(t.id, patch)}
-            onDelete={() => deleteTransaction(t.id)}
+            onDelete={() => { tapWarning(); deleteTransaction(t.id); }}
             onPickCategory={() =>
               setPickerOpenForExisting({ txId: t.id, type: t.type })
             }
@@ -220,6 +225,7 @@ export function TransactionsScreen() {
         <DateTimePicker {...datePicker.pickerProps} />
       )}
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -265,7 +271,7 @@ function TransactionRow({
             <Text style={styles.txCategoryEdit}>Modifier</Text>
           </Pressable>
           <Pressable onPress={onDelete} hitSlop={12} style={styles.deleteBtn}>
-            <Text style={styles.deleteBtnText}>×</Text>
+            <Icon name="delete" size={16} color={colors.textTertiary} />
           </Pressable>
         </View>
 
@@ -279,14 +285,16 @@ function TransactionRow({
         />
 
         <Pressable style={styles.txDateBtn} onPress={onPickDate}>
-          <Text style={styles.txDateText}>
-            📅{" "}
-            {new Date(transaction.date).toLocaleDateString("fr-FR", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Icon name="calendar" size={12} color={colors.textSecondary} />
+            <Text style={styles.txDateText}>
+              {new Date(transaction.date).toLocaleDateString("fr-FR", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </Text>
+          </View>
         </Pressable>
 
         {!isRecette && (
