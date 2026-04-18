@@ -12,21 +12,27 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useApp } from "../lib/AppContext";
 import { AuthScreen } from "../components/AuthScreen";
-import {
-  AuthUser,
-  getStoredUser,
-  isLoggedIn,
-  logout,
-  pushData,
-  pullData,
-} from "../lib/api";
+import { SyncIndicator } from "../components/SyncIndicator";
+import { AuthUser, getStoredUser, logout } from "../lib/api";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 
 export function ProfileScreen() {
-  const { profile, setProfile, transactions, reset, result } = useApp();
+  const {
+    profile,
+    setProfile,
+    reset,
+    result,
+    saving,
+    lastSavedAt,
+    syncStatus,
+    lastSyncedAt,
+    isAuthenticated,
+    onAuthChange,
+    forcePull,
+  } = useApp();
+
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [syncing, setSyncing] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
@@ -40,32 +46,19 @@ export function ProfileScreen() {
   const onDateChange = (_: unknown, selected?: Date) => {
     if (Platform.OS !== "ios") setShowDatePicker(false);
     if (selected) {
-      const iso = selected.toISOString().split("T")[0];
-      setProfile({ ...profile, activityStartDate: iso });
+      setProfile({ ...profile, activityStartDate: selected.toISOString().split("T")[0] });
     }
   };
 
-  const handleSync = async (direction: "push" | "pull") => {
-    setSyncing(true);
-    try {
-      if (direction === "push") {
-        await pushData(profile, transactions);
-        Alert.alert("Synchronisé", "Vos données ont été envoyées au serveur.");
-      } else {
-        const data = await pullData();
-        if (data.profile) setProfile(data.profile);
-        Alert.alert("Récupéré", "Vos données ont été chargées depuis le serveur.");
-      }
-    } catch (err: any) {
-      Alert.alert("Erreur", err.message || "Erreur de synchronisation");
-    } finally {
-      setSyncing(false);
-    }
+  const handleAuth = async (user: AuthUser) => {
+    setAuthUser(user);
+    await onAuthChange();
   };
 
   const handleLogout = async () => {
     await logout();
     setAuthUser(null);
+    await onAuthChange();
   };
 
   const handleReset = () => {
@@ -83,7 +76,16 @@ export function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.screenTitle}>Profil</Text>
+      <View style={styles.header}>
+        <Text style={styles.screenTitle}>Profil</Text>
+        <SyncIndicator
+          saving={saving}
+          lastSavedAt={lastSavedAt}
+          syncStatus={syncStatus}
+          lastSyncedAt={lastSyncedAt}
+          isAuthenticated={isAuthenticated}
+        />
+      </View>
 
       {/* CLOUD ACCOUNT */}
       <View style={styles.section}>
@@ -91,32 +93,28 @@ export function ProfileScreen() {
         {authUser ? (
           <>
             <Row label="Email" value={authUser.email} />
-            <View style={styles.syncRow}>
-              <Pressable
-                style={[styles.syncBtn, syncing && styles.syncBtnDisabled]}
-                onPress={() => handleSync("push")}
-                disabled={syncing}
-              >
-                <Text style={styles.syncBtnText}>
-                  {syncing ? "…" : "⬆ Envoyer"}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.syncBtn, syncing && styles.syncBtnDisabled]}
-                onPress={() => handleSync("pull")}
-                disabled={syncing}
-              >
-                <Text style={styles.syncBtnText}>
-                  {syncing ? "…" : "⬇ Récupérer"}
-                </Text>
-              </Pressable>
-            </View>
+            <Text style={styles.syncNote}>
+              {isAuthenticated
+                ? "Vos données se synchronisent automatiquement."
+                : "Connectez-vous pour activer la synchronisation."}
+            </Text>
+
+            <Pressable
+              style={styles.pullBtn}
+              onPress={forcePull}
+              disabled={syncStatus === "syncing"}
+            >
+              <Text style={styles.pullBtnText}>
+                {syncStatus === "syncing" ? "Synchronisation…" : "⬇ Récupérer depuis le cloud"}
+              </Text>
+            </Pressable>
+
             <Pressable style={styles.logoutBtn} onPress={handleLogout}>
               <Text style={styles.logoutBtnText}>Se déconnecter</Text>
             </Pressable>
           </>
         ) : (
-          <AuthScreen onAuth={setAuthUser} />
+          <AuthScreen onAuth={handleAuth} />
         )}
       </View>
 
@@ -161,14 +159,19 @@ export function ProfileScreen() {
         <Text style={styles.sectionTitle}>Régime fiscal</Text>
         <Row label="Régime" value={result.tax.regime} />
         <Row label="Pratique" value={practiceLabel(profile.practiceType)} />
-        <Row label="Commune" value={`${profile.commune} (${profile.communeType === "URBAN" ? "urbain" : "rural"})`} />
+        <Row
+          label="Commune"
+          value={`${profile.commune} (${profile.communeType === "URBAN" ? "urbain" : "rural"})`}
+        />
       </View>
 
       <Pressable style={styles.resetBtn} onPress={handleReset}>
         <Text style={styles.resetBtnText}>Réinitialiser les données</Text>
       </Pressable>
 
-      <Text style={styles.footer}>Blackpine Cabinet · Config fiscale {result.configVersion}</Text>
+      <Text style={styles.footer}>
+        Blackpine Cabinet · Config fiscale {result.configVersion}
+      </Text>
     </ScrollView>
   );
 }
@@ -192,31 +195,72 @@ function Row({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingTop: 20, paddingBottom: 40 },
-  screenTitle: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.lg },
-  section: { backgroundColor: colors.surface, borderRadius: radii.md, padding: spacing.lg, marginBottom: spacing.md, ...shadows.card },
-  sectionTitle: { ...typography.micro, color: colors.textSecondary, textTransform: "uppercase", marginBottom: spacing.md },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: spacing.lg,
+  },
+  screenTitle: { ...typography.h1, color: colors.textPrimary },
+  section: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadows.card,
+  },
+  sectionTitle: {
+    ...typography.micro,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    marginBottom: spacing.md,
+  },
+  syncNote: {
+    ...typography.caption,
+    color: colors.textTertiary,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    fontStyle: "italic",
+  },
+  pullBtn: {
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: colors.brandSoft,
+    borderRadius: radii.sm,
+    marginBottom: spacing.sm,
+  },
+  pullBtnText: { fontSize: 13, color: colors.brand, fontWeight: "600" },
+  logoutBtn: {
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  logoutBtnText: { fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
   field: { marginBottom: spacing.md },
   fieldLabel: { ...typography.caption, color: colors.textSecondary, marginBottom: 6 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: colors.bg },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: colors.bg,
+  },
   inputText: { fontSize: 15, color: colors.textPrimary },
   row: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 7 },
   rowLabel: { fontSize: 14, color: colors.textSecondary },
   rowValue: { fontSize: 14, color: colors.textPrimary, fontWeight: "500" },
-
-  syncRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
-  syncBtn: {
-    flex: 1, paddingVertical: 10, alignItems: "center",
-    backgroundColor: colors.brand, borderRadius: radii.sm,
+  resetBtn: {
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.dangerSoft,
   },
-  syncBtnDisabled: { backgroundColor: colors.borderStrong },
-  syncBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 13 },
-  logoutBtn: {
-    marginTop: spacing.md, paddingVertical: 10, alignItems: "center",
-    borderRadius: radii.sm, borderWidth: 1, borderColor: colors.border,
-  },
-  logoutBtnText: { fontSize: 13, color: colors.textSecondary, fontWeight: "600" },
-
-  resetBtn: { paddingVertical: 12, alignItems: "center", backgroundColor: colors.surface, borderRadius: radii.sm, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.dangerSoft },
   resetBtnText: { fontSize: 13, color: colors.danger, fontWeight: "600" },
   footer: { fontSize: 11, color: colors.textTertiary, textAlign: "center", marginTop: spacing.md },
 });

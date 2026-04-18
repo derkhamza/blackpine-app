@@ -2,10 +2,17 @@ import { ScrollView, StyleSheet, Text, View, ActivityIndicator, Pressable } from
 import { useApp } from "../lib/AppContext";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { formatMAD, formatTime } from "../lib/format";
+import { MonthlyChart } from "../components/MonthlyChart";
+import { CategoryDonut } from "../components/CategoryDonut";
+import { getMonthlyData, getActiveMonths, getCategoryBreakdown } from "../lib/chartHelpers";
+import { SyncIndicator } from "../components/SyncIndicator";
+import { ExportButtons } from "../components/ExportButtons";
 
 export function DashboardScreen({ navigation }: any) {
-  const { loading, saving, lastSavedAt, result } = useApp();
-
+  const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated } = useApp();  
+  const monthlyData = getActiveMonths(getMonthlyData(result.breakdown.totalRecettes > 0 ? transactions : [], 2026));
+  const categorySlices = getCategoryBreakdown(transactions);
+  
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -22,7 +29,13 @@ export function DashboardScreen({ navigation }: any) {
           <Text style={styles.brandMark}>BLACKPINE</Text>
           <Text style={styles.brandSub}>Cabinet · Démo moteur fiscal</Text>
         </View>
-        <SaveIndicator saving={saving} lastSavedAt={lastSavedAt} />
+        <SyncIndicator
+          saving={saving}
+          lastSavedAt={lastSavedAt}
+          syncStatus={syncStatus}
+          lastSyncedAt={lastSyncedAt}
+          isAuthenticated={isAuthenticated}
+        />
       </View>
 
       <View style={styles.heroCard}>
@@ -47,6 +60,9 @@ export function DashboardScreen({ navigation }: any) {
         </View>
       </View>
 
+      <MonthlyChart data={monthlyData} />
+      <CategoryDonut slices={categorySlices} totalCharges={result.breakdown.totalCharges} />
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Résultat fiscal</Text>
         <Row label="Total recettes" value={formatMAD(result.breakdown.totalRecettes)} />
@@ -56,6 +72,8 @@ export function DashboardScreen({ navigation }: any) {
         <View style={styles.divider} />
         <Row label="Résultat fiscal" value={formatMAD(result.breakdown.resultatFiscal)} bold />
       </View>
+
+      <ExportButtons />
 
       <Pressable
         style={styles.explainBtn}
@@ -71,24 +89,6 @@ export function DashboardScreen({ navigation }: any) {
         <Text style={styles.secondaryBtnText}>Gérer mes transactions</Text>
       </Pressable>
     </ScrollView>
-  );
-}
-
-function SaveIndicator({ saving, lastSavedAt }: { saving: boolean; lastSavedAt: string | null }) {
-  if (saving) {
-    return (
-      <View style={styles.saveIndicator}>
-        <ActivityIndicator size="small" color={colors.textTertiary} />
-        <Text style={styles.saveText}>Sauvegarde…</Text>
-      </View>
-    );
-  }
-  if (!lastSavedAt) return null;
-  return (
-    <View style={styles.saveIndicator}>
-      <View style={styles.dot} />
-      <Text style={styles.saveText}>Sauvegardé · {formatTime(lastSavedAt)}</Text>
-    </View>
   );
 }
 

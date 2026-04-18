@@ -156,9 +156,21 @@ const handleSave = () => {
             </View>
           )}
 
-          {/* AMOUNT STEP */}
           {step === "amount" && (
             <View style={styles.amountSection}>
+              {type === "CHARGE" && (
+                <>
+                  <Text style={styles.label}>Scanner un reçu (optionnel)</Text>
+                  <ReceiptCapture
+                    uri={receiptUri}
+                    onChange={setReceiptUri}
+                    onOcrAmount={(ocrAmount) => setAmount(String(ocrAmount))}
+                    onOcrDate={(ocrDate) => setDate(ocrDate)}
+                  />
+                  <View style={{ height: 16 }} />
+                </>
+              )}
+
               <Text style={styles.label}>Montant</Text>
               <View style={styles.amountInputRow}>
                 <TextInput
@@ -168,7 +180,7 @@ const handleSave = () => {
                   placeholder="0"
                   placeholderTextColor={colors.textTertiary}
                   keyboardType="numeric"
-                  autoFocus
+                  autoFocus={type !== "CHARGE"}
                 />
                 <Text style={styles.currency}>MAD</Text>
               </View>
@@ -237,10 +249,6 @@ const handleSave = () => {
                 />
                 )}
 
-                {type === "CHARGE" && (
-                <ReceiptCapture uri={receiptUri} onChange={setReceiptUri} />
-                )}
-
                 <Pressable
                 style={[styles.primaryBtn, { backgroundColor: accent }]}
                 onPress={handleSave}
@@ -249,57 +257,6 @@ const handleSave = () => {
                 </Pressable>
             </View>
             )}
-
-          {/* DATE STEP */}
-          {step === "date" && (
-            <View style={styles.dateSection}>
-              <Text style={styles.label}>Date</Text>
-              <Pressable
-                style={styles.dateBtn}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.dateBtnText}>
-                  {new Date(date).toLocaleDateString("fr-FR", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </Text>
-              </Pressable>
-
-              <View style={styles.quickDates}>
-                <QuickDate
-                  label="Aujourd'hui"
-                  onPress={() => setDate(new Date().toISOString().split("T")[0])}
-                />
-                <QuickDate
-                  label="Hier"
-                  onPress={() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() - 1);
-                    setDate(d.toISOString().split("T")[0]);
-                  }}
-                />
-              </View>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  value={new Date(date)}
-                  mode="date"
-                  display={Platform.OS === "ios" ? "spinner" : "default"}
-                  onChange={onDateChange}
-                  maximumDate={new Date()}
-                />
-              )}
-
-              <Pressable
-                style={[styles.primaryBtn, { backgroundColor: accent }]}
-                onPress={handleSave}
-              >
-                <Text style={styles.primaryBtnText}>Enregistrer</Text>
-              </Pressable>
-            </View>
-          )}
         </ScrollView>
 
         <CategoryPicker

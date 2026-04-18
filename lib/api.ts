@@ -3,7 +3,7 @@ import { DoctorProfile, Transaction } from "blackpine-engine";
 
 // For development: your PC's local IP. Change this to your real server URL in production.
 // Find your local IP by running `ipconfig` in Windows terminal and looking for your Wi-Fi IPv4 address.
-const API_BASE = "http://192.168.1.11:3001";
+const API_BASE = "http://192.168.0.173:3001";
 
 const KEYS = {
   TOKEN: "blackpine.auth.token.v1",
@@ -94,4 +94,36 @@ export async function pullData(): Promise<{
     throw new Error(data.error || "Erreur de synchronisation");
   }
   return res.json();
+}
+
+export interface OcrExtraction {
+  success: boolean;
+  amounts: number[];
+  dates: string[];
+  bestAmount: number | null;
+  bestDate: string | null;
+  confidence: number;
+  rawTextPreview: string;
+}
+
+export async function extractReceipt(imageUri: string): Promise<OcrExtraction> {
+  // Read the image as base64
+  const FileSystem = require("expo-file-system/legacy");
+  const base64 = await FileSystem.readAsStringAsync(imageUri, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+
+  const token = await getToken();
+  const res = await fetch(`${API_BASE}/ocr/extract`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: token ? `Bearer ${token}` : "",
+    },
+    body: JSON.stringify({ imageBase64: base64 }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Erreur OCR");
+  return data;
 }

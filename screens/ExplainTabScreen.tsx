@@ -3,6 +3,7 @@ import { TraceEvent } from "blackpine-engine";
 import { useApp } from "../lib/AppContext";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { formatMAD } from "../lib/format";
+import { ExportButtons } from "../components/ExportButtons";
 
 export function ExplainTabScreen() {
   const { result } = useApp();
@@ -39,11 +40,13 @@ export function ExplainTabScreen() {
           ))}
         </View>
       ))}
-
+      <ExportButtons />
       <Text style={styles.footer}>
         Calcul basé sur la configuration fiscale {result.configVersion}. Cette estimation ne remplace pas l'avis de votre expert-comptable.
       </Text>
     </ScrollView>
+
+    
   );
 }
 
