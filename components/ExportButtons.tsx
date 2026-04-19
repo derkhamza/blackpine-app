@@ -5,8 +5,12 @@ import { generateTaxSummaryPdf } from "../lib/exportPdf";
 import { generateTransactionsExcel } from "../lib/exportExcel";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { Icon } from "../lib/icons";
+import { useT } from "../lib/useT";
+
+
 
 export function ExportButtons() {
+  const { t } = useT();
   const { result, profile, transactions } = useApp();
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -37,10 +41,8 @@ export function ExportButtons() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Exporter</Text>
-      <Text style={styles.subtitle}>
-        Partagez vos données avec votre expert-comptable
-      </Text>
+     <Text style={styles.title}>{t("export.title")}</Text>
+      <Text style={styles.subtitle}>{t("export.subtitle")}</Text>
 
       <Pressable
         style={styles.exportBtn}
@@ -53,10 +55,8 @@ export function ExportButtons() {
           <Icon name="pdf" size={24} color={colors.textOnDark} />
         )}
         <View style={styles.exportTextGroup}>
-          <Text style={styles.exportBtnTitle}>Résumé fiscal PDF</Text>
-          <Text style={styles.exportBtnDesc}>
-            Synthèse complète avec détail du calcul
-          </Text>
+          <Text style={styles.exportBtnTitle}>{t("export.pdfTitle")}</Text>
+          <Text style={styles.exportBtnDesc}>{t("export.pdfDesc")}</Text>
         </View>
       </Pressable>
 
@@ -71,10 +71,8 @@ export function ExportButtons() {
           <Icon name="excel" size={24} color={colors.textOnDark} />
         )}
         <View style={styles.exportTextGroup}>
-          <Text style={styles.exportBtnTitle}>Transactions Excel</Text>
-          <Text style={styles.exportBtnDesc}>
-            Recettes et charges avec déductibilité
-          </Text>
+          <Text style={styles.exportBtnTitle}>{t("export.excelTitle")}</Text>
+          <Text style={styles.exportBtnDesc}>{t("export.excelDesc")}</Text>
         </View>
       </Pressable>
     </View>

@@ -1,48 +1,30 @@
-import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
-import * as Localization from "expo-localization";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import fr from "./fr";
-import ar from "./ar";
+
+export type AppLanguage = "fr" | "ar" | "en";
 
 const LANG_KEY = "blackpine.language.v1";
 
-export type AppLanguage = "fr" | "ar";
+let currentLanguage: AppLanguage = "fr";
 
-// Detect phone language, default to French
-const deviceLang = Localization.getLocales()[0]?.languageCode;
-const defaultLang: AppLanguage = deviceLang === "ar" ? "ar" : "fr";
+export function getLanguage(): AppLanguage {
+  return currentLanguage;
+}
 
-i18n.use(initReactI18next).init({
-  resources: {
-    fr: { translation: fr },
-    ar: { translation: ar },
-  },
-  lng: defaultLang,
-  fallbackLng: "fr",
-  interpolation: {
-    escapeValue: false,
-  },
-});
-
-export async function loadSavedLanguage(): Promise<void> {
+export async function loadSavedLanguage(): Promise<AppLanguage> {
   try {
     const saved = await AsyncStorage.getItem(LANG_KEY);
-    if (saved === "fr" || saved === "ar") {
-      await i18n.changeLanguage(saved);
+    if (saved === "fr" || saved === "ar" || saved === "en") {
+      currentLanguage = saved;
     }
-  } catch {
-    // Use default
-  }
+  } catch {}
+  return currentLanguage;
 }
 
 export async function setLanguage(lang: AppLanguage): Promise<void> {
-  await i18n.changeLanguage(lang);
+  currentLanguage = lang;
   await AsyncStorage.setItem(LANG_KEY, lang);
 }
 
 export function isRTL(): boolean {
-  return i18n.language === "ar";
+  return currentLanguage === "ar";
 }
-
-export default i18n;

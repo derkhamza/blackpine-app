@@ -4,10 +4,13 @@ import { useApp } from "../lib/AppContext";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { formatMAD } from "../lib/format";
 import { ExportButtons } from "../components/ExportButtons";
+import { useT } from "../lib/useT";
+
+
 
 export function ExplainTabScreen() {
+  const { t } = useT();
   const { result } = useApp();
-
   const sections: { title: string; events: TraceEvent[] }[] = [];
   let current: { title: string; events: TraceEvent[] } | null = null;
   for (const ev of result.events) {
@@ -19,38 +22,18 @@ export function ExplainTabScreen() {
     }
   }
   if (current) sections.push(current);
-
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
-      <Text style={styles.screenTitle}>Comprendre mon impôt</Text>
-
-      <View style={styles.headline}>
-        <Text style={styles.headlineLabel}>Impôt à payer · 2026</Text>
-        <Text style={styles.headlineAmount}>{formatMAD(result.tax.taxDue)}</Text>
-        <Text style={styles.headlineMeta}>
-          Régime {result.tax.regime} · Calculé sur {result.tax.payableRule}
-        </Text>
-      </View>
-
-      {sections.map((section, i) => (
-        <View key={i} style={styles.section}>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
-          {section.events.map((ev, j) => (
-            <EventCard key={j} event={ev} />
-          ))}
-        </View>
-      ))}
-      <ExportButtons />
-      <Text style={styles.footer}>
-        Calcul basé sur la configuration fiscale {result.configVersion}. Cette estimation ne remplace pas l'avis de votre expert-comptable.
-      </Text>
-    </ScrollView>
-
-    
-  );
-}
-
-function EventCard({ event }: { event: TraceEvent }) {
+  const eventStyle = (kind: TraceEvent["kind"]) => {
+    switch (kind) {
+      case "INPUT": return { label: t("ocr.input"), accent: colors.textSecondary };
+      case "COMPUTATION": return { label: t("ocr.calculation"), accent: colors.brand };
+      case "RULE_APPLIED": return { label: t("ocr.fiscalRule"), accent: colors.gold };
+      case "COMPARISON": return { label: t("ocr.comparison"), accent: colors.textSecondary };
+      case "CONCLUSION": return { label: t("ocr.conclusion"), accent: colors.success };
+      case "WARNING": return { label: t("ocr.warning"), accent: colors.warning };
+      default: return { label: t("ocr.info"), accent: colors.textSecondary };
+    }
+  };
+  function EventCard({ event }: { event: TraceEvent }) {
   const style = eventStyle(event.kind);
   return (
     <View style={[styles.card, { borderLeftColor: style.accent }]}>
@@ -64,17 +47,34 @@ function EventCard({ event }: { event: TraceEvent }) {
     </View>
   );
 }
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
+      <Text style={styles.screenTitle}>{t("explain.title")}</Text>
 
-function eventStyle(kind: TraceEvent["kind"]) {
-  switch (kind) {
-    case "INPUT": return { label: "Donnée", accent: colors.textSecondary };
-    case "COMPUTATION": return { label: "Calcul", accent: colors.brand };
-    case "RULE_APPLIED": return { label: "Règle fiscale", accent: colors.gold };
-    case "COMPARISON": return { label: "Comparaison", accent: colors.textSecondary };
-    case "CONCLUSION": return { label: "Conclusion", accent: colors.success };
-    case "WARNING": return { label: "Attention", accent: colors.warning };
-    default: return { label: "Info", accent: colors.textSecondary };
-  }
+      <View style={styles.headline}>
+        <Text style={styles.headlineLabel}>{t("explain.taxToPay")}</Text>
+        <Text style={styles.headlineAmount}>{formatMAD(result.tax.taxDue)}</Text>
+        <Text style={styles.headlineMeta}>
+          {t("dashboard.regime")} {result.tax.regime} · {t("dashboard.calculatedOn")} {result.tax.payableRule}
+        </Text>
+      </View>
+
+      {sections.map((section, i) => (
+        <View key={i} style={styles.section}>
+          <Text style={styles.sectionTitle}>{section.title}</Text>
+          {section.events.map((ev, j) => (
+            <EventCard key={j} event={ev} />
+          ))}
+        </View>
+      ))}
+      <ExportButtons />
+      <Text style={styles.footer}>
+        {t("explain.configLabel")} {result.configVersion}. {t("explain.footer")}
+      </Text>
+    </ScrollView>
+
+    
+  );
 }
 
 const styles = StyleSheet.create({

@@ -191,6 +191,7 @@ export default {
     resetWarning: "Toutes vos données locales seront effacées.",
     language: "Langue",
     french: "Français",
+    english: "English",
     arabic: "العربية",
     cabinetOnly: "Cabinet uniquement",
     clinicOnly: "Clinique uniquement",

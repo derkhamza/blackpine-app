@@ -1,5 +1,3 @@
-import "./lib/i18n";
-import i18n from "i18next";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
@@ -14,26 +12,15 @@ import { ProfileScreen } from "./screens/ProfileScreen";
 import { OnboardingFlow } from "./screens/onboarding/OnboardingFlow";
 import { Icon } from "./lib/icons";
 import { colors } from "./lib/theme";
-import { loadSavedLanguage } from "./lib/i18n";
 import { applyRTL } from "./lib/rtl";
-import fr from "./lib/i18n/fr";
-import ar from "./lib/i18n/ar";
 import { useEffect, useState } from "react";
+import { useT } from "./lib/useT";
+import { loadSavedLanguage } from "./lib/i18n";
 
 const Tab = createBottomTabNavigator();
-
 function RootRouter() {
   const { loading, onboarded } = useApp();
-  const currentLang = (i18n.language || "fr") as AppLanguage;
-  const strings = currentLang === "ar" ? ar : fr;
-  const t = (key: string): string => {
-    const keys = key.split(".");
-    let result: any = strings;
-    for (const k of keys) {
-      result = result?.[k];
-    }
-    return (result as string) ?? key;
-  };
+  const { t } = useT();
 
   const [langLoaded, setLangLoaded] = useState(false);
 

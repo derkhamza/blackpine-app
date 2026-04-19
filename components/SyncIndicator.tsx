@@ -3,6 +3,7 @@ import { SyncStatus } from "../lib/syncService";
 import { Icon } from "../lib/icons";
 import { colors, spacing } from "../lib/theme";
 import { formatTime } from "../lib/format";
+import { useT } from "../lib/useT";
 
 interface Props {
   saving: boolean;
@@ -19,11 +20,12 @@ export function SyncIndicator({
   lastSyncedAt,
   isAuthenticated,
 }: Props) {
+  const { t } = useT();
   if (syncStatus === "syncing") {
     return (
       <View style={styles.row}>
         <ActivityIndicator size="small" color={colors.brand} />
-        <Text style={styles.text}>Sync…</Text>
+        <Text style={styles.text}>{t("sync.syncing")}</Text>
       </View>
     );
   }
@@ -32,7 +34,7 @@ export function SyncIndicator({
     return (
       <View style={styles.row}>
         <ActivityIndicator size="small" color={colors.textTertiary} />
-        <Text style={styles.text}>Sauvegarde…</Text>
+        <Text style={styles.text}>{t("sync.saving")}</Text>
       </View>
     );
   }
@@ -41,7 +43,7 @@ export function SyncIndicator({
     return (
       <View style={styles.row}>
         <Icon name="syncError" size={14} color={colors.danger} />
-        <Text style={[styles.text, { color: colors.danger }]}>Erreur sync</Text>
+        <Text style={[styles.text, { color: colors.danger }]}>{t("sync.syncError")}</Text>
       </View>
     );
   }
@@ -50,7 +52,7 @@ export function SyncIndicator({
     return (
       <View style={styles.row}>
         <Icon name="syncDone" size={14} color={colors.success} />
-        <Text style={styles.text}>Sync · {formatTime(lastSyncedAt)}</Text>
+        <Text style={styles.text}>{t("sync.synced")} · {formatTime(lastSyncedAt)}</Text>
       </View>
     );
   }
@@ -60,7 +62,7 @@ export function SyncIndicator({
       <View style={styles.row}>
         <Icon name="check" size={12} color={colors.textTertiary} />
         <Text style={styles.text}>
-          {isAuthenticated ? "Sauvé" : "Local"} · {formatTime(lastSavedAt)}
+          {isAuthenticated ? t("sync.saved") : t("sync.local")} · {formatTime(lastSavedAt)}
         </Text>
       </View>
     );

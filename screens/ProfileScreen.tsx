@@ -16,10 +16,8 @@ import { AuthScreen } from "../components/AuthScreen";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { AuthUser, getStoredUser, logout } from "../lib/api";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
-import i18n from "i18next";
-import fr from "../lib/i18n/fr";
-import ar from "../lib/i18n/ar";
-import { setLanguage, AppLanguage } from "../lib/i18n";
+import { useT } from "../lib/useT";
+import { AppLanguage } from "../lib/i18n";
 import { applyRTL } from "../lib/rtl";
 
 export function ProfileScreen() {
@@ -39,7 +37,7 @@ export function ProfileScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
-
+  const { t, currentLang, changeLanguage } = useT();
   useEffect(() => {
     (async () => {
       const user = await getStoredUser();
@@ -49,16 +47,6 @@ export function ProfileScreen() {
   }, []);
 
 
-  const currentLang = (i18n.language || "fr") as AppLanguage;
-  const strings = currentLang === "ar" ? ar : fr;
-  const t = (key: string): string => {
-    const keys = key.split(".");
-    let result: any = strings;
-    for (const k of keys) {
-      result = result?.[k];
-    }
-    return (result as string) ?? key;
-  };
 
   const practiceLabel = (type: string): string => {
     if (type === "CABINET_ONLY") return t("profile.cabinetOnly");
@@ -67,16 +55,19 @@ export function ProfileScreen() {
     return type;
   };
 
-  const handleLanguageChange = async (lang: AppLanguage) => {
-    await setLanguage(lang);
-    applyRTL();
-    Alert.alert(
-      lang === "ar" ? "تغيير اللغة" : "Changement de langue",
-      lang === "ar"
-        ? "أعد تشغيل التطبيق لتطبيق الاتجاه الجديد."
-        : "Redémarrez l'application pour appliquer la nouvelle direction.",
-    );
-  };
+
+
+const handleLanguageChange = async (lang: AppLanguage) => {
+  await changeLanguage(lang);
+  Alert.alert(
+    lang === "ar" ? "تغيير اللغة" : lang === "en" ? "Language changed" : "Changement de langue",
+    lang === "ar"
+      ? "أعد تشغيل التطبيق لتطبيق الاتجاه الجديد."
+      : lang === "en"
+      ? "Restart the app to apply the new layout direction."
+      : "Redémarrez l'application pour appliquer la nouvelle direction.",
+  );
+};
 
   const onDateChange = (_: unknown, selected?: Date) => {
     if (Platform.OS !== "ios") setShowDatePicker(false);
@@ -209,34 +200,26 @@ export function ProfileScreen() {
         <Text style={styles.sectionTitle}>{t("profile.language")}</Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable
-            style={[
-              styles.langBtn,
-              currentLang === "fr" && styles.langBtnActive,
-            ]}
+            style={[styles.langBtn, currentLang === "fr" && styles.langBtnActive]}
             onPress={() => handleLanguageChange("fr")}
           >
-            <Text
-              style={[
-                styles.langBtnText,
-                currentLang === "fr" && styles.langBtnTextActive,
-              ]}
-            >
+            <Text style={[styles.langBtnText, currentLang === "fr" && styles.langBtnTextActive]}>
               {t("profile.french")}
             </Text>
           </Pressable>
           <Pressable
-            style={[
-              styles.langBtn,
-              currentLang === "ar" && styles.langBtnActive,
-            ]}
+            style={[styles.langBtn, currentLang === "en" && styles.langBtnActive]}
+            onPress={() => handleLanguageChange("en")}
+          >
+            <Text style={[styles.langBtnText, currentLang === "en" && styles.langBtnTextActive]}>
+              {t("profile.english")}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.langBtn, currentLang === "ar" && styles.langBtnActive]}
             onPress={() => handleLanguageChange("ar")}
           >
-            <Text
-              style={[
-                styles.langBtnText,
-                currentLang === "ar" && styles.langBtnTextActive,
-              ]}
-            >
+            <Text style={[styles.langBtnText, currentLang === "ar" && styles.langBtnTextActive]}>
               {t("profile.arabic")}
             </Text>
           </Pressable>

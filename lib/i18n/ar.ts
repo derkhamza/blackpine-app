@@ -191,6 +191,7 @@ export default {
     resetWarning: "سيتم مسح جميع بياناتك المحلية.",
     language: "اللغة",
     french: "Français",
+    english: "English",
     arabic: "العربية",
     cabinetOnly: "عيادة فقط",
     clinicOnly: "مصحة فقط",

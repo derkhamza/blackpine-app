@@ -11,7 +11,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { TransactionType } from "blackpine-engine";
 import { colors, radii, spacing, typography } from "../lib/theme";
 import { Icon } from "../lib/icons";
-
+import { useT } from "../lib/useT";
 export type SortField = "date" | "amount";
 export type SortOrder = "desc" | "asc";
 export type TypeFilter = "ALL" | "RECETTE" | "CHARGE";
@@ -44,7 +44,7 @@ interface Props {
 export function TransactionFilters({ filters, onChange, totalCount, filteredCount }: Props) {
   const [showDateFrom, setShowDateFrom] = useState(false);
   const [showDateTo, setShowDateTo] = useState(false);
-
+  const { t } = useT();
   const update = (patch: Partial<FilterState>) => onChange({ ...filters, ...patch });
 
   const hasActiveFilters =
@@ -61,7 +61,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
           style={styles.searchInput}
           value={filters.query}
           onChangeText={(v) => update({ query: v })}
-          placeholder="Rechercher une transaction…"
+          placeholder={t("transactions.searchPlaceholder")}
           placeholderTextColor={colors.textTertiary}
           autoCorrect={false}
         />
@@ -90,7 +90,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
                 filters.typeFilter === type && styles.chipTextActive,
               ]}
             >
-              {type === "ALL" ? "Tout" : type === "RECETTE" ? "Recettes" : "Charges"}
+              {type === "ALL" ? t("transactions.all") : type === "RECETTE" ? t("transactions.recettesFilter") : t("transactions.chargesFilter")}
             </Text>
           </Pressable>
         ))}
@@ -109,7 +109,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
             <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Icon name="sort" size={14} color={colors.textSecondary} />
                 <Text style={styles.sortBtnText}>
-                {filters.sortField === "date" ? "Date" : "Montant"}
+                {filters.sortField === "date" ? t("transactions.date") : t("transactions.amount")}
                 </Text>
             </View>
         </Pressable>
@@ -135,9 +135,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
           onPress={() => setShowDateFrom(true)}
         >
           <Text style={styles.dateBtnText}>
-            {filters.dateFrom
-              ? `Du ${formatShortDate(filters.dateFrom)}`
-              : "Date début"}
+            {filters.dateFrom ? formatShortDate(filters.dateFrom) : t("transactions.dateFrom")}
           </Text>
         </Pressable>
 
@@ -146,9 +144,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
           onPress={() => setShowDateTo(true)}
         >
           <Text style={styles.dateBtnText}>
-            {filters.dateTo
-              ? `Au ${formatShortDate(filters.dateTo)}`
-              : "Date fin"}
+            {filters.dateTo ? formatShortDate(filters.dateTo) : t("transactions.dateTo")}
           </Text>
         </Pressable>
 
@@ -193,7 +189,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
             {filteredCount} sur {totalCount} transaction{totalCount > 1 ? "s" : ""}
           </Text>
           <Pressable onPress={() => onChange(DEFAULT_FILTERS)}>
-            <Text style={styles.resetFiltersText}>Réinitialiser les filtres</Text>
+            <Text style={styles.resetFiltersText}>{t("transactions.resetFilters")}</Text>
           </Pressable>
         </View>
       )}

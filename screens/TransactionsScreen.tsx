@@ -23,6 +23,7 @@ import { useDatePicker } from "../lib/useDatePicker";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { tapLight, tapWarning } from "../lib/haptics";
 import { Icon } from "../lib/icons";
+import { useT } from "../lib/useT";
 
 export function TransactionsScreen() {
   const { transactions, updateTransaction, deleteTransaction, addTransaction, result } = useApp();
@@ -33,7 +34,7 @@ export function TransactionsScreen() {
   } | null>(null);
   const datePicker = useDatePicker();
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-
+  const { t } = useT();
   const filtered = useMemo(
     () => applyFilters(transactions, filters),
     [transactions, filters]
@@ -63,19 +64,19 @@ export function TransactionsScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.screenTitle}>Transactions</Text>
+      <Text style={styles.screenTitle}>{t("transactions.title")}</Text>
 
       {/* Summary bar */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Recettes filtrées</Text>
+          <Text style={styles.summaryLabel}>{t("transactions.filteredRecettes")}</Text>
           <Text style={[styles.summaryValue, { color: colors.recette }]}>
             {formatMAD(totalRecettes)}
           </Text>
           <Text style={styles.summaryCount}>{recettes.length} opération{recettes.length > 1 ? "s" : ""}</Text>
         </View>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Charges filtrées</Text>
+          <Text style={styles.summaryLabel}>{t("transactions.filteredCharges")}</Text>
           <Text style={[styles.summaryValue, { color: colors.charge }]}>
             {formatMAD(totalCharges)}
           </Text>
@@ -94,23 +95,21 @@ export function TransactionsScreen() {
       {/* Empty state */}
       {filtered.length === 0 && transactions.length > 0 && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Aucun résultat</Text>
-          <Text style={styles.emptyText}>Essayez de modifier vos filtres.</Text>
+        <Text style={styles.emptyTitle}>{t("transactions.noResults")}</Text>
+        <Text style={styles.emptyText}>{t("transactions.tryModifyFilters")}</Text>
           <Pressable
             style={styles.resetBtn}
             onPress={() => setFilters(DEFAULT_FILTERS)}
           >
-            <Text style={styles.resetBtnText}>Réinitialiser les filtres</Text>
+            <Text style={styles.resetBtnText}>{t("transactions.resetFilters")}</Text>
           </Pressable>
         </View>
       )}
 
       {filtered.length === 0 && transactions.length === 0 && (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Aucune transaction</Text>
-          <Text style={styles.emptyText}>
-            Ajoutez votre première recette ou charge pour commencer.
-          </Text>
+          <Text style={styles.emptyTitle}>{t("transactions.noTransactions")}</Text>
+          <Text style={styles.emptyText}>{t("transactions.addFirst")}</Text>
         </View>
       )}
 
@@ -118,9 +117,7 @@ export function TransactionsScreen() {
       {filters.typeFilter === "ALL" ? (
         <>
           {recettes.length > 0 && (
-            <Text style={styles.groupLabel}>
-              Recettes · {recettes.length}
-            </Text>
+            <Text style={styles.groupLabel}>{t("dashboard.recettes")} · {recettes.length}</Text>
           )}
           {recettes.map((t) => (
             <TransactionRow
@@ -140,9 +137,7 @@ export function TransactionsScreen() {
           ))}
 
           {charges.length > 0 && (
-            <Text style={[styles.groupLabel, { marginTop: spacing.lg }]}>
-              Charges · {charges.length}
-            </Text>
+            <Text style={[styles.groupLabel, { marginTop: spacing.lg }]}>{t("dashboard.charges")} · {charges.length}</Text>
           )}
           {charges.map((t) => (
             <TransactionRow
@@ -187,13 +182,13 @@ export function TransactionsScreen() {
           style={[styles.addBtn, { backgroundColor: colors.recette }]}
           onPress={() => setAddModalType("RECETTE")}
         >
-          <Text style={styles.addBtnText}>+ Recette</Text>
+          <Text style={styles.addBtnText}>{t("transactions.addRecette")}</Text>
         </Pressable>
         <Pressable
           style={[styles.addBtn, { backgroundColor: colors.charge }]}
           onPress={() => setAddModalType("CHARGE")}
         >
-          <Text style={styles.addBtnText}>+ Charge</Text>
+          <Text style={styles.addBtnText}>{t("transactions.addCharge")}</Text>
         </Pressable>
       </View>
 

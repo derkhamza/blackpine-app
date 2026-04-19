@@ -10,17 +10,19 @@ import {
 } from "react-native";
 import { signup, login, AuthUser } from "../lib/api";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { useT } from "../lib/useT";
 
 interface Props {
   onAuth: (user: AuthUser) => void;
 }
+
 
 export function AuthScreen({ onAuth }: Props) {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
+  const { t } = useT();
   const handleSubmit = async () => {
     if (!email.trim() || !password) return;
     setLoading(true);
@@ -40,24 +42,24 @@ export function AuthScreen({ onAuth }: Props) {
     <View style={[styles.container, styles.content]}>
 
       <View style={styles.form}>
-        <Text style={styles.label}>Email</Text>
+        <Text style={styles.label}>{t("auth.emailLabel")}</Text>
         <TextInput
           style={styles.input}
           value={email}
           onChangeText={setEmail}
-          placeholder="votre@email.com"
+          placeholder={t("auth.emailPlaceholder")}
           placeholderTextColor={colors.textTertiary}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
         />
 
-        <Text style={styles.label}>Mot de passe</Text>
+        <Text style={styles.label}>{t("auth.passwordLabel")}</Text>
         <TextInput
           style={styles.input}
           value={password}
           onChangeText={setPassword}
-          placeholder={mode === "signup" ? "6 caractères minimum" : "Votre mot de passe"}
+          placeholder={mode === "signup" ? t("auth.passwordMinLength") : t("auth.passwordPlaceholder")}
           placeholderTextColor={colors.textTertiary}
           secureTextEntry
         />
@@ -68,11 +70,7 @@ export function AuthScreen({ onAuth }: Props) {
           disabled={loading || !email.trim() || !password}
         >
           <Text style={styles.submitBtnText}>
-            {loading
-              ? "Chargement…"
-              : mode === "login"
-              ? "Se connecter"
-              : "Créer mon compte"}
+            {loading ? t("loading") : mode === "login" ? t("auth.loginBtn") : t("auth.signupBtn")}
           </Text>
         </Pressable>
       </View>
@@ -82,9 +80,7 @@ export function AuthScreen({ onAuth }: Props) {
         onPress={() => setMode(mode === "login" ? "signup" : "login")}
       >
         <Text style={styles.switchText}>
-          {mode === "login"
-            ? "Pas encore de compte ? Créer un compte"
-            : "Déjà un compte ? Se connecter"}
+          {mode === "login" ? t("auth.switchToSignup") : t("auth.switchToLogin")}
         </Text>
       </Pressable>
     </View>

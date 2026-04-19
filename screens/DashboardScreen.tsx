@@ -7,17 +7,19 @@ import { CategoryDonut } from "../components/CategoryDonut";
 import { getMonthlyData, getActiveMonths, getCategoryBreakdown } from "../lib/chartHelpers";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { ExportButtons } from "../components/ExportButtons";
+import { useT } from "../lib/useT";
 
 export function DashboardScreen({ navigation }: any) {
   const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated } = useApp();  
   const monthlyData = getActiveMonths(getMonthlyData(result.breakdown.totalRecettes > 0 ? transactions : [], 2026));
   const categorySlices = getCategoryBreakdown(transactions);
-  
+  const { t } = useT();
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.brand} />
-        <Text style={styles.loadingText}>Chargement…</Text>
+        <Text style={styles.statLabel}>{t("dashboard.charges")}</Text>
       </View>
     );
   }
@@ -26,8 +28,8 @@ export function DashboardScreen({ navigation }: any) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.brandMark}>BLACKPINE</Text>
-          <Text style={styles.brandSub}>Cabinet · Démo moteur fiscal</Text>
+          <Text style={styles.brandMark}>{t("dashboard.brand")}</Text>
+          <Text style={styles.brandSub}>{t("dashboard.brandSub")}</Text>
         </View>
         <SyncIndicator
           saving={saving}
@@ -39,23 +41,23 @@ export function DashboardScreen({ navigation }: any) {
       </View>
 
       <View style={styles.heroCard}>
-        <Text style={styles.heroLabel}>Impôt à payer · estimation 2026</Text>
+        <Text style={styles.heroLabel}>{t("dashboard.taxToPay")}</Text>
         <Text style={styles.heroNumber}>{formatMAD(result.tax.taxDue)}</Text>
         <View style={styles.heroChips}>
-          <View style={styles.chip}><Text style={styles.chipText}>Régime {result.tax.regime}</Text></View>
-          <View style={styles.chip}><Text style={styles.chipText}>Calculé sur {result.tax.payableRule}</Text></View>
+          <Text style={styles.chipText}>{t("dashboard.regime")} {result.tax.regime}</Text>
+          <View style={styles.chip}><Text style={styles.chipText}>{t("dashboard.calculatedOn")} {result.tax.payableRule}</Text></View>
         </View>
       </View>
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <View style={[styles.statAccent, { backgroundColor: colors.recette }]} />
-          <Text style={styles.statLabel}>Recettes</Text>
+          <Text style={styles.statLabel}>{t("dashboard.recettes")}</Text>
           <Text style={styles.statValue}>{formatMAD(result.breakdown.totalRecettes)}</Text>
         </View>
         <View style={styles.statCard}>
           <View style={[styles.statAccent, { backgroundColor: colors.charge }]} />
-          <Text style={styles.statLabel}>Charges</Text>
+          <Text style={styles.statLabel}>{t("dashboard.charges")}</Text>
           <Text style={styles.statValue}>{formatMAD(result.breakdown.totalCharges)}</Text>
         </View>
       </View>
@@ -64,7 +66,7 @@ export function DashboardScreen({ navigation }: any) {
       <CategoryDonut slices={categorySlices} totalCharges={result.breakdown.totalCharges} />
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Résultat fiscal</Text>
+        <Text style={styles.sectionTitle}>{t("dashboard.resultatFiscal")}</Text>
         <Row label="Total recettes" value={formatMAD(result.breakdown.totalRecettes)} />
         <Row label="Total charges" value={formatMAD(result.breakdown.totalCharges)} />
         <Row label="Charges déductibles" value={formatMAD(result.breakdown.totalChargesDeductibles)} />
@@ -79,14 +81,14 @@ export function DashboardScreen({ navigation }: any) {
         style={styles.explainBtn}
         onPress={() => navigation.navigate("Expliquer")}
       >
-        <Text style={styles.explainBtnText}>Comprendre mon impôt →</Text>
+        <Text style={styles.explainBtnText}>{t("dashboard.understandTax")}</Text>
       </Pressable>
 
       <Pressable
         style={styles.secondaryBtn}
         onPress={() => navigation.navigate("Transactions")}
       >
-        <Text style={styles.secondaryBtnText}>Gérer mes transactions</Text>
+        <Text style={styles.secondaryBtnText}>{t("dashboard.manageTransactions")}</Text>
       </Pressable>
     </ScrollView>
   );
