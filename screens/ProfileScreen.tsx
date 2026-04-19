@@ -16,6 +16,11 @@ import { AuthScreen } from "../components/AuthScreen";
 import { SyncIndicator } from "../components/SyncIndicator";
 import { AuthUser, getStoredUser, logout } from "../lib/api";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import i18n from "i18next";
+import fr from "../lib/i18n/fr";
+import ar from "../lib/i18n/ar";
+import { setLanguage, AppLanguage } from "../lib/i18n";
+import { applyRTL } from "../lib/rtl";
 
 export function ProfileScreen() {
   const {
@@ -31,7 +36,6 @@ export function ProfileScreen() {
     onAuthChange,
     forcePull,
   } = useApp();
-
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -43,6 +47,36 @@ export function ProfileScreen() {
       setCheckingAuth(false);
     })();
   }, []);
+
+
+  const currentLang = (i18n.language || "fr") as AppLanguage;
+  const strings = currentLang === "ar" ? ar : fr;
+  const t = (key: string): string => {
+    const keys = key.split(".");
+    let result: any = strings;
+    for (const k of keys) {
+      result = result?.[k];
+    }
+    return (result as string) ?? key;
+  };
+
+  const practiceLabel = (type: string): string => {
+    if (type === "CABINET_ONLY") return t("profile.cabinetOnly");
+    if (type === "CLINIC_ONLY") return t("profile.clinicOnly");
+    if (type === "MIXED") return t("profile.mixed");
+    return type;
+  };
+
+  const handleLanguageChange = async (lang: AppLanguage) => {
+    await setLanguage(lang);
+    applyRTL();
+    Alert.alert(
+      lang === "ar" ? "تغيير اللغة" : "Changement de langue",
+      lang === "ar"
+        ? "أعد تشغيل التطبيق لتطبيق الاتجاه الجديد."
+        : "Redémarrez l'application pour appliquer la nouvelle direction.",
+    );
+  };
 
   const onDateChange = (_: unknown, selected?: Date) => {
     if (Platform.OS !== "ios") setShowDatePicker(false);
@@ -85,7 +119,7 @@ export function ProfileScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}></ScrollView>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>Profil</Text>
+        <Text style={styles.screenTitle}>{t("profile.title")}</Text>
         <SyncIndicator
           saving={saving}
           lastSavedAt={lastSavedAt}
@@ -97,14 +131,12 @@ export function ProfileScreen() {
 
       {/* CLOUD ACCOUNT */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Compte Cloud</Text>
+        <Text style={styles.sectionTitle}>{t("profile.cloudAccount")}</Text>
         {authUser ? (
           <>
             <Row label="Email" value={authUser.email} />
             <Text style={styles.syncNote}>
-              {isAuthenticated
-                ? "Vos données se synchronisent automatiquement."
-                : "Connectez-vous pour activer la synchronisation."}
+              {isAuthenticated ? t("profile.autoSync") : t("profile.connectToSync")}
             </Text>
 
             <Pressable
@@ -113,12 +145,12 @@ export function ProfileScreen() {
               disabled={syncStatus === "syncing"}
             >
               <Text style={styles.pullBtnText}>
-                {syncStatus === "syncing" ? "Synchronisation…" : "⬇ Récupérer depuis le cloud"}
+                {syncStatus === "syncing" ? t("profile.syncing") : t("profile.pullFromCloud")}
               </Text>
             </Pressable>
 
             <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-              <Text style={styles.logoutBtnText}>Se déconnecter</Text>
+              <Text style={styles.logoutBtnText}>{t("profile.logout")}</Text>
             </Pressable>
           </>
         ) : (
@@ -128,9 +160,9 @@ export function ProfileScreen() {
 
       {/* PROFILE INFO */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Informations fiscales</Text>
+        <Text style={styles.sectionTitle}>{t("profile.fiscalInfo")}</Text>
         <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Personnes à charge</Text>
+          <Text style={styles.fieldLabel}>{t("profile.dependents")}</Text>
           <TextInput
             style={styles.input}
             value={String(profile.dependentsCount)}
@@ -141,7 +173,7 @@ export function ProfileScreen() {
           />
         </View>
         <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Date de début d'activité</Text>
+          <Text style={styles.fieldLabel}>{t("profile.activityStart")}</Text>
           <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
             <Text style={styles.inputText}>
               {new Date(profile.activityStartDate).toLocaleDateString("fr-FR", {
@@ -164,17 +196,55 @@ export function ProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Régime fiscal</Text>
-        <Row label="Régime" value={result.tax.regime} />
-        <Row label="Pratique" value={practiceLabel(profile.practiceType)} />
+        <Text style={styles.sectionTitle}>{t("profile.fiscalRegime")}</Text>
+        <Row label={t("profile.regime")} value={result.tax.regime} />
+        <Row label={t("profile.practice")} value={practiceLabel(profile.practiceType)} />
         <Row
           label="Commune"
           value={`${profile.commune} (${profile.communeType === "URBAN" ? "urbain" : "rural"})`}
         />
       </View>
 
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{t("profile.language")}</Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable
+            style={[
+              styles.langBtn,
+              currentLang === "fr" && styles.langBtnActive,
+            ]}
+            onPress={() => handleLanguageChange("fr")}
+          >
+            <Text
+              style={[
+                styles.langBtnText,
+                currentLang === "fr" && styles.langBtnTextActive,
+              ]}
+            >
+              {t("profile.french")}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.langBtn,
+              currentLang === "ar" && styles.langBtnActive,
+            ]}
+            onPress={() => handleLanguageChange("ar")}
+          >
+            <Text
+              style={[
+                styles.langBtnText,
+                currentLang === "ar" && styles.langBtnTextActive,
+              ]}
+            >
+              {t("profile.arabic")}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
       <Pressable style={styles.resetBtn} onPress={handleReset}>
-        <Text style={styles.resetBtnText}>Réinitialiser les données</Text>
+        <Text style={styles.resetBtnText}>{t("profile.resetData")}</Text>
       </Pressable>
 
       <Text style={styles.footer}>
@@ -185,12 +255,6 @@ export function ProfileScreen() {
 );
 }
 
-function practiceLabel(type: string): string {
-  if (type === "CABINET_ONLY") return "Cabinet uniquement";
-  if (type === "CLINIC_ONLY") return "Clinique uniquement";
-  if (type === "MIXED") return "Cabinet + Clinique";
-  return type;
-}
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -272,4 +336,26 @@ const styles = StyleSheet.create({
   },
   resetBtnText: { fontSize: 13, color: colors.danger, fontWeight: "600" },
   footer: { fontSize: 11, color: colors.textTertiary, textAlign: "center", marginTop: spacing.md },
+  langBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  langBtnActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  langBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textPrimary,
+  },
+  langBtnTextActive: {
+    color: colors.textOnDark,
+  },
+
 });
