@@ -1,33 +1,46 @@
 {
   "expo": {
-    "name": "blackpine-app",
-    "slug": "blackpine-app",
+    "name": "Blackpine Cabinet",
+    "slug": "blackpine-cabinet",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
+      "backgroundColor": "#F5F4EF"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F5F4EF"
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.blackpine.cabinet",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "ios": {
+      "bundleIdentifier": "com.blackpine.cabinet"
     },
     "plugins": [
-      "@react-native-community/datetimepicker"
-    ]
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "L'application a besoin d'accéder à votre caméra pour photographier vos reçus.",
+          "photosPermission": "L'application a besoin d'accéder à vos photos pour ajouter des justificatifs."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c9495e3a-4c26-4de5-9a9b-41cadcd6e354"
+      }
+    }
   }
 }
