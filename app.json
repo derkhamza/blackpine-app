@@ -9,12 +9,12 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F4EF"
+      "backgroundColor": "#FFFFFF"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F5F4EF"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "com.blackpine.cabinet",
       "permissions": [
