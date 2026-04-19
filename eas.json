@@ -1,17 +1,25 @@
 {
   "cli": {
-    "version": ">= 3.0.0"
+    "version": ">= 3.0.0",
+    "appVersionSource": "local"
   },
   "build": {
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {},
+      "install": {
+        "command": "npm install"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "install": {
+        "command": "npm install"
       }
     }
   }
