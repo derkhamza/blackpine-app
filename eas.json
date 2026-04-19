@@ -9,13 +9,13 @@
       "android": {
         "buildType": "apk"
       },
-      "node": "18.18.0"
+      "node": "20.19.4"
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
-      "node": "18.18.0"
+      "node": "20.19.4"
     }
   }
 }
