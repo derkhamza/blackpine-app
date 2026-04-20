@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MaritalStatus } from "blackpine-engine";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
+import { useT } from "../../../lib/useT";
 import { colors, radii, spacing, typography } from "../../../lib/theme";
 
 interface Props {
@@ -14,31 +15,33 @@ interface Props {
 }
 
 export function FamilyStep({ marital, dependents, onChangeMarital, onChangeDependents, onNext, onBack }: Props) {
+  const { t } = useT();
+
   return (
     <OnboardingShell
       stepIndex={6}
       totalSteps={8}
-      title="Situation familiale"
-      subtitle="Détermine la déduction pour charges de famille : 600 MAD par personne à charge."
+      title={t("onboarding.familyTitle")}
+      subtitle={t("onboarding.familySub")}
       onNext={onNext}
       onBack={onBack}
       nextDisabled={!marital}
     >
-      <Text style={styles.label}>Statut</Text>
+      <Text style={styles.label}>{t("onboarding.status")}</Text>
       <Choice
-        label="Marié(e)"
+        label={t("onboarding.married")}
         icon="💍"
         selected={marital === "MARRIED"}
         onPress={() => onChangeMarital("MARRIED")}
       />
       <Choice
-        label="Célibataire"
+        label={t("onboarding.single")}
         icon="🙂"
         selected={marital === "SINGLE"}
         onPress={() => onChangeMarital("SINGLE")}
       />
 
-      <Text style={[styles.label, { marginTop: spacing.lg }]}>Nombre d'enfants à charge</Text>
+      <Text style={[styles.label, { marginTop: spacing.lg }]}>{t("onboarding.childrenCount")}</Text>
       <View style={styles.counterRow}>
         {[0, 1, 2, 3, 4, 5, 6].map((n) => (
           <Pressable
@@ -57,22 +60,11 @@ export function FamilyStep({ marital, dependents, onChangeMarital, onChangeDepen
 }
 
 const styles = StyleSheet.create({
-  label: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-    fontWeight: "600",
-  },
+  label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.sm, fontWeight: "600" },
   counterRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   counterBtn: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    width: 44, height: 44, alignItems: "center", justifyContent: "center",
+    borderRadius: radii.md, backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.border,
   },
   counterBtnActive: { backgroundColor: colors.brand, borderColor: colors.brand },
   counterText: { fontSize: 17, fontWeight: "600", color: colors.textPrimary },

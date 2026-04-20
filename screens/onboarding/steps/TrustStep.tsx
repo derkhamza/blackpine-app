@@ -1,39 +1,42 @@
 import { StyleSheet, Text, View } from "react-native";
 import { OnboardingShell } from "../OnboardingShell";
+import { useT } from "../../../lib/useT";
 import { colors, radii, spacing, typography } from "../../../lib/theme";
 
 export function TrustStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+  const { t } = useT();
+
   return (
     <OnboardingShell
       stepIndex={1}
       totalSteps={8}
-      title="Ce que vous devez savoir"
-      subtitle="Avant de continuer, voici nos engagements."
+      title={t("onboarding.trustTitle")}
+      subtitle={t("onboarding.trustSub")}
       onNext={onNext}
       onBack={onBack}
     >
       <View style={styles.list}>
-        <Promise
+        <PromiseCard
           icon="🔒"
-          title="Vos données restent au Maroc"
-          detail="Chiffrées et confidentielles, conformément à la loi 09-08."
+          title={t("onboarding.dataInMorocco")}
+          detail={t("onboarding.dataInMoroccoDetail")}
         />
-        <Promise
+        <PromiseCard
           icon="✓"
-          title="Approuvé par des experts-comptables marocains"
-          detail="Notre moteur fiscal est validé par des professionnels."
+          title={t("onboarding.approvedByExperts")}
+          detail={t("onboarding.approvedDetail")}
         />
-        <Promise
+        <PromiseCard
           icon="🎁"
-          title="Essai gratuit 30 jours"
-          detail="Sans carte bancaire. Annulation à tout moment."
+          title={t("onboarding.freeTrial")}
+          detail={t("onboarding.freeTrialDetail")}
         />
       </View>
     </OnboardingShell>
   );
 }
 
-function Promise({ icon, title, detail }: { icon: string; title: string; detail: string }) {
+function PromiseCard({ icon, title, detail }: { icon: string; title: string; detail: string }) {
   return (
     <View style={styles.item}>
       <Text style={styles.icon}>{icon}</Text>

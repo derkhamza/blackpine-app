@@ -1,5 +1,6 @@
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "../../lib/theme";
+import { useT } from "../../lib/useT";
 
 interface Props {
   stepIndex: number;
@@ -20,16 +21,17 @@ export function OnboardingShell({
   subtitle,
   onBack,
   onNext,
-  nextLabel = "Continuer",
+  nextLabel,
   nextDisabled,
   children,
 }: Props) {
+  const { t } = useT();
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         {onBack ? (
           <Pressable onPress={onBack} hitSlop={12}>
-            <Text style={styles.backBtn}>‹ Retour</Text>
+            <Text style={styles.backBtn}>‹ {t("cancel")}</Text>
           </Pressable>
         ) : (
           <View style={{ width: 60 }} />
@@ -63,7 +65,7 @@ export function OnboardingShell({
             onPress={onNext}
             disabled={nextDisabled}
           >
-            <Text style={styles.nextBtnText}>{nextLabel}</Text>
+            <Text style={styles.nextBtnText}>{nextLabel || t("continue")}</Text>
           </Pressable>
         </View>
       )}

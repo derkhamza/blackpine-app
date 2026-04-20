@@ -1,22 +1,23 @@
 import { StyleSheet, Text, View } from "react-native";
 import { OnboardingShell } from "../OnboardingShell";
-import { colors, spacing, typography } from "../../../lib/theme";
+import { useT } from "../../../lib/useT";
+import { colors, spacing } from "../../../lib/theme";
 
 export function WelcomeStep({ onNext }: { onNext: () => void }) {
+  const { t } = useT();
+
   return (
     <OnboardingShell
       stepIndex={0}
       totalSteps={8}
-      title="Bienvenue chez Blackpine Cabinet"
-      subtitle="Gérez vos finances et vos impôts, sans stress et sans comptable entre chaque question."
+      title={t("onboarding.welcome")}
+      subtitle={t("onboarding.welcomeSub")}
       onNext={onNext}
-      nextLabel="Commencer"
+      nextLabel={t("onboarding.start")}
     >
       <View style={styles.hero}>
         <Text style={styles.brandMark}>BLACKPINE</Text>
-        <Text style={styles.tagline}>
-          Conçu pour les professionnels de santé au Maroc
-        </Text>
+        <Text style={styles.tagline}>{t("onboarding.tagline")}</Text>
       </View>
     </OnboardingShell>
   );
@@ -32,7 +33,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   tagline: {
-    ...typography.body,
+    fontSize: 15,
     color: colors.textSecondary,
     textAlign: "center",
     paddingHorizontal: spacing.xl,

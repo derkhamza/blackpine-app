@@ -3,7 +3,8 @@ import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
-import { colors, radii, spacing, typography } from "../../../lib/theme";
+import { useT } from "../../../lib/useT";
+import { colors, radii, spacing } from "../../../lib/theme";
 
 interface Props {
   value: string | null;
@@ -23,6 +24,7 @@ function bucketToDate(bucket: Bucket): string {
 }
 
 export function ActivityStep({ value, onChange, onNext, onBack }: Props) {
+  const { t } = useT();
   const [bucket, setBucket] = useState<Bucket | null>(null);
   const [showPicker, setShowPicker] = useState(false);
 
@@ -40,36 +42,36 @@ export function ActivityStep({ value, onChange, onNext, onBack }: Props) {
     <OnboardingShell
       stepIndex={5}
       totalSteps={8}
-      title="Depuis quand exercez-vous ?"
-      subtitle="Cela détermine votre exemption de cotisation minimale et de taxe professionnelle."
+      title={t("onboarding.activityTitle")}
+      subtitle={t("onboarding.activitySub")}
       onNext={onNext}
       onBack={onBack}
       nextDisabled={!value}
     >
       <Choice
-        label="Moins de 3 ans"
-        description="Exemption de cotisation minimale applicable"
+        label={t("onboarding.lessThan3")}
+        description={t("onboarding.lessThan3Desc")}
         icon="🌱"
         selected={bucket === "LT_3Y"}
         onPress={() => handleBucket("LT_3Y")}
       />
       <Choice
-        label="Entre 3 et 5 ans"
-        description="CM applicable, exemption de TP encore active"
+        label={t("onboarding.between3and5")}
+        description={t("onboarding.between3and5Desc")}
         icon="🌿"
         selected={bucket === "3_5Y"}
         onPress={() => handleBucket("3_5Y")}
       />
       <Choice
-        label="Plus de 5 ans"
-        description="CM et taxe professionnelle applicables"
+        label={t("onboarding.moreThan5")}
+        description={t("onboarding.moreThan5Desc")}
         icon="🌳"
         selected={bucket === "GT_5Y"}
         onPress={() => handleBucket("GT_5Y")}
       />
       <Choice
-        label="Indiquer la date exacte"
-        description="Si vous êtes proche d'un seuil"
+        label={t("onboarding.exactDate")}
+        description={t("onboarding.exactDateDesc")}
         icon="📅"
         selected={bucket === "EXACT"}
         onPress={() => handleBucket("EXACT")}
@@ -85,7 +87,7 @@ export function ActivityStep({ value, onChange, onNext, onBack }: Props) {
                     month: "long",
                     year: "numeric",
                   })
-                : "Choisir une date"}
+                : t("onboarding.pickDate")}
             </Text>
           </Pressable>
           {showPicker && (
@@ -106,11 +108,8 @@ export function ActivityStep({ value, onChange, onNext, onBack }: Props) {
 const styles = StyleSheet.create({
   datePickerWrapper: { marginTop: spacing.md },
   dateBtn: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.surface, padding: spacing.md,
+    borderRadius: radii.md, borderWidth: 1, borderColor: colors.border,
   },
   dateBtnText: { fontSize: 15, color: colors.textPrimary, fontWeight: "500" },
 });

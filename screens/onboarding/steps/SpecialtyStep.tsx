@@ -1,15 +1,17 @@
-import { useState } from "react";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
+import { useT } from "../../../lib/useT";
 
-const OPTIONS = [
-  { id: "medecin_generaliste", label: "Médecin généraliste", icon: "🩺" },
-  { id: "medecin_specialiste", label: "Médecin spécialiste", icon: "🏥" },
-  { id: "dentiste", label: "Dentiste", icon: "🦷" },
-  { id: "kinesitherapeute", label: "Kinésithérapeute", icon: "💪" },
-  { id: "sage_femme", label: "Sage-femme", icon: "👶" },
-  { id: "autre", label: "Autre profession de santé", icon: "⚕️" },
+const SPECIALTY_IDS = [
+  "medecin_generaliste",
+  "medecin_specialiste",
+  "dentiste",
+  "kinesitherapeute",
+  "sage_femme",
+  "autre",
 ];
+
+const ICONS = ["🩺", "🏥", "🦷", "💪", "👶", "⚕️"];
 
 export function SpecialtyStep({
   value,
@@ -22,23 +24,25 @@ export function SpecialtyStep({
   onNext: () => void;
   onBack: () => void;
 }) {
+  const { t } = useT();
+
   return (
     <OnboardingShell
       stepIndex={2}
       totalSteps={8}
-      title="Quelle est votre spécialité ?"
-      subtitle="Nous adaptons les catégories de recettes à votre pratique."
+      title={t("onboarding.specialtyTitle")}
+      subtitle={t("onboarding.specialtySub")}
       onNext={onNext}
       onBack={onBack}
       nextDisabled={!value}
     >
-      {OPTIONS.map((opt) => (
+      {SPECIALTY_IDS.map((id, i) => (
         <Choice
-          key={opt.id}
-          label={opt.label}
-          icon={opt.icon}
-          selected={value === opt.id}
-          onPress={() => onChange(opt.id)}
+          key={id}
+          label={t(`onboarding.specialties.${id}`)}
+          icon={ICONS[i]}
+          selected={value === id}
+          onPress={() => onChange(id)}
         />
       ))}
     </OnboardingShell>
