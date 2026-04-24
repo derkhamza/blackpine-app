@@ -7,10 +7,13 @@ import { useApp } from "../lib/AppContext";
 import { useT } from "../lib/useT";
 import { signup, login } from "../lib/api";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { ResetPasswordScreen } from "./ResetPasswordScreen";
 
 export function AuthGate() {
   const { onSignup, onLogin } = useApp();
   const { t } = useT();
+  const [showReset, setShowReset] = useState(false);
+
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
@@ -34,6 +37,10 @@ export function AuthGate() {
       setLoading(false);
     }
   };
+
+    if (showReset) {
+    return <ResetPasswordScreen onBack={() => setShowReset(false)} />;
+    }
 
   return (
     <ScrollView
@@ -83,6 +90,13 @@ export function AuthGate() {
             {loading ? t("loading") : mode === "signup" ? t("auth.signupBtn") : t("auth.loginBtn")}
           </Text>
         </Pressable>
+        
+        {mode === "login" && (
+            <Pressable style={styles.forgotBtn} onPress={() => setShowReset(true)}>
+                <Text style={styles.forgotText}>{t("reset.forgotPassword")}</Text>
+            </Pressable>
+            )}
+      
       </View>
 
       <Pressable
@@ -112,4 +126,6 @@ const styles = StyleSheet.create({
   submitBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
   switchBtn: { paddingVertical: spacing.lg, alignItems: "center" },
   switchText: { color: colors.brand, fontSize: 14, fontWeight: "600" },
+forgotBtn: { paddingVertical: spacing.md, alignItems: "center" },
+forgotText: { color: colors.textSecondary, fontSize: 13 },
 });

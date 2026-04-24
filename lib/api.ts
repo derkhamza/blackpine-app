@@ -127,3 +127,27 @@ export async function extractReceipt(imageUri: string): Promise<OcrExtraction> {
   if (!res.ok) throw new Error(data.error || "Erreur OCR");
   return data;
 }
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/reset/request`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Erreur");
+}
+
+export async function verifyResetCode(
+  email: string,
+  code: string,
+  newPassword: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/reset/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code, newPassword }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Erreur");
+}

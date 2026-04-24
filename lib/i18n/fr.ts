@@ -6,7 +6,6 @@ export default {
   delete: "Supprimer",
   modify: "Modifier",
   close: "Fermer",
-  reset: "Réinitialiser",
   loading: "Chargement…",
   error: "Erreur",
   yes: "Oui",
@@ -216,6 +215,20 @@ export default {
     switchToLogin: "Déjà un compte ? Se connecter",
   },
 
+  reset: {
+    forgotPassword: "Mot de passe oublié ?",
+    title: "Réinitialisation",
+    enterEmail: "Entrez votre email pour recevoir un code de réinitialisation.",
+    sendCode: "Envoyer le code",
+    codeSent: "Un code a été envoyé à votre email.",
+    enterCode: "Code de vérification",
+    codePlaceholder: "123456",
+    newPassword: "Nouveau mot de passe",
+    resetPassword: "Réinitialiser le mot de passe",
+    success: "Mot de passe modifié avec succès. Connectez-vous avec votre nouveau mot de passe.",
+    backToLogin: "Retour à la connexion",
+  },
+
   // Sync
   sync: {
     syncing: "Sync…",
@@ -235,6 +248,8 @@ export default {
     excelTitle: "Transactions Excel",
     excelDesc: "Recettes et charges avec déductibilité",
   },
+
+
 
   // Onboarding
   onboarding: {
