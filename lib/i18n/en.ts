@@ -48,6 +48,7 @@ export default {
     inRecettes: "in revenue",
     searchPlaceholder: "Search a transaction…",
     all: "All",
+    descriptionPlaceholder: "Note or description (optional)",
     recettesFilter: "Revenue",
     chargesFilter: "Expenses",
     date: "Date",

@@ -53,6 +53,7 @@ export default {
     searchPlaceholder: "البحث عن عملية…",
     all: "الكل",
     recettesFilter: "إيرادات",
+    descriptionPlaceholder: "ملاحظة أو وصف (اختياري)",
     chargesFilter: "مصاريف",
     date: "التاريخ",
     amount: "المبلغ",

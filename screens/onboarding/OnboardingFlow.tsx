@@ -1,10 +1,5 @@
 import { useState } from "react";
-import {
-  CommuneType,
-  DoctorProfile,
-  MaritalStatus,
-  PracticeType,
-} from "blackpine-engine";
+import { CommuneType, DoctorProfile, MaritalStatus, PracticeType } from "blackpine-engine";
 import { useApp } from "../../lib/AppContext";
 import { WelcomeStep } from "./steps/WelcomeStep";
 import { TrustStep } from "./steps/TrustStep";
@@ -28,26 +23,18 @@ interface ProfileBuilder {
 }
 
 export function OnboardingFlow() {
-  const { completeOnboarding } = useApp();
+  const { onOnboardingComplete } = useApp();
   const [step, setStep] = useState<Step>(0);
   const [builder, setBuilder] = useState<ProfileBuilder>({
-    specialty: null,
-    practiceType: null,
-    commune: "",
-    communeType: null,
-    activityStartDate: null,
-    marital: null,
-    dependents: 0,
+    specialty: null, practiceType: null, commune: "",
+    communeType: null, activityStartDate: null, marital: null, dependents: 0,
   });
 
-  const update = (patch: Partial<ProfileBuilder>) =>
-    setBuilder((prev) => ({ ...prev, ...patch }));
-
-  const next = () => setStep((s) => (Math.min(s + 1, 7) as Step));
-  const back = () => setStep((s) => (Math.max(s - 1, 0) as Step));
+  const update = (patch: Partial<ProfileBuilder>) => setBuilder((prev) => ({ ...prev, ...patch }));
+  const next = () => setStep((s) => Math.min(s + 1, 7) as Step);
+  const back = () => setStep((s) => Math.max(s - 1, 0) as Step);
 
   const finish = async (withDemo: boolean) => {
-    // Build the DoctorProfile from the builder. Fallbacks for safety.
     const profile: DoctorProfile = {
       id: "user-" + Math.random().toString(36).slice(2, 9),
       legalForm: "PERSONNE_PHYSIQUE",
@@ -59,64 +46,17 @@ export function OnboardingFlow() {
       dependentsCount: builder.dependents,
       tpRegistered: builder.practiceType === "CABINET_ONLY" || builder.practiceType === "MIXED",
     };
-    await completeOnboarding(profile, withDemo);
+    await onOnboardingComplete(profile, withDemo);
   };
 
   switch (step) {
-    case 0:
-      return <WelcomeStep onNext={next} />;
-    case 1:
-      return <TrustStep onNext={next} onBack={back} />;
-    case 2:
-      return (
-        <SpecialtyStep
-          value={builder.specialty}
-          onChange={(v) => update({ specialty: v })}
-          onNext={next}
-          onBack={back}
-        />
-      );
-    case 3:
-      return (
-        <PracticeStep
-          value={builder.practiceType}
-          onChange={(v) => update({ practiceType: v })}
-          onNext={next}
-          onBack={back}
-        />
-      );
-    case 4:
-      return (
-        <LocationStep
-          commune={builder.commune}
-          communeType={builder.communeType}
-          onChangeCommune={(v) => update({ commune: v })}
-          onChangeType={(v) => update({ communeType: v })}
-          onNext={next}
-          onBack={back}
-        />
-      );
-    case 5:
-      return (
-        <ActivityStep
-          value={builder.activityStartDate}
-          onChange={(v) => update({ activityStartDate: v })}
-          onNext={next}
-          onBack={back}
-        />
-      );
-    case 6:
-      return (
-        <FamilyStep
-          marital={builder.marital}
-          dependents={builder.dependents}
-          onChangeMarital={(v) => update({ marital: v })}
-          onChangeDependents={(v) => update({ dependents: v })}
-          onNext={next}
-          onBack={back}
-        />
-      );
-    case 7:
-      return <FinishStep onChoose={finish} onBack={back} />;
+    case 0: return <WelcomeStep onNext={next} />;
+    case 1: return <TrustStep onNext={next} onBack={back} />;
+    case 2: return <SpecialtyStep value={builder.specialty} onChange={(v) => update({ specialty: v })} onNext={next} onBack={back} />;
+    case 3: return <PracticeStep value={builder.practiceType} onChange={(v) => update({ practiceType: v })} onNext={next} onBack={back} />;
+    case 4: return <LocationStep commune={builder.commune} communeType={builder.communeType} onChangeCommune={(v) => update({ commune: v })} onChangeType={(v) => update({ communeType: v })} onNext={next} onBack={back} />;
+    case 5: return <ActivityStep value={builder.activityStartDate} onChange={(v) => update({ activityStartDate: v })} onNext={next} onBack={back} />;
+    case 6: return <FamilyStep marital={builder.marital} dependents={builder.dependents} onChangeMarital={(v) => update({ marital: v })} onChangeDependents={(v) => update({ dependents: v })} onNext={next} onBack={back} />;
+    case 7: return <FinishStep onChoose={finish} onBack={back} />;
   }
 }

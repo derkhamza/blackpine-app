@@ -50,6 +50,7 @@ export default {
     title: "Transactions",
     operations: "opérations",
     inRecettes: "en recettes",
+    descriptionPlaceholder: "Note ou description (optionnel)",
     searchPlaceholder: "Rechercher une transaction…",
     all: "Tout",
     recettesFilter: "Recettes",

@@ -8,6 +8,7 @@ import { getMonthlyData, getActiveMonths, getCategoryBreakdown } from "../lib/ch
 import { SyncIndicator } from "../components/SyncIndicator";
 import { ExportButtons } from "../components/ExportButtons";
 import { useT } from "../lib/useT";
+import { SafeScreen } from "../components/SafeScreen";
 
 export function DashboardScreen({ navigation }: any) {
   const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated } = useApp();  
@@ -25,6 +26,7 @@ export function DashboardScreen({ navigation }: any) {
   }
 
   return (
+  <SafeScreen>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View>
@@ -91,6 +93,7 @@ export function DashboardScreen({ navigation }: any) {
         <Text style={styles.secondaryBtnText}>{t("dashboard.manageTransactions")}</Text>
       </Pressable>
     </ScrollView>
+  </SafeScreen>
   );
 }
 

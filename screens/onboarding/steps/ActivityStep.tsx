@@ -40,8 +40,8 @@ export function ActivityStep({ value, onChange, onNext, onBack }: Props) {
 
   return (
     <OnboardingShell
-      stepIndex={5}
-      totalSteps={8}
+      stepIndex={6}
+      totalSteps={9}
       title={t("onboarding.activityTitle")}
       subtitle={t("onboarding.activitySub")}
       onNext={onNext}

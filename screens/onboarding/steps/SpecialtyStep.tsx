@@ -28,8 +28,8 @@ export function SpecialtyStep({
 
   return (
     <OnboardingShell
-      stepIndex={2}
-      totalSteps={8}
+      stepIndex={3}
+      totalSteps={9}
       title={t("onboarding.specialtyTitle")}
       subtitle={t("onboarding.specialtySub")}
       onNext={onNext}

@@ -12,8 +12,8 @@ export function FinishStep({ onChoose, onBack }: Props) {
 
   return (
     <OnboardingShell
-      stepIndex={7}
-      totalSteps={8}
+      stepIndex={8}
+      totalSteps={9}
       title={t("onboarding.finishTitle")}
       subtitle={t("onboarding.finishSub")}
       onBack={onBack}

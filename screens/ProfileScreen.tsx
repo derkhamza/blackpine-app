@@ -12,37 +12,21 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useApp } from "../lib/AppContext";
-import { AuthScreen } from "../components/AuthScreen";
 import { SyncIndicator } from "../components/SyncIndicator";
-import { AuthUser, getStoredUser, logout } from "../lib/api";
+import { getStoredUser} from "../lib/api";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { useT } from "../lib/useT";
 import { AppLanguage } from "../lib/i18n";
 import { applyRTL } from "../lib/rtl";
+import { SafeScreen } from "../components/SafeScreen";
 
 export function ProfileScreen() {
-  const {
-    profile,
-    setProfile,
-    reset,
-    result,
-    saving,
-    lastSavedAt,
-    syncStatus,
-    lastSyncedAt,
-    isAuthenticated,
-    onAuthChange,
-    forcePull,
-  } = useApp();
+  const { profile, setProfile, result, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated, onLogout, forcePull } = useApp();
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [checkingAuth, setCheckingAuth] = useState(true);
   const { t, currentLang, changeLanguage } = useT();
   useEffect(() => {
     (async () => {
       const user = await getStoredUser();
-      if (user) setAuthUser(user);
-      setCheckingAuth(false);
     })();
   }, []);
 
@@ -76,32 +60,19 @@ const handleLanguageChange = async (lang: AppLanguage) => {
     }
   };
 
-  const handleAuth = async (user: AuthUser) => {
-    setAuthUser(user);
-    await onAuthChange();
-  };
-
   const handleLogout = async () => {
-    await logout();
-    setAuthUser(null);
-    await onAuthChange();
-  };
-
-  const handleReset = () => {
     Alert.alert(
-      "Réinitialiser ?",
-      "Toutes vos données locales seront effacées.",
+      t("profile.logout"),
+      t("profile.resetWarning"),
       [
-        { text: "Annuler", style: "cancel" },
-        { text: "Réinitialiser", style: "destructive", onPress: reset },
+        { text: t("cancel"), style: "cancel" },
+        { text: t("profile.logout"), style: "destructive", onPress: onLogout },
       ]
     );
   };
 
-  if (checkingAuth) return null;
-
   return (
-
+  <SafeScreen>
   <ScrollView
     style={styles.container}
     contentContainerStyle={styles.content}
@@ -123,30 +94,19 @@ const handleLanguageChange = async (lang: AppLanguage) => {
       {/* CLOUD ACCOUNT */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("profile.cloudAccount")}</Text>
-        {authUser ? (
-          <>
-            <Row label="Email" value={authUser.email} />
-            <Text style={styles.syncNote}>
-              {isAuthenticated ? t("profile.autoSync") : t("profile.connectToSync")}
-            </Text>
-
-            <Pressable
-              style={styles.pullBtn}
-              onPress={forcePull}
-              disabled={syncStatus === "syncing"}
-            >
-              <Text style={styles.pullBtnText}>
-                {syncStatus === "syncing" ? t("profile.syncing") : t("profile.pullFromCloud")}
-              </Text>
-            </Pressable>
-
-            <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-              <Text style={styles.logoutBtnText}>{t("profile.logout")}</Text>
-            </Pressable>
-          </>
-        ) : (
-          <AuthScreen onAuth={handleAuth} />
-        )}
+        <Text style={styles.syncNote}>{t("profile.autoSync")}</Text>
+        <Pressable
+          style={styles.pullBtn}
+          onPress={forcePull}
+          disabled={syncStatus === "syncing"}
+        >
+          <Text style={styles.pullBtnText}>
+            {syncStatus === "syncing" ? t("profile.syncing") : t("profile.pullFromCloud")}
+          </Text>
+        </Pressable>
+        <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+          <Text style={styles.logoutBtnText}>{t("profile.logout")}</Text>
+        </Pressable>
       </View>
 
       {/* PROFILE INFO */}
@@ -226,15 +186,12 @@ const handleLanguageChange = async (lang: AppLanguage) => {
         </View>
       </View>
 
-      <Pressable style={styles.resetBtn} onPress={handleReset}>
-        <Text style={styles.resetBtnText}>{t("profile.resetData")}</Text>
-      </Pressable>
-
       <Text style={styles.footer}>
         Blackpine Cabinet · Config fiscale {result.configVersion}
       </Text>
     </ScrollView>
   </ScrollView>
+  </SafeScreen>
 );
 }
 

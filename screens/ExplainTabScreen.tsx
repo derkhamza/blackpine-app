@@ -5,7 +5,7 @@ import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { formatMAD } from "../lib/format";
 import { ExportButtons } from "../components/ExportButtons";
 import { useT } from "../lib/useT";
-
+import { SafeScreen } from "../components/SafeScreen";
 
 
 export function ExplainTabScreen() {
@@ -48,6 +48,7 @@ export function ExplainTabScreen() {
   );
 }
   return (
+  <SafeScreen>
     <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
       <Text style={styles.screenTitle}>{t("explain.title")}</Text>
 
@@ -72,7 +73,7 @@ export function ExplainTabScreen() {
         {t("explain.configLabel")} {result.configVersion}. {t("explain.footer")}
       </Text>
     </ScrollView>
-
+  </SafeScreen>
     
   );
 }

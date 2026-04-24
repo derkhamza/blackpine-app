@@ -19,8 +19,8 @@ export function LocationStep({ commune, communeType, onChangeCommune, onChangeTy
 
   return (
     <OnboardingShell
-      stepIndex={4}
-      totalSteps={8}
+      stepIndex={5}
+      totalSteps={9}
       title={t("onboarding.locationTitle")}
       subtitle={t("onboarding.locationSub")}
       onNext={onNext}

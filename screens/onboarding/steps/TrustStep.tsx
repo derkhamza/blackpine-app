@@ -9,7 +9,7 @@ export function TrustStep({ onNext, onBack }: { onNext: () => void; onBack: () =
   return (
     <OnboardingShell
       stepIndex={1}
-      totalSteps={8}
+      totalSteps={9}
       title={t("onboarding.trustTitle")}
       subtitle={t("onboarding.trustSub")}
       onNext={onNext}

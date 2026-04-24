@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { ReceiptCapture } from "./ReceiptCapture";
 import { tapLight, tapSuccess } from "../lib/haptics";
+import { useT } from "../lib/useT";
 
 interface Props {
   visible: boolean;
@@ -50,12 +51,14 @@ export function AddTransactionModal({
   const [pickerOpen, setPickerOpen] = useState(false);
   const selectedRef = useRef(false);
   const [receiptUri, setReceiptUri] = useState<string | undefined>(undefined);
-
+  const [description, setDescription] = useState("");
+  
   // Reset whenever the modal opens
     useEffect(() => {
     if (visible) {
         setStep("category");
         setCategory(null);
+        setDescription("");
         setAmount("");
         setDate(new Date().toISOString().split("T")[0]);
         selectedRef.current = false;
@@ -91,6 +94,7 @@ const handleSave = () => {
     amount: n,
     date,
     category: category.id,
+    description: description.trim() || undefined,
     deductibilityStatus: type === "CHARGE" ? defaults.deductibilityStatus : undefined,
     professionalUseRatio: type === "CHARGE" ? defaults.professionalUseRatio : undefined,
     receiptUri,
@@ -105,6 +109,7 @@ const handleSave = () => {
 
   const accent = type === "RECETTE" ? colors.recette : colors.charge;
   const typeLabel = type === "RECETTE" ? "Nouvelle recette" : "Nouvelle charge";
+  const { t } = useT();
 
   return (
     <Modal
@@ -187,6 +192,13 @@ const handleSave = () => {
                 />
                 <Text style={styles.currency}>MAD</Text>
               </View>
+              <TextInput
+                style={styles.descriptionInput}
+                value={description}
+                onChangeText={setDescription}
+                placeholder={t("transactions.descriptionPlaceholder")}
+                placeholderTextColor={colors.textTertiary}
+              />
               <Pressable
                 style={[
                   styles.primaryBtn,
@@ -436,4 +448,16 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   primaryBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
+
+  descriptionInput: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    fontSize: 14,
+    color: colors.textPrimary,
+    marginTop: spacing.sm,
+  },
+
 });

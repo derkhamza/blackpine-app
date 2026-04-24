@@ -1,6 +1,7 @@
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing, typography } from "../../lib/theme";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useT } from "../../lib/useT";
+import { colors, radii, spacing, typography } from "../../lib/theme";
 
 interface Props {
   stepIndex: number;
@@ -26,8 +27,9 @@ export function OnboardingShell({
   children,
 }: Props) {
   const { t } = useT();
+  const insets = useSafeAreaInsets();
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
         {onBack ? (
           <Pressable onPress={onBack} hitSlop={12}>
@@ -69,7 +71,7 @@ export function OnboardingShell({
           </Pressable>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

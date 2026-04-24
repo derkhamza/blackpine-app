@@ -18,8 +18,8 @@ export function PracticeStep({ value, onChange, onNext, onBack }: Props) {
 
   return (
     <OnboardingShell
-      stepIndex={3}
-      totalSteps={8}
+      stepIndex={4}
+      totalSteps={9}
       title={t("onboarding.practiceTitle")}
       subtitle={t("onboarding.practiceSub")}
       onNext={onNext}

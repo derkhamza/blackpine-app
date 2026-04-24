@@ -9,7 +9,7 @@ export function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <OnboardingShell
       stepIndex={0}
-      totalSteps={8}
+      totalSteps={9}
       title={t("onboarding.welcome")}
       subtitle={t("onboarding.welcomeSub")}
       onNext={onNext}

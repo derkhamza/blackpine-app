@@ -1,3 +1,5 @@
+import "./lib/i18n";
+import { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StatusBar } from "expo-status-bar";
@@ -10,35 +12,25 @@ import { TransactionsScreen } from "./screens/TransactionsScreen";
 import { ExplainTabScreen } from "./screens/ExplainTabScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { OnboardingFlow } from "./screens/onboarding/OnboardingFlow";
+import { AuthGate } from "./screens/AuthGate";
 import { Icon } from "./lib/icons";
-import { colors } from "./lib/theme";
-import { applyRTL } from "./lib/rtl";
-import { useEffect, useState } from "react";
 import { useT } from "./lib/useT";
 import { loadSavedLanguage } from "./lib/i18n";
+import { applyRTL } from "./lib/rtl";
+import { colors } from "./lib/theme";
 
 const Tab = createBottomTabNavigator();
-function RootRouter() {
-  const { loading, onboarded } = useApp();
-  const { t } = useT();
 
+function RootRouter() {
+  const { screen } = useApp();
+  const { t } = useT();
   const [langLoaded, setLangLoaded] = useState(false);
 
   useEffect(() => {
-    loadSavedLanguage().then(() => {
-      applyRTL();
-      setLangLoaded(true);
-    });
+    loadSavedLanguage().then(() => { applyRTL(); setLangLoaded(true); });
   }, []);
 
-  if (loading || !langLoaded) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
-        <ActivityIndicator size="large" color={colors.brand} />
-      </View>
-    );
-  }
-  if (loading) {
+  if (!langLoaded || screen === "loading") {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg }}>
         <ActivityIndicator size="large" color={colors.brand} />
@@ -46,9 +38,8 @@ function RootRouter() {
     );
   }
 
-  if (!onboarded) {
-    return <OnboardingFlow />;
-  }
+  if (screen === "auth") return <AuthGate />;
+  if (screen === "onboarding") return <OnboardingFlow />;
 
   return (
     <NavigationContainer>
@@ -58,47 +49,20 @@ function RootRouter() {
           tabBarActiveTintColor: colors.brand,
           tabBarInactiveTintColor: colors.textTertiary,
           tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            paddingTop: 6,
-            paddingBottom: 6,
-            height: 62,
+            backgroundColor: colors.surface, borderTopColor: colors.border,
+            paddingTop: 6, paddingBottom: 6, height: 62,
           },
           tabBarLabelStyle: { fontSize: 11, fontWeight: "600", marginTop: -2 },
         }}
       >
-        <Tab.Screen
-          name="Dashboard"
-          component={DashboardScreen}
-          options={{
-            tabBarLabel: t("tabs.home"),
-            tabBarIcon: ({ color, size }) => <Icon name="dashboard" size={size} color={color} />,
-          }}
-        />
-        <Tab.Screen
-          name="Transactions"
-          component={TransactionsScreen}
-          options={{
-            tabBarLabel: t("tabs.transactions"),
-            tabBarIcon: ({ color, size }) => <Icon name="transactions" size={size} color={color} />,
-          }}
-        />
-        <Tab.Screen
-          name="Expliquer"
-          component={ExplainTabScreen}
-          options={{
-            tabBarLabel: t("tabs.explain"),
-            tabBarIcon: ({ color, size }) => <Icon name="explain" size={size} color={color} />,
-          }}
-        />
-        <Tab.Screen
-          name="Profil"
-          component={ProfileScreen}
-          options={{
-            tabBarLabel: t("tabs.profile"),
-            tabBarIcon: ({ color, size }) => <Icon name="profile" size={size} color={color} />,
-          }}
-        />
+        <Tab.Screen name="Dashboard" component={DashboardScreen}
+          options={{ tabBarLabel: t("tabs.home"), tabBarIcon: ({ color, size }) => <Icon name="dashboard" size={size} color={color} /> }} />
+        <Tab.Screen name="Transactions" component={TransactionsScreen}
+          options={{ tabBarLabel: t("tabs.transactions"), tabBarIcon: ({ color, size }) => <Icon name="transactions" size={size} color={color} /> }} />
+        <Tab.Screen name="Expliquer" component={ExplainTabScreen}
+          options={{ tabBarLabel: t("tabs.explain"), tabBarIcon: ({ color, size }) => <Icon name="explain" size={size} color={color} /> }} />
+        <Tab.Screen name="Profil" component={ProfileScreen}
+          options={{ tabBarLabel: t("tabs.profile"), tabBarIcon: ({ color, size }) => <Icon name="profile" size={size} color={color} /> }} />
       </Tab.Navigator>
     </NavigationContainer>
   );

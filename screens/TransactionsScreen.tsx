@@ -24,6 +24,7 @@ import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 import { tapLight, tapWarning } from "../lib/haptics";
 import { Icon } from "../lib/icons";
 import { useT } from "../lib/useT";
+import { SafeScreen } from "../components/SafeScreen";
 
 export function TransactionsScreen() {
   const { transactions, updateTransaction, deleteTransaction, addTransaction, result } = useApp();
@@ -56,6 +57,7 @@ export function TransactionsScreen() {
   };
 
   return (
+  <SafeScreen>
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -221,6 +223,7 @@ export function TransactionsScreen() {
       )}
     </ScrollView>
     </KeyboardAvoidingView>
+  </SafeScreen>
   );
 }
 
@@ -248,7 +251,7 @@ function TransactionRow({
 }) {
   const isRecette = transaction.type === "RECETTE";
   const ratio = transaction.professionalUseRatio ?? 1;
-
+  const { t } = useT();
   return (
     <View style={styles.txRow}>
       <View
@@ -278,7 +281,14 @@ function TransactionRow({
           placeholder="0"
           placeholderTextColor={colors.textTertiary}
         />
-
+        <TextInput
+          style={styles.txDescription}
+          value={transaction.description || ""}
+          onChangeText={(v) => onChange({ description: v })}
+          placeholder={t("transactions.descriptionPlaceholder")}
+          placeholderTextColor={colors.textTertiary}
+          multiline={false}
+        />
         <Pressable style={styles.txDateBtn} onPress={onPickDate}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <Icon name="calendar" size={12} color={colors.textSecondary} />
@@ -538,4 +548,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 14 },
+  
+  txDescription: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginTop: 4,
+  },
+
+
 });

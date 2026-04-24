@@ -19,8 +19,8 @@ export function FamilyStep({ marital, dependents, onChangeMarital, onChangeDepen
 
   return (
     <OnboardingShell
-      stepIndex={6}
-      totalSteps={8}
+      stepIndex={7}
+      totalSteps={9}
       title={t("onboarding.familyTitle")}
       subtitle={t("onboarding.familySub")}
       onNext={onNext}
