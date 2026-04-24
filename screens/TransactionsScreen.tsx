@@ -328,18 +328,14 @@ function TransactionRow({
                         styles.pillTextActive,
                     ]}
                   >
-                    {status === "FULLY_DEDUCTIBLE"
-                      ? "Déductible"
-                      : status === "PARTIALLY_DEDUCTIBLE"
-                      ? "Partielle"
-                      : "Non déductible"}
+                    {status === "FULLY_DEDUCTIBLE" ? t("categories.deductible") : status === "PARTIALLY_DEDUCTIBLE" ? t("categories.partiallyDeductible") : t("categories.notDeductible")}
                   </Text>
                 </Pressable>
               ))}
             </View>
             {transaction.deductibilityStatus === "PARTIALLY_DEDUCTIBLE" && (
               <View style={styles.ratioRow}>
-                <Text style={styles.ratioLabel}>Part professionnelle</Text>
+                <Text style={styles.ratioLabel}>{t("categories.professionalShare")}</Text>
                 <TextInput
                   style={styles.ratioInput}
                   value={String(ratio)}

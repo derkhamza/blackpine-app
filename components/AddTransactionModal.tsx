@@ -106,10 +106,10 @@ const handleSave = () => {
     if (Platform.OS !== "ios") setShowDatePicker(false);
     if (selected) setDate(selected.toISOString().split("T")[0]);
   };
-
-  const accent = type === "RECETTE" ? colors.recette : colors.charge;
-  const typeLabel = type === "RECETTE" ? "Nouvelle recette" : "Nouvelle charge";
   const { t } = useT();
+  const accent = type === "RECETTE" ? colors.recette : colors.charge;
+  const typeLabel = type === "RECETTE" ? t("addTransaction.newRecette") : t("addTransaction.newCharge");
+
 
   return (
     <Modal
@@ -127,7 +127,7 @@ const handleSave = () => {
           </View>
           <Text style={styles.title}>{typeLabel}</Text>
           <Pressable onPress={onClose} hitSlop={10}>
-            <Text style={styles.cancel}>Annuler</Text>
+            <Text style={styles.cancel}>{t("cancel")}</Text>
           </Pressable>
         </View>
 
@@ -144,10 +144,10 @@ const handleSave = () => {
           {/* CATEGORY STEP */}
           {step === "category" && category && (
             <View style={styles.summaryRow}>
-              <Text style={styles.label}>Catégorie</Text>
+              <Text style={styles.label}>{t("addTransaction.category")}</Text>
               <Text style={styles.summaryValue}>{category.labelFr}</Text>
               <Pressable onPress={() => setPickerOpen(true)}>
-                <Text style={styles.changeBtn}>Modifier</Text>
+                <Text style={styles.changeBtn}>{t("modify")}</Text>
               </Pressable>
             </View>
           )}
@@ -155,10 +155,10 @@ const handleSave = () => {
           {category && (step === "amount" || step === "date") && (
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
-                <Text style={styles.label}>Catégorie</Text>
+                <Text style={styles.label}>{t("addTransaction.category")}</Text>
                 <Text style={styles.summaryValueSmall}>{category.labelFr}</Text>
                 <Pressable onPress={() => { setStep("category"); setPickerOpen(true); }}>
-                  <Text style={styles.changeBtn}>Modifier</Text>
+                  <Text style={styles.changeBtn}>{t("modify")}</Text>
                 </Pressable>
               </View>
             </View>
@@ -168,7 +168,7 @@ const handleSave = () => {
             <View style={styles.amountSection}>
               {type === "CHARGE" && (
                 <>
-                  <Text style={styles.label}>Scanner un reçu (optionnel)</Text>
+                  <Text style={styles.label}>{t("addTransaction.scanReceipt")}</Text>
                   <ReceiptCapture
                     uri={receiptUri}
                     onChange={setReceiptUri}
@@ -179,7 +179,7 @@ const handleSave = () => {
                 </>
               )}
 
-              <Text style={styles.label}>Montant</Text>
+              <Text style={styles.label}>{t("addTransaction.amount")}</Text>    
               <View style={styles.amountInputRow}>
                 <TextInput
                   style={styles.amountInput}
@@ -207,7 +207,8 @@ const handleSave = () => {
                 onPress={handleAmountConfirm}
                 disabled={!amount || parseFloat(amount) <= 0}
               >
-                <Text style={styles.primaryBtnText}>Continuer</Text>
+                
+                <Text style={styles.primaryBtnText}>{t("continue")}</Text>
               </Pressable>
             </View>
           )}
@@ -220,7 +221,7 @@ const handleSave = () => {
                   {formatMAD(parseFloat(amount))}
                 </Text>
                 <Pressable onPress={() => setStep("amount")}>
-                  <Text style={styles.changeBtn}>Modifier</Text>
+                  <Text style={styles.changeBtn}>{t("modify")}</Text>
                 </Pressable>
               </View>
             </View>
@@ -228,7 +229,7 @@ const handleSave = () => {
         
             {step === "date" && (
             <View style={styles.dateSection}>
-                <Text style={styles.label}>Date</Text>
+              <Text style={styles.label}>{t("addTransaction.date")}</Text>
                 <Pressable style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.dateBtnText}>
                     {new Date(date).toLocaleDateString("fr-FR", {
@@ -241,11 +242,11 @@ const handleSave = () => {
 
                 <View style={styles.quickDates}>
                 <QuickDate
-                    label="Aujourd'hui"
+                    label={t("today")} 
                     onPress={() => setDate(new Date().toISOString().split("T")[0])}
                 />
                 <QuickDate
-                    label="Hier"
+                    label={t("yesterday")}
                     onPress={() => {
                     const d = new Date();
                     d.setDate(d.getDate() - 1);
@@ -268,7 +269,8 @@ const handleSave = () => {
                 style={[styles.primaryBtn, { backgroundColor: accent }]}
                 onPress={handleSave}
                 >
-                <Text style={styles.primaryBtnText}>Enregistrer</Text>
+                
+                  <Text style={styles.primaryBtnText}>{t("save")}</Text>
                 </Pressable>
             </View>
             )}

@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 import { CategorySlice } from "../lib/chartHelpers";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { useT } from "../lib/useT";
 
 interface Props {
   slices: CategorySlice[];
@@ -9,14 +10,17 @@ interface Props {
 }
 
 export function CategoryDonut({ slices, totalCharges }: Props) {
+ 
+   const { t } = useT();
   if (slices.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Répartition des charges</Text>
-        <Text style={styles.empty}>Aucune charge enregistrée</Text>
+        <Text style={styles.title}>{t("dashboard.chargeBreakdown")}</Text>
+        <Text style={styles.empty}>{t("dashboard.noCharges")}</Text>
       </View>
     );
   }
+
 
   const size = 160;
   const strokeWidth = 24;

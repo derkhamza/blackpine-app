@@ -2,17 +2,19 @@ import { Dimensions, StyleSheet, Text, View } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import { MonthlyData } from "../lib/chartHelpers";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { useT } from "../lib/useT";
 
 interface Props {
   data: MonthlyData[];
 }
 
 export function MonthlyChart({ data }: Props) {
+  const { t } = useT();
   if (data.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Activité mensuelle</Text>
-        <Text style={styles.empty}>Pas encore de données mensuelles</Text>
+        <Text style={styles.title}>{t("dashboard.monthlyActivity")}</Text>
+        <Text style={styles.empty}>{t("dashboard.noMonthlyData")}</Text>
       </View>
     );
   }
@@ -22,16 +24,10 @@ export function MonthlyChart({ data }: Props) {
   const chartData = {
     labels: data.map((m) => m.label),
     datasets: [
-      {
-        data: data.map((m) => m.recettes / 1000), // in thousands for readability
-        color: () => colors.recette,
-      },
-      {
-        data: data.map((m) => m.charges / 1000),
-        color: () => colors.charge,
-      },
+      { data: data.map((m) => m.recettes / 1000), color: () => colors.recette },
+      { data: data.map((m) => m.charges / 1000), color: () => colors.charge },
     ],
-    legend: ["Recettes (k MAD)", "Charges (k MAD)"],
+    legend: [t("dashboard.recettes") + " (k MAD)", t("dashboard.charges") + " (k MAD)"],
   };
 
   return (

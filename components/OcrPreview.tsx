@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing, typography } from "../lib/theme";
+import { useT } from "../lib/useT";
 
 interface Props {
   loading: boolean;
@@ -27,12 +28,12 @@ export function OcrPreview({
 }: Props) {
   const [amountAccepted, setAmountAccepted] = useState(false);
   const [dateAccepted, setDateAccepted] = useState(false);
-
+  const { t } = useT();
   if (loading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="small" color={colors.brand} />
-        <Text style={styles.loadingText}>Analyse du reçu en cours…</Text>
+        <Text style={styles.loadingText}>{t("ocr.analyzing")}</Text>
       </View>
     );
   }
@@ -40,12 +41,10 @@ export function OcrPreview({
   if (!bestAmount && !bestDate) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorTitle}>Aucune donnée extraite</Text>
-        <Text style={styles.errorText}>
-          La photo n'a pas permis d'extraire un montant ou une date. Vous pouvez les saisir manuellement.
-        </Text>
+        <Text style={styles.errorTitle}>{t("ocr.noData")}</Text>
+        <Text style={styles.errorText}>{t("ocr.noDataDetail")}</Text>
         <Pressable style={styles.dismissBtn} onPress={onDismiss}>
-          <Text style={styles.dismissText}>Fermer</Text>
+          <Text style={styles.dismissText}>{t("close")}</Text>
         </Pressable>
       </View>
     );
@@ -60,29 +59,27 @@ export function OcrPreview({
     return null;
   }
 
-  const confidenceLabel =
-    confidence > 70 ? "Bonne" : confidence > 40 ? "Moyenne" : "Faible";
+  const confidenceLabel = confidence > 70 ? t("ocr.good") : confidence > 40 ? t("ocr.medium") : t("ocr.low");
   const confidenceColor =
     confidence > 70 ? colors.success : confidence > 40 ? colors.warning : colors.danger;
 
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Données extraites</Text>
+        <Text style={styles.title}>{t("ocr.extractedData")}</Text>
         <View style={[styles.confidenceBadge, { backgroundColor: confidenceColor }]}>
-          <Text style={styles.confidenceText}>Fiabilité: {confidenceLabel}</Text>
+          <Text style={styles.confidenceText}>{t("ocr.reliability")}: {confidenceLabel}</Text>
         </View>
       </View>
 
       {bestAmount !== null && !amountAccepted && (
         <View style={styles.resultCard}>
-          <Text style={styles.resultLabel}>Montant détecté</Text>
+          <Text style={styles.resultLabel}>{t("ocr.detectedAmount")}</Text>
           <Text style={styles.resultValue}>
             {bestAmount.toLocaleString("fr-FR")} MAD
           </Text>
           {amounts.length > 1 && (
-            <Text style={styles.altText}>
-              Autres montants: {amounts.slice(1, 4).map((a) => a.toLocaleString("fr-FR")).join(", ")}
+            <Text style={styles.altText}>{t("ocr.otherAmounts")}: {amounts.slice(1, 4).map((a) => a.toLocaleString("fr-FR")).join(", ")}
             </Text>
           )}
           <Pressable
@@ -92,7 +89,7 @@ export function OcrPreview({
               setAmountAccepted(true);
             }}
           >
-            <Text style={styles.acceptBtnText}>Utiliser ce montant</Text>
+            <Text style={styles.acceptBtnText}>{t("ocr.useAmount")}</Text>
           </Pressable>
         </View>
       )}
@@ -105,7 +102,7 @@ export function OcrPreview({
 
       {bestDate !== null && !dateAccepted && (
         <View style={styles.resultCard}>
-          <Text style={styles.resultLabel}>Date détectée</Text>
+          <Text style={styles.resultLabel}>{t("ocr.detectedDate")}</Text>
           <Text style={styles.resultValue}>
             {new Date(bestDate).toLocaleDateString("fr-FR", {
               day: "numeric",
@@ -120,19 +117,19 @@ export function OcrPreview({
               setDateAccepted(true);
             }}
           >
-            <Text style={styles.acceptBtnText}>Utiliser cette date</Text>
+            <Text style={styles.acceptBtnText}>{t("ocr.useDate")}</Text>
           </Pressable>
         </View>
       )}
 
       {dateAccepted && bestAmount !== null && !amountAccepted && (
         <View style={styles.acceptedNote}>
-          <Text style={styles.acceptedText}>✓ Date appliquée</Text>
+          <Text style={styles.acceptedText}>{t("ocr.dateApplied")}</Text>
         </View>
       )}
 
       <Pressable style={styles.dismissBtn} onPress={onDismiss}>
-        <Text style={styles.dismissText}>Ignorer et saisir manuellement</Text>
+        <Text style={styles.dismissText}>{t("ocr.ignoreManual")}</Text>
       </Pressable>
     </View>
   );

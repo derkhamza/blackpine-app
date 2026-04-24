@@ -7,6 +7,7 @@ import { OcrPreview } from "./OcrPreview";
 import { colors, radii, spacing, typography } from "../lib/theme";
 import { Icon } from "../lib/icons";
 import { tapLight, tapSuccess } from "../lib/haptics";
+import { useT } from "../lib/useT";
 
 interface Props {
   uri: string | undefined;
@@ -16,21 +17,21 @@ interface Props {
 }
 
 export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props) {
+  const { t } = useT();
   const [saving, setSaving] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState<OcrExtraction | null>(null);
-
   const pickImage = async (useCamera: boolean) => {
     if (useCamera) {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Permission requise", "L'accès à la caméra est nécessaire.");
+        Alert.alert(t("receipt.permissionRequired"), t("receipt.cameraPermission"));
         return;
       }
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert("Permission requise", "L'accès à la galerie est nécessaire.");
+        Alert.alert(t("receipt.permissionRequired"), t("receipt.galleryPermission"));
         return;
       }
     }
@@ -75,18 +76,17 @@ export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props)
       }
     } catch (err: any) {
       console.error("Receipt save error:", err?.message || err);
-      Alert.alert("Erreur", "Impossible de sauvegarder le reçu.");
+      Alert.alert(t("error"), t("receipt.saveError"));
     } finally {
       setSaving(false);
     }
   };
 
   const handleRemove = () => {
-    Alert.alert("Supprimer le justificatif ?", "Cette action est irréversible.", [
-      { text: "Annuler", style: "cancel" },
+    Alert.alert(  t("receipt.deleteConfirm"),t("receipt.deleteWarning"), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Supprimer",
-        style: "destructive",
+        text: t("delete"), style: "destructive",
         onPress: async () => {
           if (uri) await deleteReceipt(uri);
           onChange(undefined);
@@ -103,19 +103,19 @@ export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props)
           <Image source={{ uri }} style={styles.preview} />
           <View style={styles.previewActions}>
             <Pressable style={styles.previewBtn} onPress={() => pickImage(false)}>
-              <Text style={styles.previewBtnText}>Remplacer</Text>
+              <Text style={styles.previewBtnText}>{t("receipt.replace")}</Text>
             </Pressable>
             <Pressable
               style={[styles.previewBtn, styles.previewBtnDanger]}
               onPress={handleRemove}
             >
-              <Text style={styles.previewBtnTextDanger}>Supprimer</Text>
+              <Text style={styles.previewBtnTextDanger}>{t("receipt.delete")}</Text>
             </Pressable>
           </View>
         </>
       ) : (
         <>
-          <Text style={styles.label}>Justificatif</Text>
+          <Text style={styles.label}>{t("addTransaction.receipt")}</Text>
           <View style={styles.btnRow}>
             <Pressable
               style={styles.captureBtn}
@@ -123,7 +123,7 @@ export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props)
               disabled={saving}
             >
               <Icon name="camera" size={18} color={colors.textPrimary} />
-              <Text style={styles.captureBtnText}>Photographier</Text>
+              <Text style={styles.captureBtnText}>{t("receipt.photograph")}</Text>
             </Pressable>
             <Pressable
               style={styles.captureBtn}
@@ -131,11 +131,11 @@ export function ReceiptCapture({ uri, onChange, onOcrAmount, onOcrDate }: Props)
               disabled={saving}
             >
               <Icon name="gallery" size={18} color={colors.textPrimary} />
-              <Text style={styles.captureBtnText}>Galerie</Text>
+              <Text style={styles.captureBtnText}>{t("receipt.gallery")}</Text>
             </Pressable>
           </View>
           {saving && (
-            <Text style={styles.savingText}>Sauvegarde en cours…</Text>
+            <Text style={styles.savingText}>{t("receipt.saving")}</Text>
           )}
         </>
       )}

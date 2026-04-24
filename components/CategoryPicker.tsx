@@ -14,6 +14,7 @@ import {
   getGroupedCategories,
 } from "blackpine-engine";
 import { colors, radii, spacing, typography } from "../lib/theme";
+import { useT } from "../lib/useT";
 
 interface Props {
   visible: boolean;
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function CategoryPicker({ visible, type, fiscalYear, onClose, onSelect }: Props) {
+  const { t } = useT();
   const [query, setQuery] = useState("");
   const groups = useMemo(() => getGroupedCategories(fiscalYear, type), [fiscalYear, type]);
 
@@ -50,16 +52,16 @@ export function CategoryPicker({ visible, type, fiscalYear, onClose, onSelect }:
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>
-            {type === "RECETTE" ? "Catégorie de recette" : "Catégorie de charge"}
+            {type === "RECETTE" ? t("categories.title") : t("categories.titleCharge")}
           </Text>
           <Pressable onPress={onClose} hitSlop={10}>
-            <Text style={styles.cancel}>Annuler</Text>
+            <Text style={styles.cancel}>{t("cancel")}</Text>
           </Pressable>
         </View>
 
         <TextInput
           style={styles.search}
-          placeholder="Rechercher une catégorie…"
+          placeholder={t("categories.searchPlaceholder")}
           placeholderTextColor={colors.textTertiary}
           value={query}
           onChangeText={setQuery}
@@ -69,22 +71,15 @@ export function CategoryPicker({ visible, type, fiscalYear, onClose, onSelect }:
         <ScrollView style={styles.list} keyboardShouldPersistTaps="handled">
           {filteredGroups.map((group) => (
             <View key={group.family} style={styles.group}>
-              <Text style={styles.groupLabel}>{group.familyLabel}</Text>
+              <Text style={styles.groupLabel}>{t(`families.${group.family}`)}</Text>
               {group.categories.map((cat) => (
-                <CategoryItem
-                  key={cat.id}
-                  category={cat}
-                  onPress={() => {
-                    onSelect(cat);
-                    onClose();
-                  }}
-                />
+                <CategoryItem key={cat.id} category={cat} onPress={() => { onSelect(cat); onClose(); }} t={t} />
               ))}
             </View>
           ))}
 
           {filteredGroups.length === 0 && (
-            <Text style={styles.empty}>Aucune catégorie trouvée pour « {query} »</Text>
+            <Text style={styles.empty}>{t("categories.noResults")} « {query} »</Text>
           )}
 
           <View style={{ height: 40 }} />
@@ -94,22 +89,22 @@ export function CategoryPicker({ visible, type, fiscalYear, onClose, onSelect }:
   );
 }
 
-function CategoryItem({ category, onPress }: { category: Category; onPress: () => void }) {
-  const rule = category.rns; // Default to RNS for hint display
+function CategoryItem({ category, onPress, t }: { category: Category; onPress: () => void; t: (k: string) => string }) {
+  const rule = category.rns;
   let hint = "";
   let hintColor = colors.textTertiary;
 
   if (rule.needsReview) {
-    hint = "À valider avec votre comptable";
+    hint = t("categories.needsReview");
     hintColor = colors.warning;
   } else if (!rule.deductible && category.type === "CHARGE") {
-    hint = "Non déductible";
+    hint = t("categories.notDeductible");
     hintColor = colors.danger;
   } else if (rule.ratio < 1 && category.type === "CHARGE") {
-    hint = `Déductible à ${Math.round(rule.ratio * 100)}%`;
+    hint = `${t("categories.deductible")} ${Math.round(rule.ratio * 100)}%`;
     hintColor = colors.warning;
   } else if (category.type === "CHARGE") {
-    hint = "Déductible";
+    hint = t("categories.deductible");
     hintColor = colors.success;
   }
 
