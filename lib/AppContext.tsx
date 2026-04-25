@@ -125,15 +125,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [profile, transactions, screen, isAuthenticated]);
 
-  const result = useMemo(
-  () => computeTaxFromTransactions(
-    profile,
-    transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
-    fiscalYear,
-    `${fiscalYear}-12-31`
-  ),
-  [profile, transactions, fiscalYear]
-  );
+  const result = useMemo(() => {
+      try {
+        return computeTaxFromTransactions(
+          profile,
+          transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
+          fiscalYear,
+          `${fiscalYear}-12-31`
+        );
+      } catch {
+        return computeTaxFromTransactions(
+          profile,
+          transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
+          2026,
+          `${fiscalYear}-12-31`
+        );
+      }
+    }, [profile, transactions, fiscalYear]);
 
   // After signup → go to onboarding
   const onSignup = useCallback(() => {
