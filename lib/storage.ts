@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+function getAS() { return require("@react-native-async-storage/async-storage").default; }
 import { DoctorProfile, Transaction } from "blackpine-engine";
 
 const KEYS = {
@@ -18,10 +18,10 @@ export interface PersistedState {
 export async function loadState(): Promise<PersistedState> {
   try {
     const [profileRaw, txsRaw, lastSavedRaw, onboardedRaw] = await Promise.all([
-      AsyncStorage.getItem(KEYS.PROFILE),
-      AsyncStorage.getItem(KEYS.TRANSACTIONS),
-      AsyncStorage.getItem(KEYS.LAST_SAVED),
-      AsyncStorage.getItem(KEYS.ONBOARDED),
+      getAS().getItem(KEYS.PROFILE),
+      getAS().getItem(KEYS.TRANSACTIONS),
+      getAS().getItem(KEYS.LAST_SAVED),
+      getAS().getItem(KEYS.ONBOARDED),
     ]);
     return {
       profile: profileRaw ? safeParse<DoctorProfile>(profileRaw) : null,
@@ -37,7 +37,7 @@ export async function loadState(): Promise<PersistedState> {
 
 export async function saveState(profile: DoctorProfile, transactions: Transaction[]): Promise<string> {
   const now = new Date().toISOString();
-  await AsyncStorage.multiSet([
+  await getAS().multiSet([
     [KEYS.PROFILE, JSON.stringify(profile)],
     [KEYS.TRANSACTIONS, JSON.stringify(transactions)],
     [KEYS.LAST_SAVED, now],
@@ -46,11 +46,11 @@ export async function saveState(profile: DoctorProfile, transactions: Transactio
 }
 
 export async function setOnboarded(value: boolean): Promise<void> {
-  await AsyncStorage.setItem(KEYS.ONBOARDED, value ? "true" : "false");
+  await getAS().setItem(KEYS.ONBOARDED, value ? "true" : "false");
 }
 
 export async function clearState(): Promise<void> {
-  await AsyncStorage.multiRemove([
+  await getAS().multiRemove([
     KEYS.PROFILE,
     KEYS.TRANSACTIONS,
     KEYS.LAST_SAVED,

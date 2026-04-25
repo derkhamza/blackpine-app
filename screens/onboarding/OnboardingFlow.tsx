@@ -45,6 +45,7 @@ export function OnboardingFlow() {
       maritalStatus: builder.marital ?? "SINGLE",
       dependentsCount: builder.dependents,
       tpRegistered: builder.practiceType === "CABINET_ONLY" || builder.practiceType === "MIXED",
+      specialty: builder.specialty ?? undefined,
     };
     await onOnboardingComplete(profile, withDemo);
   };

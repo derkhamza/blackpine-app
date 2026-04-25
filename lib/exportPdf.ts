@@ -1,5 +1,3 @@
-import * as Print from "expo-print";
-import * as Sharing from "expo-sharing";
 import { FullTaxComputation, DoctorProfile, TraceEvent } from "blackpine-engine";
 
 function formatMAD(n: number): string {
@@ -42,6 +40,8 @@ export async function generateTaxSummaryPdf(
   computation: FullTaxComputation,
   profile: DoctorProfile
 ): Promise<void> {
+  const Print = require("expo-print");
+  const Sharing = require("expo-sharing");
   const { breakdown, tax, events, configVersion } = computation;
 
   // Split events into sections

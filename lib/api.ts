@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DoctorProfile, Transaction } from "blackpine-engine";
-
+function getAS() { return require("@react-native-async-storage/async-storage").default; }
 // For development: your PC's local IP. Change this to your real server URL in production.
 // Find your local IP by running `ipconfig` in Windows terminal and looking for your Wi-Fi IPv4 address.
 const API_BASE = "https://justifier-factsheet-grapple.ngrok-free.dev";
@@ -16,7 +16,7 @@ export interface AuthUser {
 }
 
 async function getToken(): Promise<string | null> {
-  return AsyncStorage.getItem(KEYS.TOKEN);
+  return getAS().getItem(KEYS.TOKEN);
 }
 
 async function request(path: string, opts: RequestInit = {}): Promise<Response> {
@@ -38,8 +38,8 @@ export async function signup(email: string, password: string): Promise<AuthUser>
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Erreur d'inscription");
 
-  await AsyncStorage.setItem(KEYS.TOKEN, data.token);
-  await AsyncStorage.setItem(KEYS.USER, JSON.stringify(data.user));
+  await getAS().setItem(KEYS.TOKEN, data.token);
+  await getAS().setItem(KEYS.USER, JSON.stringify(data.user));
   return data.user;
 }
 
@@ -51,17 +51,17 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Erreur de connexion");
 
-  await AsyncStorage.setItem(KEYS.TOKEN, data.token);
-  await AsyncStorage.setItem(KEYS.USER, JSON.stringify(data.user));
+  await getAS().setItem(KEYS.TOKEN, data.token);
+  await getAS().setItem(KEYS.USER, JSON.stringify(data.user));
   return data.user;
 }
 
 export async function logout(): Promise<void> {
-  await AsyncStorage.multiRemove([KEYS.TOKEN, KEYS.USER]);
+  await getAS().multiRemove([KEYS.TOKEN, KEYS.USER]);
 }
 
 export async function getStoredUser(): Promise<AuthUser | null> {
-  const raw = await AsyncStorage.getItem(KEYS.USER);
+  const raw = await getAS().getItem(KEYS.USER);
   return raw ? JSON.parse(raw) : null;
 }
 

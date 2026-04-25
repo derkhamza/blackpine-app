@@ -20,15 +20,16 @@ interface Props {
   visible: boolean;
   type: TransactionType;
   fiscalYear: number;
+  specialty?: string;
   onClose: () => void;
   onSelect: (category: Category) => void;
 }
 
-export function CategoryPicker({ visible, type, fiscalYear, onClose, onSelect }: Props) {
+export function CategoryPicker({ visible, type, fiscalYear, specialty, onClose, onSelect }: Props) {
+
   const { t } = useT();
   const [query, setQuery] = useState("");
-  const groups = useMemo(() => getGroupedCategories(fiscalYear, type), [fiscalYear, type]);
-
+  const groups = useMemo(() => getGroupedCategories(fiscalYear, type, specialty), [fiscalYear, type, specialty]);
   const filteredGroups = useMemo(() => {
     if (!query.trim()) return groups;
     const q = query.toLowerCase().trim();

@@ -11,17 +11,16 @@ import { useT } from "../lib/useT";
 
 export function ExportButtons() {
   const { t } = useT();
-  const { result, profile, transactions } = useApp();
+  const { result, profile, transactions, fiscalYear } = useApp();
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
-
   const handlePdf = async () => {
     setExportingPdf(true);
     try {
       await generateTaxSummaryPdf(result, profile);
     } catch (err: any) {
       console.error("PDF export failed:", err);
-      Alert.alert("Erreur", "Impossible de générer le PDF: " + (err?.message || "erreur inconnue"));
+      Alert.alert(t("error"), err?.message || t("error"));
     } finally {
       setExportingPdf(false);
     }
@@ -30,10 +29,12 @@ export function ExportButtons() {
   const handleExcel = async () => {
     setExportingExcel(true);
     try {
-      await generateTransactionsExcel(transactions);
+      await generateTransactionsExcel(
+        transactions.filter((tx) => tx.date.startsWith(String(fiscalYear)))
+      );
     } catch (err: any) {
       console.error("Excel export failed:", err);
-      Alert.alert("Erreur", "Impossible de générer le fichier Excel: " + (err?.message || "erreur inconnue"));
+      Alert.alert(t("error"), err?.message || t("error"));
     } finally {
       setExportingExcel(false);
     }

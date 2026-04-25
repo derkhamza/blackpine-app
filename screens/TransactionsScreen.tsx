@@ -27,7 +27,7 @@ import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
 
 export function TransactionsScreen() {
-  const { transactions, updateTransaction, deleteTransaction, addTransaction, result } = useApp();
+  const { transactions, updateTransaction, deleteTransaction, addTransaction, result, profile } = useApp();
   const [addModalType, setAddModalType] = useState<TransactionType | null>(null);
   const [pickerOpenForExisting, setPickerOpenForExisting] = useState<{
     txId: string;
@@ -199,6 +199,7 @@ export function TransactionsScreen() {
         <AddTransactionModal
           visible={true}
           type={addModalType}
+          specialty={profile.specialty}
           regime={result.tax.regime}
           fiscalYear={2026}
           onClose={() => setAddModalType(null)}
@@ -210,6 +211,7 @@ export function TransactionsScreen() {
         <CategoryPicker
           visible={true}
           type={pickerOpenForExisting.type}
+          specialty={profile.specialty}
           fiscalYear={2026}
           onClose={() => setPickerOpenForExisting(null)}
           onSelect={(cat) =>

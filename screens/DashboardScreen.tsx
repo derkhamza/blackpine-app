@@ -11,8 +11,8 @@ import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
 
 export function DashboardScreen({ navigation }: any) {
-  const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated } = useApp();  
-  const monthlyData = getActiveMonths(getMonthlyData(result.breakdown.totalRecettes > 0 ? transactions : [], 2026));
+  const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated, fiscalYear, setFiscalYear } = useApp();  
+  const monthlyData = getActiveMonths(getMonthlyData(result.breakdown.totalRecettes > 0 ? transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))) : [], fiscalYear));
   const categorySlices = getCategoryBreakdown(transactions);
   const { t } = useT();
 
@@ -33,6 +33,15 @@ export function DashboardScreen({ navigation }: any) {
           <Text style={styles.brandMark}>{t("dashboard.brand")}</Text>
           <Text style={styles.brandSub}>{t("dashboard.brandSub")}</Text>
         </View>
+        <View style={styles.yearRow}>
+          <Pressable onPress={() => setFiscalYear(fiscalYear - 1)}>
+            <Text style={styles.yearArrow}>‹</Text>
+          </Pressable>
+          <Text style={styles.yearLabel}>{fiscalYear}</Text>
+          <Pressable onPress={() => setFiscalYear(fiscalYear + 1)}>
+            <Text style={styles.yearArrow}>›</Text>
+          </Pressable>
+        </View>
         <SyncIndicator
           saving={saving}
           lastSavedAt={lastSavedAt}
@@ -43,7 +52,7 @@ export function DashboardScreen({ navigation }: any) {
       </View>
 
       <View style={styles.heroCard}>
-        <Text style={styles.heroLabel}>{t("dashboard.taxToPay")}</Text>
+        <Text style={styles.heroLabel}>{t("dashboard.taxToPay")} {fiscalYear}</Text>
         <Text style={styles.heroNumber}>{formatMAD(result.tax.taxDue)}</Text>
         <View style={styles.heroChips}>
           <Text style={styles.chipText}>{t("dashboard.regime")} {result.tax.regime}</Text>
@@ -69,12 +78,12 @@ export function DashboardScreen({ navigation }: any) {
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("dashboard.resultatFiscal")}</Text>
-        <Row label="Total recettes" value={formatMAD(result.breakdown.totalRecettes)} />
-        <Row label="Total charges" value={formatMAD(result.breakdown.totalCharges)} />
-        <Row label="Charges déductibles" value={formatMAD(result.breakdown.totalChargesDeductibles)} />
-        <Row label="Réintégrations" value={formatMAD(result.breakdown.totalReintegrations)} muted />
+        <Row label={t("dashboard.totalRecettes")} value={formatMAD(result.breakdown.totalRecettes)} />
+        <Row label={t("dashboard.totalCharges")} value={formatMAD(result.breakdown.totalCharges)} />
+        <Row label={t("dashboard.chargesDeductibles")} value={formatMAD(result.breakdown.totalChargesDeductibles)} />
+        <Row label={t("dashboard.reintegrations")} value={formatMAD(result.breakdown.totalReintegrations)} muted />
         <View style={styles.divider} />
-        <Row label="Résultat fiscal" value={formatMAD(result.breakdown.resultatFiscal)} bold />
+        <Row label={t("dashboard.resultatFiscal")} value={formatMAD(result.breakdown.resultatFiscal)} bold />
       </View>
 
       <ExportButtons />
@@ -148,4 +157,22 @@ const styles = StyleSheet.create({
   explainBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15, letterSpacing: 0.3 },
   secondaryBtn: { paddingVertical: 14, alignItems: "center", backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
   secondaryBtnText: { color: colors.textPrimary, fontWeight: "600", fontSize: 14 },
+yearRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 20,
+  marginBottom: spacing.lg,
+},
+yearArrow: {
+  fontSize: 24,
+  fontWeight: "700",
+  color: colors.brand,
+  paddingHorizontal: 12,
+},
+yearLabel: {
+  fontSize: 18,
+  fontWeight: "700",
+  color: colors.textPrimary,
+},
 });

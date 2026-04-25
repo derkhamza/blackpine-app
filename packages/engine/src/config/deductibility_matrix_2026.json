@@ -333,14 +333,16 @@
       "labelFr": "Consultation",
       "family": "income",
       "type": "RECETTE",
+      "specialties": ["all"],
       "rnr": { "deductible": true, "ratio": 1.0 },
       "rns": { "deductible": true, "ratio": 1.0 }
     },
     {
-      "id": "soin_dentaire",
-      "labelFr": "Soin dentaire",
+      "id": "visite_domicile",
+      "labelFr": "Visite à domicile",
       "family": "income",
       "type": "RECETTE",
+      "specialties": ["medecin_generaliste", "medecin_specialiste"],
       "rnr": { "deductible": true, "ratio": 1.0 },
       "rns": { "deductible": true, "ratio": 1.0 }
     },
@@ -349,6 +351,79 @@
       "labelFr": "Acte chirurgical",
       "family": "income",
       "type": "RECETTE",
+      "specialties": ["medecin_specialiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "soin_dentaire",
+      "labelFr": "Soin dentaire",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "prothese_dentaire",
+      "labelFr": "Prothèse dentaire",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "orthodontie",
+      "labelFr": "Orthodontie",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "detartrage",
+      "labelFr": "Détartrage",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["dentiste"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "seance_kine",
+      "labelFr": "Séance de kinésithérapie",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["kinesitherapeute"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "reeducation",
+      "labelFr": "Rééducation fonctionnelle",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["kinesitherapeute"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "accouchement",
+      "labelFr": "Accouchement",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["sage_femme"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "suivi_grossesse",
+      "labelFr": "Suivi de grossesse",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["sage_femme"],
       "rnr": { "deductible": true, "ratio": 1.0 },
       "rns": { "deductible": true, "ratio": 1.0 }
     },
@@ -357,6 +432,16 @@
       "labelFr": "Vacation en clinique",
       "family": "income",
       "type": "RECETTE",
+      "specialties": ["all"],
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "autre_recette",
+      "labelFr": "Autre recette",
+      "family": "income",
+      "type": "RECETTE",
+      "specialties": ["all"],
       "rnr": { "deductible": true, "ratio": 1.0 },
       "rns": { "deductible": true, "ratio": 1.0 }
     }

@@ -1,5 +1,3 @@
-import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system/legacy";
 import XLSX from "xlsx";
 import { Transaction, getCategoryById } from "blackpine-engine";
 
@@ -21,6 +19,8 @@ function deductibilityLabel(status: string | undefined): string {
 export async function generateTransactionsExcel(
   transactions: Transaction[]
 ): Promise<void> {
+  const Sharing = require("expo-sharing");
+  const FileSystem = require("expo-file-system/legacy");
   // Separate recettes and charges
   const recettes = transactions.filter((t) => t.type === "RECETTE");
   const charges = transactions.filter((t) => t.type === "CHARGE");

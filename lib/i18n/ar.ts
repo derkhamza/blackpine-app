@@ -39,12 +39,12 @@ reset: {
   dashboard: {
     brand: "BLACKPINE",
     brandSub: "عيادة · محرك ضريبي",
-    taxToPay: "الضريبة المستحقة · تقدير 2026",
+taxToPay: "الضريبة المستحقة · تقدير",
+monthlyActivity: "النشاط الشهري",
     regime: "النظام",
     calculatedOn: "محسوبة على",
     recettes: "الإيرادات",
     charges: "المصاريف",
-    monthlyActivity: "النشاط الشهري · 2026",
     chargeBreakdown: "توزيع المصاريف",
     resultatFiscal: "النتيجة الجبائية",
     totalRecettes: "إجمالي الإيرادات",
@@ -178,6 +178,9 @@ reset: {
     cmExempted: "معفى من الحد الأدنى — أقل من 36 شهراً من النشاط",
     footer: "هذا التقدير لا يغني عن رأي خبيرك المحاسبي.",
     configLabel: "الحساب مبني على التكوين الضريبي",
+    sectionActivity: "نشاطك",
+sectionTax: "حساب الضريبة",
+engineNote: "التفاصيل أدناه يتم إنشاؤها بواسطة المحرك الضريبي بالفرنسية.",
   },
 
   // Profile

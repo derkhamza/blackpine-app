@@ -26,12 +26,20 @@ export function loadCategoryMatrix(year: number): DeductibilityMatrix {
 export function getCategoryById(year: number, id: string): Category | undefined {
   return loadCategoryMatrix(year).categories.find((c) => c.id === id);
 }
-
-export function getCategoriesByType(
+export function getCategoriesByType(year: number, type: string): Category[] {
+  const matrix = loadCategoryMatrix(year);
+  return matrix.categories.filter((c) => c.type === type);
+}
+export function getCategoriesByTypeAndSpecialty(
   year: number,
-  type: TransactionType
+  type: TransactionType,
+  specialty?: string
 ): Category[] {
-  return loadCategoryMatrix(year).categories.filter((c) => c.type === type);
+  const all = getCategoriesByType(year, type);
+  if (!specialty) return all;
+  return all.filter(
+    (c) => !c.specialties || c.specialties.includes("all") || c.specialties.includes(specialty)
+  );
 }
 
 export function getCategoriesByFamily(
@@ -82,9 +90,12 @@ export function applyCategoryDefaults(
  */
 export function getGroupedCategories(
   year: number,
-  type: TransactionType
+  type: TransactionType,
+  specialty?: string
 ): { family: CategoryFamily; familyLabel: string; categories: Category[] }[] {
-  const all = getCategoriesByType(year, type);
+  const all = specialty
+    ? getCategoriesByTypeAndSpecialty(year, type, specialty)
+    : getCategoriesByType(year, type);
   const groups = new Map<CategoryFamily, Category[]>();
   for (const c of all) {
     if (!groups.has(c.family)) groups.set(c.family, []);

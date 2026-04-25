@@ -1,9 +1,11 @@
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, Pressable, View } from "react-native";
 import { CommuneType } from "blackpine-engine";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
 import { useT } from "../../../lib/useT";
 import { colors, radii, spacing, typography } from "../../../lib/theme";
+import { useState } from "react";
+import { CityPicker } from "../../../components/CityPicker";
 
 interface Props {
   commune: string;
@@ -16,7 +18,7 @@ interface Props {
 
 export function LocationStep({ commune, communeType, onChangeCommune, onChangeType, onNext, onBack }: Props) {
   const { t } = useT();
-
+  const [cityPickerOpen, setCityPickerOpen] = useState(false); 
   return (
     <OnboardingShell
       stepIndex={5}
@@ -29,12 +31,16 @@ export function LocationStep({ commune, communeType, onChangeCommune, onChangeTy
     >
       <View style={{ marginBottom: spacing.lg }}>
         <Text style={styles.label}>{t("onboarding.cityLabel")}</Text>
-        <TextInput
-          style={styles.input}
+        <Pressable style={styles.input} onPress={() => setCityPickerOpen(true)}>
+          <Text style={{ fontSize: 16, color: commune ? colors.textPrimary : colors.textTertiary }}>
+            {commune || t("onboarding.cityPlaceholder")}
+          </Text>
+        </Pressable>
+        <CityPicker
+          visible={cityPickerOpen}
           value={commune}
-          onChangeText={onChangeCommune}
-          placeholder={t("onboarding.cityPlaceholder")}
-          placeholderTextColor={colors.textTertiary}
+          onSelect={onChangeCommune}
+          onClose={() => setCityPickerOpen(false)}
         />
       </View>
 

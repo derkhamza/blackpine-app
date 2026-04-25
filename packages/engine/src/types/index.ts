@@ -9,6 +9,7 @@ export type CommuneType = "URBAN" | "RURAL";
 export interface DoctorProfile {
   id: string;
   legalForm: LegalForm;
+  specialty?: string;
   practiceType: PracticeType;
   activityStartDate: string; // ISO date
   commune: string;
@@ -136,6 +137,7 @@ export interface CategoryRule {
 
 export interface Category {
   id: string;
+  specialties?: string[];
   labelFr: string;
   family: CategoryFamily;
   type: TransactionType;

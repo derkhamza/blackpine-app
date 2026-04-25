@@ -19,11 +19,13 @@ import { useT } from "../lib/useT";
 import { AppLanguage } from "../lib/i18n";
 import { applyRTL } from "../lib/rtl";
 import { SafeScreen } from "../components/SafeScreen";
+import { CityPicker } from "../components/CityPicker";
 
 export function ProfileScreen() {
-  const { profile, setProfile, result, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated, onLogout, forcePull } = useApp();
+  const { profile, setProfile, result, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated, onLogout } = useApp();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const { t, currentLang, changeLanguage } = useT();
+  const [cityPickerOpen, setCityPickerOpen] = useState(false);
   useEffect(() => {
     (async () => {
       const user = await getStoredUser();
@@ -92,36 +94,39 @@ const handleLanguageChange = async (lang: AppLanguage) => {
       </View>
 
       {/* CLOUD ACCOUNT */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t("profile.cloudAccount")}</Text>
-        <Text style={styles.syncNote}>{t("profile.autoSync")}</Text>
-        <Pressable
-          style={styles.pullBtn}
-          onPress={forcePull}
-          disabled={syncStatus === "syncing"}
-        >
-          <Text style={styles.pullBtnText}>
-            {syncStatus === "syncing" ? t("profile.syncing") : t("profile.pullFromCloud")}
-          </Text>
-        </Pressable>
-        <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-          <Text style={styles.logoutBtnText}>{t("profile.logout")}</Text>
-        </Pressable>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t("profile.cloudAccount")}</Text>
+          <SyncIndicator
+            saving={saving}
+            lastSavedAt={lastSavedAt}
+            syncStatus={syncStatus}
+            lastSyncedAt={lastSyncedAt}
+            isAuthenticated={isAuthenticated}
+          />
+          <Text style={styles.syncNote}>{t("profile.autoSync")}</Text>
+          <Pressable style={styles.logoutBtn} onPress={handleLogout}>
+            <Text style={styles.logoutBtnText}>{t("profile.logout")}</Text>
+          </Pressable>
+        </View>
 
       {/* PROFILE INFO */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("profile.fiscalInfo")}</Text>
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t("profile.dependents")}</Text>
-          <TextInput
-            style={styles.input}
-            value={String(profile.dependentsCount)}
-            keyboardType="number-pad"
-            onChangeText={(v) =>
-              setProfile({ ...profile, dependentsCount: Math.max(0, parseInt(v) || 0) })
-            }
-          />
+            <Text style={styles.fieldLabel}>{t("profile.commune")}</Text>
+            <Pressable style={styles.editableInput} onPress={() => setCityPickerOpen(true)}>
+              <Text style={{ fontSize: 15, color: profile.commune ? colors.textPrimary : colors.textTertiary }}>
+                {profile.commune || t("onboarding.cityPlaceholder")}
+              </Text>
+            </Pressable>
+
+            <CityPicker
+              visible={cityPickerOpen}
+              value={profile.commune}
+              onSelect={(city) => setProfile({ ...profile, commune: city })}
+              onClose={() => setCityPickerOpen(false)}
+            />
         </View>
         <View style={styles.field}>
           <Text style={styles.fieldLabel}>{t("profile.activityStart")}</Text>
@@ -146,16 +151,53 @@ const handleLanguageChange = async (lang: AppLanguage) => {
         )}
       </View>
 
-      <View style={styles.section}>
+<View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("profile.fiscalRegime")}</Text>
         <Row label={t("profile.regime")} value={result.tax.regime} />
-        <Row label={t("profile.practice")} value={practiceLabel(profile.practiceType)} />
-        <Row
-          label="Commune"
-          value={`${profile.commune} (${profile.communeType === "URBAN" ? "urbain" : "rural"})`}
+
+        <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>{t("profile.practice")}</Text>
+        <View style={{ flexDirection: "row", gap: 8, marginBottom: spacing.md, flexWrap: "wrap" }}>
+          {(["CABINET_ONLY", "CLINIC_ONLY", "MIXED"] as const).map((pt) => (
+            <Pressable
+              key={pt}
+              style={[styles.langBtn, profile.practiceType === pt && styles.langBtnActive]}
+              onPress={() => setProfile({ ...profile, practiceType: pt })}
+            >
+              <Text style={[styles.langBtnText, profile.practiceType === pt && styles.langBtnTextActive]}>
+                {practiceLabel(pt)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text style={styles.fieldLabel}>{t("profile.commune")}</Text>
+        <Pressable style={styles.editableInput} onPress={() => setCityPickerOpen(true)}>
+          <Text style={{ fontSize: 15, color: profile.commune ? colors.textPrimary : colors.textTertiary }}>
+            {profile.commune || t("onboarding.cityPlaceholder")}
+          </Text>
+        </Pressable>
+
+        <View style={{ flexDirection: "row", gap: 8, marginTop: spacing.sm }}>
+          {(["URBAN", "RURAL"] as const).map((z) => (
+            <Pressable
+              key={z}
+              style={[styles.langBtn, profile.communeType === z && styles.langBtnActive]}
+              onPress={() => setProfile({ ...profile, communeType: z })}
+            >
+              <Text style={[styles.langBtnText, profile.communeType === z && styles.langBtnTextActive]}>
+                {z === "URBAN" ? t("profile.urban") : t("profile.rural")}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <CityPicker
+          visible={cityPickerOpen}
+          value={profile.commune}
+          onSelect={(city) => setProfile({ ...profile, commune: city })}
+          onClose={() => setCityPickerOpen(false)}
         />
       </View>
-
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t("profile.language")}</Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
@@ -222,6 +264,29 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     ...shadows.card,
   },
+  chipBtn: {
+  paddingVertical: 8,
+  paddingHorizontal: 14,
+  borderRadius: radii.pill,
+  backgroundColor: colors.surface,
+  borderWidth: 1.5,
+  borderColor: colors.border,
+  alignItems: "center",
+  justifyContent: "center",
+},
+chipBtnActive: {
+  backgroundColor: colors.brand,
+  borderColor: colors.brand,
+},
+chipBtnText: {
+  fontSize: 13,
+  fontWeight: "600",
+  color: colors.textPrimary,
+  textAlign: "center",
+},
+chipBtnTextActive: {
+  color: colors.textOnDark,
+},
   sectionTitle: {
     ...typography.micro,
     color: colors.textSecondary,
@@ -240,6 +305,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.brandSoft,
     borderRadius: radii.sm,
+    marginBottom: spacing.sm,
+  },
+  editableInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: colors.textPrimary,
+    backgroundColor: colors.surface,
     marginBottom: spacing.sm,
   },
   pullBtnText: { fontSize: 13, color: colors.brand, fontWeight: "600" },
@@ -276,23 +352,26 @@ const styles = StyleSheet.create({
   },
   resetBtnText: { fontSize: 13, color: colors.danger, fontWeight: "600" },
   footer: { fontSize: 11, color: colors.textTertiary, textAlign: "center", marginTop: spacing.md },
-  langBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
+langBtn: {
+  flex: 1,
+  paddingVertical: 12,
+  paddingHorizontal: 14,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: colors.surface,
+  borderRadius: radii.sm,
+  borderWidth: 1.5,
+  borderColor: colors.border,
+},
   langBtnActive: {
     backgroundColor: colors.brand,
     borderColor: colors.brand,
   },
   langBtnText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "600",
     color: colors.textPrimary,
+    textAlign: "center",
   },
   langBtnTextActive: {
     color: colors.textOnDark,

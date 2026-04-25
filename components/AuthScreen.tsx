@@ -32,7 +32,7 @@ export function AuthScreen({ onAuth }: Props) {
         : await login(email.trim(), password);
       onAuth(user);
     } catch (err: any) {
-      Alert.alert("Erreur", err.message || "Une erreur est survenue");
+      Alert.alert(t("error"), err.message || t("error"));
     } finally {
       setLoading(false);
     }

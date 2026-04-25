@@ -41,6 +41,12 @@
       "eas": {
         "projectId": "c9495e3a-4c26-4de5-9a9b-41cadcd6e354"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.blackpine.cabinet"
+    },
+    "web": {
+      "privacyPolicyUrl": "https://derkhamza.github.io/blackpine-legal/"
     }
   }
 }

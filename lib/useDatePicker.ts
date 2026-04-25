@@ -1,6 +1,4 @@
 import { useState, useCallback } from "react";
-import { Platform } from "react-native";
-
 /**
  * Manages the show/hide state of a native date picker, abstracting
  * the iOS vs Android difference. Returns:
@@ -25,6 +23,7 @@ export function useDatePicker() {
 
   const hide = useCallback(() => setState(null), []);
 
+const { Platform } = require("react-native");
   const pickerProps = state
     ? {
         value: state.value,

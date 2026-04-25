@@ -29,6 +29,7 @@ interface Props {
   type: TransactionType;
   regime: Regime;
   fiscalYear: number;
+  specialty?: string;
   onClose: () => void;
   onCreate: (tx: Omit<Transaction, "id">) => void;
 }
@@ -40,6 +41,7 @@ export function AddTransactionModal({
   type,
   regime,
   fiscalYear,
+  specialty,
   onClose,
   onCreate,
 }: Props) {
@@ -276,10 +278,11 @@ const handleSave = () => {
             )}
         </ScrollView>
 
-        <CategoryPicker
+      <CategoryPicker
         visible={pickerOpen}
         type={type}
         fiscalYear={fiscalYear}
+        specialty={specialty}
         onClose={() => {
             setPickerOpen(false);
             // Only close the whole modal if user canceled (didn't select anything)

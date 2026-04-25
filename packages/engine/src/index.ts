@@ -16,6 +16,7 @@ export {
   loadCategoryMatrix,
   getCategoryById,
   getCategoriesByType,
+  getCategoriesByTypeAndSpecialty,
   getCategoriesByFamily,
   getGroupedCategories,
   applyCategoryDefaults,

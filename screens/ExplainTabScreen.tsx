@@ -8,8 +8,9 @@ import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
 
 
+
 export function ExplainTabScreen() {
-  const { t } = useT();
+  const { t, currentLang } = useT();
   const { result } = useApp();
   const sections: { title: string; events: TraceEvent[] }[] = [];
   let current: { title: string; events: TraceEvent[] } | null = null;
@@ -59,10 +60,19 @@ export function ExplainTabScreen() {
           {t("dashboard.regime")} {result.tax.regime} · {t("dashboard.calculatedOn")} {result.tax.payableRule}
         </Text>
       </View>
+      {currentLang !== "fr" && (
+        <Text style={styles.engineNote}>{t("explain.engineNote")}</Text>
+      )}
 
       {sections.map((section, i) => (
         <View key={i} style={styles.section}>
-          <Text style={styles.sectionTitle}>{section.title}</Text>
+          <Text style={styles.sectionTitle}>
+            {section.title === "Votre activité"
+              ? t("explain.sectionActivity")
+              : section.title === "Calcul de l'impôt"
+              ? t("explain.sectionTax")
+              : section.title}
+          </Text>
           {section.events.map((ev, j) => (
             <EventCard key={j} event={ev} />
           ))}
@@ -95,4 +105,11 @@ const styles = StyleSheet.create({
   cardValue: { fontSize: 20, fontWeight: "700", color: colors.textPrimary, marginTop: 6 },
   cardDetail: { ...typography.caption, color: colors.textSecondary, marginTop: 6, lineHeight: 19 },
   footer: { ...typography.caption, color: colors.textTertiary, textAlign: "center", fontStyle: "italic", marginTop: spacing.md },
+engineNote: {
+  ...typography.caption,
+  color: colors.textTertiary,
+  textAlign: "center",
+  fontStyle: "italic",
+  marginBottom: spacing.md,
+},
 });

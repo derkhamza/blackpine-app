@@ -1,35 +1,12 @@
-import { MaterialCommunityIcons, Ionicons, Feather } from "@expo/vector-icons";
-import { colors } from "./theme";
-
-// Centralize all icon usage so swapping icon sets is one-file change
+import React from "react";
 
 export type IconName =
-  | "dashboard"
-  | "transactions"
-  | "explain"
-  | "profile"
-  | "add"
-  | "camera"
-  | "gallery"
-  | "delete"
-  | "edit"
-  | "calendar"
-  | "search"
-  | "filter"
-  | "sort"
-  | "check"
-  | "close"
-  | "back"
-  | "share"
-  | "pdf"
-  | "excel"
-  | "sync"
-  | "syncDone"
-  | "syncError"
-  | "warning"
-  | "recette"
-  | "charge"
-  | "receipt";
+  | "dashboard" | "transactions" | "explain" | "profile"
+  | "add" | "camera" | "gallery" | "delete" | "edit"
+  | "calendar" | "search" | "filter" | "sort" | "check"
+  | "close" | "back" | "share" | "pdf" | "excel"
+  | "sync" | "syncDone" | "syncError" | "warning"
+  | "recette" | "charge" | "receipt";
 
 interface IconProps {
   name: IconName;
@@ -37,7 +14,7 @@ interface IconProps {
   color?: string;
 }
 
-const iconMap: Record<IconName, { set: "mci" | "ion" | "feather"; icon: string }> = {
+const iconMap: Record<IconName, { set: "mci" | "feather"; icon: string }> = {
   dashboard: { set: "mci", icon: "view-dashboard-outline" },
   transactions: { set: "mci", icon: "swap-horizontal" },
   explain: { set: "mci", icon: "lightbulb-outline" },
@@ -66,14 +43,12 @@ const iconMap: Record<IconName, { set: "mci" | "ion" | "feather"; icon: string }
   receipt: { set: "mci", icon: "receipt" },
 };
 
-export function Icon({ name, size = 20, color = colors.textPrimary }: IconProps) {
+export function Icon({ name, size = 20, color = "#1A1F1B" }: IconProps) {
   const entry = iconMap[name];
-
   if (entry.set === "mci") {
-    return <MaterialCommunityIcons name={entry.icon as any} size={size} color={color} />;
+    const { MaterialCommunityIcons } = require("@expo/vector-icons");
+    return <MaterialCommunityIcons name={entry.icon} size={size} color={color} />;
   }
-  if (entry.set === "ion") {
-    return <Ionicons name={entry.icon as any} size={size} color={color} />;
-  }
-  return <Feather name={entry.icon as any} size={size} color={color} />;
+  const { Feather } = require("@expo/vector-icons");
+  return <Feather name={entry.icon} size={size} color={color} />;
 }

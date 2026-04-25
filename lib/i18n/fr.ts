@@ -26,12 +26,12 @@ export default {
   dashboard: {
     brand: "BLACKPINE",
     brandSub: "Cabinet · Moteur fiscal",
-    taxToPay: "Impôt à payer · estimation 2026",
+taxToPay: "Impôt à payer · estimation",
+monthlyActivity: "Activité mensuelle",
     regime: "Régime",
     calculatedOn: "Calculé sur",
     recettes: "Recettes",
     charges: "Charges",
-    monthlyActivity: "Activité mensuelle · 2026",
     chargeBreakdown: "Répartition des charges",
     resultatFiscal: "Résultat fiscal",
     totalRecettes: "Total recettes",
@@ -165,6 +165,9 @@ export default {
     cmExempted: "CM exemptée — moins de 36 mois d'activité",
     footer: "Cette estimation ne remplace pas l'avis de votre expert-comptable.",
     configLabel: "Calcul basé sur la configuration fiscale",
+    sectionActivity: "Votre activité",
+sectionTax: "Calcul de l'impôt",
+engineNote: "Les détails ci-dessous sont générés par le moteur fiscal en français.",
   },
 
   // Profile

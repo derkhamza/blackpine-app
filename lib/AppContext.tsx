@@ -13,7 +13,6 @@ const defaultProfile: DoctorProfile = {
   activityStartDate: "2018-03-01", commune: "Casablanca", communeType: "URBAN",
   maritalStatus: "MARRIED", dependentsCount: 2, tpRegistered: true,
 };
-
 const defaultTransactions: Transaction[] = [
   { id: "r1", type: "RECETTE", amount: 460000, date: "2026-12-31", category: "consultation" },
   { id: "c1", type: "CHARGE", amount: 60000, date: "2026-12-31", category: "loyer_cabinet" },
@@ -31,6 +30,8 @@ interface AppState {
   screen: AppScreen;
   saving: boolean;
   lastSavedAt: string | null;
+  fiscalYear: number;
+  setFiscalYear: (y: number) => void;
   syncStatus: SyncStatus;
   lastSyncedAt: string | null;
   isAuthenticated: boolean;
@@ -53,6 +54,7 @@ const newId = () => Math.random().toString(36).slice(2, 9);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [screen, setScreen] = useState<AppScreen>("loading");
   const [saving, setSaving] = useState(false);
+  const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -124,8 +126,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [profile, transactions, screen, isAuthenticated]);
 
   const result = useMemo(
-    () => computeTaxFromTransactions(profile, transactions, 2026, "2026-12-31"),
-    [profile, transactions]
+  () => computeTaxFromTransactions(
+    profile,
+    transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
+    fiscalYear,
+    `${fiscalYear}-12-31`
+  ),
+  [profile, transactions, fiscalYear]
   );
 
   // After signup → go to onboarding
@@ -177,7 +184,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppState = {
     screen, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated,
-    profile, transactions, result,
+    profile, transactions, result,fiscalYear, setFiscalYear,
     setProfile: setProfileState,
     addTransaction: (tx) => setTransactions((prev) => [...prev, { ...tx, id: newId() }]),
     updateTransaction: (id, patch) => setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t))),
