@@ -3,7 +3,7 @@ import { DoctorProfile, Transaction } from "blackpine-engine";
 function getAS() { return require("@react-native-async-storage/async-storage").default; }
 // For development: your PC's local IP. Change this to your real server URL in production.
 // Find your local IP by running `ipconfig` in Windows terminal and looking for your Wi-Fi IPv4 address.
-const API_BASE = "https://justifier-factsheet-grapple.ngrok-free.dev";
+const API_BASE = "https://blackpine-backend.vercel.app";
 
 const KEYS = {
   TOKEN: "blackpine.auth.token.v1",
