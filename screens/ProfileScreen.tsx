@@ -107,7 +107,23 @@ const handleLanguageChange = async (lang: AppLanguage) => {
           <Pressable style={styles.logoutBtn} onPress={handleLogout}>
             <Text style={styles.logoutBtnText}>{t("profile.logout")}</Text>
           </Pressable>
+          <View style={styles.legalLinks}>
+  <Pressable onPress={() => {
+    const Linking = require("react-native").Linking;
+    Linking.openURL("https://derkhamza.github.io/blackpine-legal/");
+  }}>
+    <Text style={styles.legalLink}>{t("profile.privacyPolicy")}</Text>
+  </Pressable>
+  <Text style={styles.legalDot}>·</Text>
+  <Pressable onPress={() => {
+    const Linking = require("react-native").Linking;
+    Linking.openURL("https://derkhamza.github.io/blackpine-legal/terms.html");
+  }}>
+    <Text style={styles.legalLink}>{t("profile.terms")}</Text>
+  </Pressable>
+</View>
         </View>
+
 
       {/* PROFILE INFO */}
       <View style={styles.section}>
@@ -367,6 +383,23 @@ langBtn: {
     backgroundColor: colors.brand,
     borderColor: colors.brand,
   },
+  legalLinks: {
+  flexDirection: "row",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: 8,
+  marginTop: spacing.lg,
+  marginBottom: spacing.md,
+},
+legalLink: {
+  fontSize: 12,
+  color: colors.brand,
+  textDecorationLine: "underline",
+},
+legalDot: {
+  fontSize: 12,
+  color: colors.textTertiary,
+},
   langBtnText: {
     fontSize: 14,
     fontWeight: "600",

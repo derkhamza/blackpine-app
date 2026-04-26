@@ -194,6 +194,8 @@ engineNote: "Les détails ci-dessous sont générés par le moteur fiscal en fra
   profile: {
     title: "Profil",
     cloudAccount: "Compte Cloud",
+    privacyPolicy: "Politique de confidentialité",
+terms: "Conditions d'utilisation",
     email: "Email",
     autoSync: "Vos données se synchronisent automatiquement.",
     connectToSync: "Connectez-vous pour activer la synchronisation.",

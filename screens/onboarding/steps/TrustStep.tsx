@@ -1,7 +1,8 @@
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, Pressable } from "react-native";
 import { OnboardingShell } from "../OnboardingShell";
 import { useT } from "../../../lib/useT";
 import { colors, radii, spacing, typography } from "../../../lib/theme";
+
 
 export function TrustStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
   const { t } = useT();
@@ -32,11 +33,18 @@ export function TrustStep({ onNext, onBack }: { onNext: () => void; onBack: () =
           detail={t("onboarding.freeTrialDetail")}
         />
       </View>
+          <Pressable onPress={() => {
+            const Linking = require("react-native").Linking;
+            Linking.openURL("https://derkhamza.github.io/blackpine-legal/");
+          }}>
+            <Text style={styles.legalLink}>{t("profile.privacyPolicy")} →</Text>
+          </Pressable>
     </OnboardingShell>
   );
 }
 
 function PromiseCard({ icon, title, detail }: { icon: string; title: string; detail: string }) {
+   const { t } = useT();
   return (
     <View style={styles.item}>
       <Text style={styles.icon}>{icon}</Text>
@@ -45,8 +53,11 @@ function PromiseCard({ icon, title, detail }: { icon: string; title: string; det
         <Text style={styles.itemDetail}>{detail}</Text>
       </View>
     </View>
+
   );
 }
+
+
 
 const styles = StyleSheet.create({
   list: { gap: spacing.md },
@@ -60,6 +71,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: "flex-start",
   },
+  legalLink: {
+  fontSize: 13,
+  color: colors.brand,
+  textAlign: "center",
+  marginTop: spacing.md,
+  textDecorationLine: "underline",
+},
   icon: { fontSize: 24, marginTop: 2 },
   itemTitle: { fontSize: 15, fontWeight: "600", color: colors.textPrimary },
   itemDetail: { ...typography.caption, color: colors.textSecondary, marginTop: 2, lineHeight: 19 },

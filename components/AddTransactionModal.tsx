@@ -56,12 +56,16 @@ export function AddTransactionModal({
   const [receiptUri, setReceiptUri] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState("");
   const [proRatio, setProRatio] = useState(1);
+  const [ocrAmountAccepted, setOcrAmountAccepted] = useState(false);
+  const [ocrDateAccepted, setOcrDateAccepted] = useState(false);
 
   // Reset whenever the modal opens
     useEffect(() => {
     if (visible) {
         setStep("category");
         setCategory(null);
+        setOcrAmountAccepted(false);
+        setOcrDateAccepted(false);
         setProRatio(1);
         setDescription("");
         setAmount("");
@@ -181,8 +185,8 @@ const handleSave = () => {
                   <ReceiptCapture
                     uri={receiptUri}
                     onChange={setReceiptUri}
-                    onOcrAmount={(ocrAmount) => setAmount(String(ocrAmount))}
-                    onOcrDate={(ocrDate) => setDate(ocrDate)}
+                    onOcrAmount={(ocrAmount) => { setAmount(String(ocrAmount)); setOcrAmountAccepted(true); }}
+                    onOcrDate={(ocrDate) => { setDate(ocrDate); setOcrDateAccepted(true); }}
                   />
                   <View style={{ height: 16 }} />
                 </>
@@ -208,7 +212,7 @@ const handleSave = () => {
                 placeholder={t("transactions.descriptionPlaceholder")}
                 placeholderTextColor={colors.textTertiary}
               />
-              {type === "CHARGE" && category && (
+              {type === "CHARGE" && category && proRatio < 1 && (
                 <View style={styles.ratioSection}>
                   <View style={styles.ratioHeader}>
                     <Text style={styles.ratioLabel}>{t("categories.professionalShare")}</Text>
@@ -232,18 +236,27 @@ const handleSave = () => {
                   </View>
                 </View>
               )}
-              <Pressable
-                style={[
-                  styles.primaryBtn,
-                  { backgroundColor: amount && parseFloat(amount) > 0 ? accent : colors.borderStrong },
-                ]}
-                onPress={handleAmountConfirm}
-                disabled={!amount || parseFloat(amount) <= 0}
-              >
-                
-                <Text style={styles.primaryBtnText}>{t("continue")}</Text>
-              </Pressable>
+              {ocrAmountAccepted && ocrDateAccepted && amount && parseFloat(amount) > 0 ? (
+                <Pressable
+                  style={[styles.primaryBtn, { backgroundColor: colors.success }]}
+                  onPress={handleSave}
+                >
+                  <Text style={styles.primaryBtnText}>{t("save")} ✓</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={[
+                    styles.primaryBtn,
+                    { backgroundColor: amount && parseFloat(amount) > 0 ? accent : colors.borderStrong },
+                  ]}
+                  onPress={handleAmountConfirm}
+                  disabled={!amount || parseFloat(amount) <= 0}
+                >
+                  <Text style={styles.primaryBtnText}>{t("continue")}</Text>
+                </Pressable>
+              )}
             </View>
+            
           )}
 
           {amount && parseFloat(amount) > 0 && step === "date" && (

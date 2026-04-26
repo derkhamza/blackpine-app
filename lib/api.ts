@@ -107,25 +107,101 @@ export interface OcrExtraction {
 }
 
 export async function extractReceipt(imageUri: string): Promise<OcrExtraction> {
-  // Read the image as base64
   const FileSystem = require("expo-file-system/legacy");
+  const ImageManipulator = require("expo-image-manipulator");
   const base64 = await FileSystem.readAsStringAsync(imageUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
 
-  const token = await getToken();
-  const res = await fetch(`${API_BASE}/ocr/extract`, {
+  // Compress image first
+  const compressed = await ImageManipulator.manipulateAsync(
+    imageUri,
+    [{ resize: { width: 1200 } }],
+    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+  );
+console.log("[OCR] Image size:", Math.round(base64.length / 1024), "KB");
+
+  const formBody = new URLSearchParams({
+    apikey: "K81225402888957",
+    base64Image: `data:image/jpeg;base64,${base64}`,
+    language: "fre",
+    isOverlayRequired: "false",
+    detectOrientation: "true",
+    scale: "true",
+    OCREngine: "2",
+  });
+
+  console.log("[OCR] Sending to OCR.space...");
+
+  const res = await fetch("https://api.ocr.space/parse/image", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: token ? `Bearer ${token}` : "",
-    },
-    body: JSON.stringify({ imageBase64: base64 }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: formBody.toString(),
   });
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Erreur OCR");
-  return data;
+  console.log("[OCR] Response:", JSON.stringify(data).substring(0, 500));
+
+  if (data.IsErroredOnProcessing) {
+    console.error("[OCR] API error:", data.ErrorMessage);
+    throw new Error(data.ErrorMessage?.[0] || "OCR failed");
+  }
+
+  if (!data.ParsedResults || data.ParsedResults.length === 0) {
+    console.log("[OCR] No parsed results");
+    return { amounts: [], dates: [], bestAmount: null, bestDate: null, confidence: 0 };
+  }
+
+  const text = data.ParsedResults[0].ParsedText || "";
+  console.log("[OCR] Extracted text:", text.substring(0, 300));
+
+  const amounts = extractAmountsFromText(text);
+  const dates = extractDatesFromText(text);
+
+  console.log("[OCR] Amounts:", amounts);
+  console.log("[OCR] Dates:", dates);
+
+  return {
+    amounts,
+    dates,
+    bestAmount: amounts.length > 0 ? amounts[0] : null,
+    bestDate: dates.length > 0 ? dates.sort().reverse()[0] : null,
+    confidence: 70,
+  };
+}
+
+function extractAmountsFromText(text: string): number[] {
+  const amounts: number[] = [];
+  let match;
+
+  const frenchPattern = /(\d[\d\s.]*),(\d{2})\b/g;
+  while ((match = frenchPattern.exec(text)) !== null) {
+    const value = parseFloat(`${match[1].replace(/[\s.]/g, "")}.${match[2]}`);
+    if (!isNaN(value) && value > 0 && value < 10000000) amounts.push(value);
+  }
+
+  const wholePattern = /(\d{2,7})\s*(?:MAD|DH|Dhs|dirhams?)/gi;
+  while ((match = wholePattern.exec(text)) !== null) {
+    const value = parseInt(match[1]);
+    if (!isNaN(value) && value > 0 && !amounts.includes(value)) amounts.push(value);
+  }
+
+  return amounts.sort((a, b) => b - a);
+}
+
+function extractDatesFromText(text: string): string[] {
+  const dates: string[] = [];
+  const pattern = /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/g;
+  let match;
+  while ((match = pattern.exec(text)) !== null) {
+    let [, d, m, y] = match.map(Number);
+    if (y < 100) y += 2000;
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 2020 && y <= 2030) {
+      const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      if (!dates.includes(iso)) dates.push(iso);
+    }
+  }
+  return dates;
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {

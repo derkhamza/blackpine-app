@@ -1,7 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, Pressable, TextInput, Image } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Slider from "@react-native-community/slider";
+import { useIsFocused } from "@react-navigation/native";
+import { consumePendingFilter } from "../lib/navigationState";
+import {
+  TransactionFilters,
+  FilterState,
+  DEFAULT_FILTERS,
+} from "../components/TransactionFilters";
 import {
   Transaction,
   TransactionType,
@@ -10,15 +17,12 @@ import {
   applyCategoryDefaults,
   getCategoryById,
 } from "blackpine-engine";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 import { useApp } from "../lib/AppContext";
 import { CategoryPicker } from "../components/CategoryPicker";
 import { AddTransactionModal } from "../components/AddTransactionModal";
 import { ReceiptCapture } from "../components/ReceiptCapture";
-import {
-  TransactionFilters,
-  FilterState,
-  DEFAULT_FILTERS,
-} from "../components/TransactionFilters";
 import { applyFilters } from "../lib/transactionFilters";
 import { useDatePicker } from "../lib/useDatePicker";
 import { colors, radii, shadows, spacing, typography } from "../lib/theme";
@@ -27,14 +31,19 @@ import { Icon } from "../lib/icons";
 import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
 
-export function TransactionsScreen() {
-  const { transactions, updateTransaction, deleteTransaction, addTransaction, result, profile } = useApp();
+
+export function TransactionsScreen({ route }: any) {
+  const initialFilter = route?.params?.filter as "ALL" | "RECETTE" | "CHARGE" | undefined;
+  const { transactions, updateTransaction, deleteTransaction, addTransaction, result, profile} = useApp();
   const [addModalType, setAddModalType] = useState<TransactionType | null>(null);
   const [pickerOpenForExisting, setPickerOpenForExisting] = useState<{
     txId: string;
     type: TransactionType;
   } | null>(null);
   const datePicker = useDatePicker();
+  const handleFilterChange = (newFilters: FilterState) => {
+  setFilters(newFilters);
+};
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const { t } = useT();
   const filtered = useMemo(
@@ -42,6 +51,16 @@ export function TransactionsScreen() {
     [transactions, filters]
   );
 
+const isFocused = useIsFocused();
+
+useEffect(() => {
+  if (isFocused) {
+    const pending = consumePendingFilter();
+    if (pending !== "ALL") {
+      setFilters((prev) => ({ ...prev, type: pending }));
+    }
+  }
+}, [isFocused]);
   const recettes = filtered.filter((t) => t.type === "RECETTE");
   const charges = filtered.filter((t) => t.type === "CHARGE");
 
@@ -90,7 +109,7 @@ export function TransactionsScreen() {
       {/* Filters */}
       <TransactionFilters
         filters={filters}
-        onChange={setFilters}
+        onChange={handleFilterChange}
         totalCount={transactions.length}
         filteredCount={filtered.length}
       />
@@ -263,6 +282,7 @@ function TransactionRow({
   const isRecette = transaction.type === "RECETTE";
   const ratio = transaction.professionalUseRatio ?? 1;
   const { t } = useT();
+  const [sliderVisible, setSliderVisible] = useState(ratio < 1);
   return (
     <View style={styles.txRow}>
       <View
@@ -313,7 +333,7 @@ function TransactionRow({
           </View>
         </Pressable>
 
-  {!isRecette && ratio < 1 && (
+      {!isRecette && (ratio < 1 || sliderVisible) && (
           <View style={styles.txDeductibility}>
             <View style={styles.sliderHeader}>
               <Text style={styles.sliderLabel}>{t("categories.professionalShare")}</Text>
@@ -330,10 +350,13 @@ function TransactionRow({
               maximumValue={1}
               step={0.05}
               value={ratio}
-              onSlidingComplete={(v) => onChange({
-                professionalUseRatio: v,
-                deductibilityStatus: v === 0 ? "NOT_DEDUCTIBLE" : v < 1 ? "PARTIALLY_DEDUCTIBLE" : "FULLY_DEDUCTIBLE",
-              })}
+              onSlidingComplete={(v) => {
+                setSliderVisible(true);
+                onChange({
+                  professionalUseRatio: v,
+                  deductibilityStatus: v === 0 ? "NOT_DEDUCTIBLE" : v < 1 ? "PARTIALLY_DEDUCTIBLE" : "FULLY_DEDUCTIBLE",
+                });
+              }}
               minimumTrackTintColor={colors.brand}
               maximumTrackTintColor={colors.border}
               thumbTintColor={colors.brand}
@@ -364,6 +387,12 @@ function TransactionRow({
             onOcrAmount={(ocrAmount) => onChange({ amount: ocrAmount })}
             onOcrDate={(ocrDate) => onChange({ date: ocrDate })}
           />
+        )}
+
+        {!isRecette && ratio >= 1 && !sliderVisible && (
+          <Pressable onPress={() => setSliderVisible(true)} style={styles.adjustBtn}>
+            <Text style={styles.adjustText}>{t("categories.professionalShare")} ✎</Text>
+          </Pressable>
         )}
       </View>
     </View>
@@ -424,6 +453,15 @@ screenTitle: { ...typography.h1, color: colors.textPrimary, marginBottom: spacin
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.md,
   },
+  adjustBtn: {
+  paddingVertical: 6,
+  marginTop: spacing.xs,
+},
+adjustText: {
+  fontSize: 11,
+  color: colors.brand,
+  fontWeight: "500",
+},
   fab: {
   flexDirection: "row",
   gap: 10,

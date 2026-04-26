@@ -11,6 +11,7 @@ import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
 import { FilingsSection } from "../components/FilingsSection";
 import { OptimizationSection } from "../components/OptimizationSection";
+import { setPendingFilter } from "../lib/navigationState";
 
 export function DashboardScreen({ navigation }: any) {
   const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated, fiscalYear, setFiscalYear } = useApp();  
@@ -63,16 +64,22 @@ export function DashboardScreen({ navigation }: any) {
       </View>
 
       <View style={styles.statsRow}>
-        <View style={styles.statCard}>
+        <Pressable
+          style={styles.statCard}
+          onPress={() => { setPendingFilter("RECETTE"); navigation.navigate("Transactions"); }}
+        >
           <View style={[styles.statAccent, { backgroundColor: colors.recette }]} />
           <Text style={styles.statLabel}>{t("dashboard.recettes")}</Text>
           <Text style={styles.statValue}>{formatMAD(result.breakdown.totalRecettes)}</Text>
-        </View>
-        <View style={styles.statCard}>
+        </Pressable>
+        <Pressable
+          style={styles.statCard}
+          onPress={() => { setPendingFilter("CHARGE"); navigation.navigate("Transactions"); }}
+        >
           <View style={[styles.statAccent, { backgroundColor: colors.charge }]} />
           <Text style={styles.statLabel}>{t("dashboard.charges")}</Text>
           <Text style={styles.statValue}>{formatMAD(result.breakdown.totalCharges)}</Text>
-        </View>
+        </Pressable>
       </View>
 
       <MonthlyChart data={monthlyData} />
@@ -91,7 +98,7 @@ export function DashboardScreen({ navigation }: any) {
       <OptimizationSection />
 
       <ExportButtons />
-      
+
       <FilingsSection />
 
       <Pressable
@@ -103,7 +110,7 @@ export function DashboardScreen({ navigation }: any) {
 
       <Pressable
         style={styles.secondaryBtn}
-        onPress={() => navigation.navigate("Transactions")}
+        onPress={() => navigation.navigate("Transactions", { filter: "ALL" })}
       >
         <Text style={styles.secondaryBtnText}>{t("dashboard.manageTransactions")}</Text>
       </Pressable>

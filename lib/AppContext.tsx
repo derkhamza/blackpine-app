@@ -28,6 +28,8 @@ export type AppScreen = "loading" | "auth" | "onboarding" | "app";
 
 interface AppState {
   screen: AppScreen;
+  transactionFilter: "ALL" | "RECETTE" | "CHARGE";
+  setTransactionFilter: (f: "ALL" | "RECETTE" | "CHARGE") => void;
   saving: boolean;
   lastSavedAt: string | null;
   fiscalYear: number;
@@ -54,6 +56,7 @@ const newId = () => Math.random().toString(36).slice(2, 9);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [screen, setScreen] = useState<AppScreen>("loading");
   const [saving, setSaving] = useState(false);
+  const [transactionFilter, setTransactionFilter] = useState<"ALL" | "RECETTE" | "CHARGE">("ALL");
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
@@ -193,7 +196,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value: AppState = {
     screen, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated,
     profile, transactions, result,fiscalYear, setFiscalYear,
-    setProfile: setProfileState,
+    setProfile: setProfileState,transactionFilter, setTransactionFilter,
     addTransaction: (tx) => setTransactions((prev) => [...prev, { ...tx, id: newId() }]),
     updateTransaction: (id, patch) => setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t))),
     deleteTransaction: (id) => setTransactions((prev) => prev.filter((t) => t.id !== id)),
