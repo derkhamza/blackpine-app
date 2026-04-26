@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, Pressable, TextInput, Image } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import Slider from "@react-native-community/slider";
 import {
   Transaction,
   TransactionType,
@@ -63,7 +64,7 @@ export function TransactionsScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: 80 }]}
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.screenTitle}>{t("transactions.title")}</Text>
@@ -178,23 +179,29 @@ export function TransactionsScreen() {
         ))
       )}
 
-      {/* Add buttons */}
-      <View style={styles.addRow}>
-        <Pressable
-          style={[styles.addBtn, { backgroundColor: colors.recette }]}
-          onPress={() => setAddModalType("RECETTE")}
-        >
-          <Text style={styles.addBtnText}>{t("transactions.addRecette")}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.addBtn, { backgroundColor: colors.charge }]}
-          onPress={() => setAddModalType("CHARGE")}
-        >
-          <Text style={styles.addBtnText}>{t("transactions.addCharge")}</Text>
-        </Pressable>
-      </View>
 
-      {/* Modals */}
+ 
+</ScrollView>
+
+    {/* Floating add buttons */}
+    <View style={styles.fab}>
+      <Pressable
+        style={[styles.fabBtn, { backgroundColor: colors.recette }]}
+        onPress={() => { tapLight(); setAddModalType("RECETTE"); }}
+      >
+        <Text style={styles.fabText}>{t("transactions.addRecette")}</Text>
+      </Pressable>
+      <Pressable
+        style={[styles.fabBtn, { backgroundColor: colors.charge }]}
+        onPress={() => { tapLight(); setAddModalType("CHARGE"); }}
+      >
+
+        <Text style={styles.fabText}>{t("transactions.addCharge")}</Text>
+      </Pressable>
+    </View>
+
+    {/* Modals */}
+     {/* Modals */}
       {addModalType && (
         <AddTransactionModal
           visible={true}
@@ -223,7 +230,6 @@ export function TransactionsScreen() {
       {datePicker.isVisible && datePicker.pickerProps && (
         <DateTimePicker {...datePicker.pickerProps} />
       )}
-    </ScrollView>
     </KeyboardAvoidingView>
   </SafeScreen>
   );
@@ -237,7 +243,10 @@ function getCategoryLabel(categoryId: string): string {
 function formatMAD(n: number): string {
   return Math.round(n).toLocaleString("fr-FR") + "\u00A0MAD";
 }
-
+function getCgiNote(categoryId: string): string | null {
+  const cat = getCategoryById(2026, categoryId);
+  return (cat as any)?.notes || null;
+}
 function TransactionRow({
   transaction,
   onChange,
@@ -304,55 +313,47 @@ function TransactionRow({
           </View>
         </Pressable>
 
-        {!isRecette && (
+  {!isRecette && ratio < 1 && (
           <View style={styles.txDeductibility}>
-            <View style={styles.pillRow}>
-              {(
-                [
-                  "FULLY_DEDUCTIBLE",
-                  "PARTIALLY_DEDUCTIBLE",
-                  "NOT_DEDUCTIBLE",
-                ] as DeductibilityStatus[]
-              ).map((status) => (
-                <Pressable
-                  key={status}
-                  style={[
-                    styles.pill,
-                    transaction.deductibilityStatus === status &&
-                      styles.pillActive,
-                  ]}
-                  onPress={() => onChange({ deductibilityStatus: status })}
-                >
-                  <Text
-                    style={[
-                      styles.pillText,
-                      transaction.deductibilityStatus === status &&
-                        styles.pillTextActive,
-                    ]}
-                  >
-                    {status === "FULLY_DEDUCTIBLE" ? t("categories.deductible") : status === "PARTIALLY_DEDUCTIBLE" ? t("categories.partiallyDeductible") : t("categories.notDeductible")}
-                  </Text>
-                </Pressable>
-              ))}
+            <View style={styles.sliderHeader}>
+              <Text style={styles.sliderLabel}>{t("categories.professionalShare")}</Text>
+              <Text style={[
+                styles.sliderValue,
+                { color: ratio === 0 ? colors.danger : ratio < 1 ? colors.warning : colors.success }
+              ]}>
+                {Math.round(ratio * 100)}%
+              </Text>
             </View>
-            {transaction.deductibilityStatus === "PARTIALLY_DEDUCTIBLE" && (
-              <View style={styles.ratioRow}>
-                <Text style={styles.ratioLabel}>{t("categories.professionalShare")}</Text>
-                <TextInput
-                  style={styles.ratioInput}
-                  value={String(ratio)}
-                  keyboardType="decimal-pad"
-                  onChangeText={(v) =>
-                    onChange({
-                      professionalUseRatio: Math.min(
-                        1,
-                        Math.max(0, parseFloat(v) || 0)
-                      ),
-                    })
-                  }
-                />
-              </View>
-            )}
+            <Slider
+              style={{ width: "100%", height: 36 }}
+              minimumValue={0}
+              maximumValue={1}
+              step={0.05}
+              value={ratio}
+              onSlidingComplete={(v) => onChange({
+                professionalUseRatio: v,
+                deductibilityStatus: v === 0 ? "NOT_DEDUCTIBLE" : v < 1 ? "PARTIALLY_DEDUCTIBLE" : "FULLY_DEDUCTIBLE",
+              })}
+              minimumTrackTintColor={colors.brand}
+              maximumTrackTintColor={colors.border}
+              thumbTintColor={colors.brand}
+            />
+            <View style={styles.sliderFooter}>
+              <Text style={styles.sliderHint}>0%</Text>
+              <Text style={styles.sliderDeductible}>
+                {t("categories.deductible")}: {Math.round(transaction.amount * ratio).toLocaleString("fr-FR")} MAD
+              </Text>
+              <Text style={styles.sliderHint}>100%</Text>
+            </View>
+          </View>
+        )}
+
+        {!isRecette && (
+          <View style={styles.cgiNote}>
+            <Text style={styles.cgiNoteText}>
+              {ratio === 1 ? "✅" : ratio === 0 ? "❌" : "⚠️"} {Math.round(ratio * 100)}% {t("categories.deductible").toLowerCase()}
+              {getCgiNote(transaction.category) ? ` · ${getCgiNote(transaction.category)}` : ""}
+            </Text>
           </View>
         )}
 
@@ -370,13 +371,10 @@ function TransactionRow({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, paddingTop: 20, paddingBottom: 40 },
-  screenTitle: {
-    ...typography.h1,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
+// Update existing styles for cleaner look:
+container: { flex: 1, backgroundColor: colors.bg },
+content: { padding: spacing.lg, paddingTop: spacing.md },
+screenTitle: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.md },
 
   summaryRow: {
     flexDirection: "row",
@@ -386,7 +384,7 @@ const styles = StyleSheet.create({
   summaryCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     padding: spacing.md,
     ...shadows.card,
   },
@@ -426,11 +424,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     marginBottom: spacing.md,
   },
+  fab: {
+  flexDirection: "row",
+  gap: 10,
+  paddingHorizontal: spacing.lg,
+  paddingVertical: spacing.sm,
+  backgroundColor: colors.bg,
+  borderTopWidth: 1,
+  borderTopColor: colors.border,
+},
+fabBtn: {
+  flex: 1,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  paddingVertical: 12,
+  borderRadius: radii.md,
+},
+fabText: {
+  color: "#fff",
+  fontWeight: "700",
+  fontSize: 14,
+},
   resetBtn: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     backgroundColor: colors.brandSoft,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
   },
   resetBtnText: {
     fontSize: 13,
@@ -441,7 +462,7 @@ const styles = StyleSheet.create({
   txRow: {
     flexDirection: "row",
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     marginBottom: spacing.sm,
     overflow: "hidden",
     borderWidth: 1,
@@ -480,7 +501,7 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
   },
   deleteBtnText: {
     fontSize: 22,
@@ -537,16 +558,48 @@ const styles = StyleSheet.create({
     width: 70,
     color: colors.textPrimary,
   },
-
-  addRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.md },
-  addBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: radii.sm,
-    alignItems: "center",
-  },
-  addBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 14 },
-  
+  sliderHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 2,
+},
+sliderLabel: {
+  ...typography.caption,
+  color: colors.textSecondary,
+  fontWeight: "600",
+},
+sliderValue: {
+  fontSize: 16,
+  fontWeight: "700",
+},
+cgiNote: {
+  backgroundColor: colors.surfaceAlt,
+  borderRadius: radii.sm,
+  paddingVertical: 6,
+  paddingHorizontal: 10,
+  marginTop: spacing.xs,
+},
+cgiNoteText: {
+  fontSize: 11,
+  color: colors.textSecondary,
+  lineHeight: 16,
+},
+sliderFooter: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginTop: -4,
+},
+sliderHint: {
+  fontSize: 10,
+  color: colors.textTertiary,
+},
+sliderDeductible: {
+  fontSize: 11,
+  color: colors.textSecondary,
+  fontWeight: "500",
+},
   txDescription: {
     fontSize: 13,
     color: colors.textSecondary,

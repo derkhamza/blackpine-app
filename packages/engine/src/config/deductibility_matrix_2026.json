@@ -1,5 +1,5 @@
 {
-  "version": "2026.1.0-draft",
+  "version": "2026.2.0",
   "categories": [
     {
       "id": "loyer_cabinet",
@@ -80,14 +80,14 @@
       "rns": { "deductible": true, "ratio": 1.0 },
       "notes": "Déductible immédiatement si moins de 5,000 MAD"
     },
-    {
+{
       "id": "gros_equipement_medical",
-      "labelFr": "Gros équipement médical",
+      "labelFr": "Gros équipement médical (>5000 MAD)",
       "family": "medical_equipment",
       "type": "CHARGE",
-      "rnr": { "deductible": false, "ratio": 0, "needsReview": true },
-      "rns": { "deductible": false, "ratio": 0, "needsReview": true },
-      "notes": "Amortissable, à valider avec votre comptable"
+      "rnr": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "rns": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "notes": "Amortissable sur 5-10 ans (10-20%/an). Ne pas déduire en totalité l'année d'achat. Art. 10-I-F CGI."
     },
     {
       "id": "consommables_medicaux",
@@ -172,40 +172,95 @@
       "rns": { "deductible": true, "ratio": 1.0 },
       "notes": "Vérifier que l'extension personnelle est exclue"
     },
-
-    {
-      "id": "vehicule_amortissement",
-      "labelFr": "Véhicule professionnel (achat)",
-      "family": "vehicle",
+{
+      "id": "blouse_tenue_pro",
+      "labelFr": "Blouses et tenues professionnelles",
+      "family": "cabinet_operating",
       "type": "CHARGE",
-      "rnr": { "deductible": false, "ratio": 0, "needsReview": true },
-      "rns": { "deductible": false, "ratio": 0, "needsReview": true },
-      "notes": "Amortissable, plafond légal applicable"
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
     },
     {
+      "id": "logiciel_informatique",
+      "labelFr": "Logiciels et maintenance informatique",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "fournitures_bureau",
+      "labelFr": "Fournitures de bureau",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "entretien_nettoyage",
+      "labelFr": "Entretien et nettoyage du cabinet",
+      "family": "cabinet_operating",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 }
+    },
+    {
+      "id": "retraite_cimr",
+      "labelFr": "Retraite complémentaire (CIMR)",
+      "family": "taxes",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "notes": "Déductible dans la limite de 10% du revenu global imposable. Art. 28-III CGI."
+    },
+    {
+      "id": "dons_deductibles",
+      "labelFr": "Dons aux associations reconnues d'utilité publique",
+      "family": "financial",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "notes": "Plafond 2‰ du chiffre d'affaires. Art. 10-I-B CGI."
+    },
+{
+      "id": "vehicule_amortissement",
+      "labelFr": "Véhicule professionnel (achat/amortissement)",
+      "family": "vehicle",
+      "type": "CHARGE",
+      "rnr": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "rns": { "deductible": true, "ratio": 1.0, "needsReview": true },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Amortissement plafonné à 300 000 MAD TTC (400 000 pour véhicules électriques). Durée 5 ans (20%). Art. 10-II CGI."
+    },
+{
       "id": "carburant",
       "labelFr": "Carburant",
       "family": "vehicle",
       "type": "CHARGE",
-      "rnr": { "deductible": true, "ratio": 0.6 },
-      "rns": { "deductible": true, "ratio": 0.6 },
-      "notes": "Trajet domicile-cabinet exclu"
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Déductible au prorata de l'usage professionnel. Par défaut 60%. Ajustez selon votre situation réelle. Art. 10 CGI."
     },
     {
       "id": "entretien_vehicule",
       "labelFr": "Entretien et réparation véhicule",
       "family": "vehicle",
       "type": "CHARGE",
-      "rnr": { "deductible": true, "ratio": 0.6 },
-      "rns": { "deductible": true, "ratio": 0.6 }
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Même ratio que le carburant. Art. 10 CGI."
     },
     {
       "id": "assurance_vehicule",
       "labelFr": "Assurance véhicule",
       "family": "vehicle",
       "type": "CHARGE",
-      "rnr": { "deductible": true, "ratio": 0.6 },
-      "rns": { "deductible": true, "ratio": 0.6 }
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.6,
+      "notes": "Même ratio que le carburant. Art. 10 CGI."
     },
     {
       "id": "taxi_visites",
@@ -216,14 +271,15 @@
       "rns": { "deductible": true, "ratio": 1.0 }
     },
 
-    {
+{
       "id": "telephone_mobile_pro",
-      "labelFr": "Téléphone mobile professionnel",
+      "labelFr": "Téléphone mobile",
       "family": "communications",
       "type": "CHARGE",
-      "rnr": { "deductible": true, "ratio": 0.7 },
-      "rns": { "deductible": true, "ratio": 0.7 },
-      "notes": "100% si ligne dédiée professionnelle"
+      "rnr": { "deductible": true, "ratio": 1.0 },
+      "rns": { "deductible": true, "ratio": 1.0 },
+      "defaultProfessionalRatio": 0.7,
+      "notes": "100% si ligne dédiée. Sinon au prorata de l'usage pro (70% par défaut). Art. 10 CGI."
     },
     {
       "id": "site_web",

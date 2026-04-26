@@ -23,6 +23,7 @@ import {
 import { ReceiptCapture } from "./ReceiptCapture";
 import { tapLight, tapSuccess } from "../lib/haptics";
 import { useT } from "../lib/useT";
+import Slider from "@react-native-community/slider";
 
 interface Props {
   visible: boolean;
@@ -54,12 +55,14 @@ export function AddTransactionModal({
   const selectedRef = useRef(false);
   const [receiptUri, setReceiptUri] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState("");
-  
+  const [proRatio, setProRatio] = useState(1);
+
   // Reset whenever the modal opens
     useEffect(() => {
     if (visible) {
         setStep("category");
         setCategory(null);
+        setProRatio(1);
         setDescription("");
         setAmount("");
         setDate(new Date().toISOString().split("T")[0]);
@@ -74,6 +77,8 @@ const handleCategorySelected = (cat: Category) => {
   tapLight();
   selectedRef.current = true;
   setCategory(cat);
+  const defaults = applyCategoryDefaults(cat.id, regime, fiscalYear);
+  setProRatio(defaults.professionalUseRatio ?? 1);
   setPickerOpen(false);
   setStep("amount");
 };
@@ -91,16 +96,18 @@ const handleSave = () => {
 
   const defaults = applyCategoryDefaults(category.id, regime, fiscalYear);
 
-    onCreate({
+  onCreate({
     type,
     amount: n,
     date,
     category: category.id,
     description: description.trim() || undefined,
-    deductibilityStatus: type === "CHARGE" ? defaults.deductibilityStatus : undefined,
-    professionalUseRatio: type === "CHARGE" ? defaults.professionalUseRatio : undefined,
+    deductibilityStatus: type === "CHARGE"
+      ? (proRatio === 0 ? "NOT_DEDUCTIBLE" : proRatio < 1 ? "PARTIALLY_DEDUCTIBLE" : "FULLY_DEDUCTIBLE")
+      : undefined,
+    professionalUseRatio: type === "CHARGE" ? proRatio : undefined,
     receiptUri,
-    });
+  });
   tapSuccess();
   onClose();
 };
@@ -201,6 +208,30 @@ const handleSave = () => {
                 placeholder={t("transactions.descriptionPlaceholder")}
                 placeholderTextColor={colors.textTertiary}
               />
+              {type === "CHARGE" && category && (
+                <View style={styles.ratioSection}>
+                  <View style={styles.ratioHeader}>
+                    <Text style={styles.ratioLabel}>{t("categories.professionalShare")}</Text>
+                    <Text style={styles.ratioValue}>{Math.round(proRatio * 100)}%</Text>
+                  </View>
+                  <Slider
+                    style={{ width: "100%", height: 40 }}
+                    minimumValue={0}
+                    maximumValue={1}
+                    step={0.05}
+                    value={proRatio}
+                    onValueChange={setProRatio}
+                    minimumTrackTintColor={colors.brand}
+                    maximumTrackTintColor={colors.border}
+                    thumbTintColor={colors.brand}
+                  />
+                  <View style={styles.ratioLabels}>
+                    <Text style={styles.ratioHint}>0%</Text>
+                    <Text style={styles.ratioHint}>{t("categories.deductible")}: {formatMAD(parseFloat(amount || "0") * proRatio)}</Text>
+                    <Text style={styles.ratioHint}>100%</Text>
+                  </View>
+                </View>
+              )}
               <Pressable
                 style={[
                   styles.primaryBtn,
@@ -464,5 +495,36 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.sm,
   },
+  ratioSection: {
+  marginTop: spacing.md,
+  backgroundColor: colors.surfaceAlt,
+  borderRadius: radii.md,
+  padding: spacing.md,
+},
+ratioHeader: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 4,
+},
+ratioLabel: {
+  ...typography.caption,
+  color: colors.textSecondary,
+  fontWeight: "600",
+},
+ratioValue: {
+  fontSize: 18,
+  fontWeight: "700",
+  color: colors.brand,
+},
+ratioLabels: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+ratioHint: {
+  fontSize: 10,
+  color: colors.textTertiary,
+},
 
 });
