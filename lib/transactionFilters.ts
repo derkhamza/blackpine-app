@@ -25,14 +25,15 @@ export function applyFilters(
   }
 
   // Text search (matches category label or category id)
-  if (filters.query.trim()) {
+if (filters.query.trim()) {
     const q = filters.query.toLowerCase().trim();
     result = result.filter((t) => {
       const cat = getCategoryById(2026, t.category);
       const label = cat?.labelFr?.toLowerCase() ?? "";
       const id = t.category.toLowerCase();
       const amount = String(t.amount);
-      return label.includes(q) || id.includes(q) || amount.includes(q);
+      const desc = (t.description || "").toLowerCase();
+      return label.includes(q) || id.includes(q) || amount.includes(q) || desc.includes(q);
     });
   }
 
