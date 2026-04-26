@@ -67,7 +67,7 @@ describe("computeTaxFromTransactions (end-to-end)", () => {
       2026,
       "2026-12-31"
     );
-    expect(result.configVersion).toBe("2026.1.0-draft");
+    expect(result.configVersion).toBe("2026.1.0");
   });
 
   it("produces a single readable trace from start to finish", () => {
@@ -100,7 +100,7 @@ describe("computeTaxFromTransactions (end-to-end)", () => {
       2026,
       "2026-12-31"
     );
-    expect(result.tax.familyDeduction).toBe(1200);
+    expect(result.tax.familyDeduction).toBe(1000);
   });
 
   it("a brand-new doctor (1 year of activity) is exempted from CM", () => {

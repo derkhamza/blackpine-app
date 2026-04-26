@@ -17,7 +17,7 @@ export function ExportButtons() {
   const handlePdf = async () => {
     setExportingPdf(true);
     try {
-      await generateTaxSummaryPdf(result, profile);
+      await generateTaxSummaryPdf(result, profile, fiscalYear);
     } catch (err: any) {
       console.error("PDF export failed:", err);
       Alert.alert(t("error"), err?.message || t("error"));
@@ -29,9 +29,12 @@ export function ExportButtons() {
   const handleExcel = async () => {
     setExportingExcel(true);
     try {
-      await generateTransactionsExcel(
-        transactions.filter((tx) => tx.date.startsWith(String(fiscalYear)))
-      );
+    await generateTransactionsExcel(
+            transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
+            result,
+            profile,
+            fiscalYear
+          );
     } catch (err: any) {
       console.error("Excel export failed:", err);
       Alert.alert(t("error"), err?.message || t("error"));

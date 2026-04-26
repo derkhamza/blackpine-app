@@ -104,7 +104,13 @@ liasseDesc: "P&L, fiscal passage, ESG, CPC detail, IR calculation",
     date: "Date",
     receipt: "Receipt",
   },
-
+optimization: {
+  title: "Tax optimization",
+  recommendations: "recommendation(s)",
+  urgent: "urgent",
+  potentialSavings: "Potential savings:",
+  allGood: "Your tax situation is well optimized. No recommendations at this time.",
+},
   categories: {
     title: "Revenue category",
     titleCharge: "Expense category",

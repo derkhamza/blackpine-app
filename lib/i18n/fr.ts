@@ -96,7 +96,13 @@ monthlyActivity: "Activité mensuelle",
     needsReview: "À valider avec votre comptable",
     professionalShare: "Part professionnelle",
   },
-
+optimization: {
+  title: "Optimisation fiscale",
+  recommendations: "recommandation(s)",
+  urgent: "urgente(s)",
+  potentialSavings: "Économie potentielle :",
+  allGood: "Votre situation fiscale est bien optimisée. Aucune recommandation pour le moment.",
+},
   filings: {
     title: "Déclarations fiscales",
     subtitle: "Générez vos formulaires pré-remplis",

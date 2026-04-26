@@ -10,6 +10,7 @@ import { ExportButtons } from "../components/ExportButtons";
 import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
 import { FilingsSection } from "../components/FilingsSection";
+import { OptimizationSection } from "../components/OptimizationSection";
 
 export function DashboardScreen({ navigation }: any) {
   const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated, fiscalYear, setFiscalYear } = useApp();  
@@ -87,7 +88,10 @@ export function DashboardScreen({ navigation }: any) {
         <Row label={t("dashboard.resultatFiscal")} value={formatMAD(result.breakdown.resultatFiscal)} bold />
       </View>
 
+      <OptimizationSection />
+
       <ExportButtons />
+      
       <FilingsSection />
 
       <Pressable

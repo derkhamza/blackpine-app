@@ -1,6 +1,6 @@
 {
-  "fiscalYear": 2026,
-  "version": "2026.1.0",
+  "fiscalYear": 2029,
+  "version": "2029.1.0",
   "irBracketsProfessional": [
     { "from": 0, "to": 40000, "rate": 0.0, "deduction": 0 },
     { "from": 40001, "to": 60000, "rate": 0.1, "deduction": 4000 },

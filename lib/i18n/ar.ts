@@ -56,7 +56,13 @@ monthlyActivity: "النشاط الشهري",
     noMonthlyData: "لا توجد بيانات شهرية بعد",
     noCharges: "لا توجد مصاريف مسجلة",
   },
-
+optimization: {
+  title: "تحسين ضريبي",
+  recommendations: "توصية(ات)",
+  urgent: "عاجلة",
+  potentialSavings: "وفورات محتملة:",
+  allGood: "وضعيتك الضريبية محسّنة جيداً. لا توجد توصيات حالياً.",
+},
 filings: {
   title: "التصريحات الضريبية",
   subtitle: "أنشئ استماراتك المعبأة مسبقاً",
