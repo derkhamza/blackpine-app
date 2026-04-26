@@ -176,6 +176,7 @@ liasseDesc: "CPC, passage fiscal, ESG, détail des postes, calcul IR",
 
   // Explain
   explain: {
+    legalText: "Texte réglementaire",
     title: "Comprendre mon impôt",
     taxToPay: "Impôt à payer · 2026",
     irBrut: "IR brut",

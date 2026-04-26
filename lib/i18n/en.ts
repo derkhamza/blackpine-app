@@ -179,6 +179,7 @@ optimization: {
   },
 
   explain: {
+    legalText: "Regulatory text",
     title: "Understand my tax",
     taxToPay: "Tax due · 2026",
     irBrut: "Gross IR",
