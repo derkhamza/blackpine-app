@@ -9,6 +9,7 @@ import { SyncIndicator } from "../components/SyncIndicator";
 import { ExportButtons } from "../components/ExportButtons";
 import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
+import { FilingsSection } from "../components/FilingsSection";
 
 export function DashboardScreen({ navigation }: any) {
   const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated, fiscalYear, setFiscalYear } = useApp();  
@@ -87,6 +88,7 @@ export function DashboardScreen({ navigation }: any) {
       </View>
 
       <ExportButtons />
+      <FilingsSection />
 
       <Pressable
         style={styles.explainBtn}

@@ -97,6 +97,19 @@ monthlyActivity: "Activité mensuelle",
     professionalShare: "Part professionnelle",
   },
 
+  filings: {
+    title: "Déclarations fiscales",
+    subtitle: "Générez vos formulaires pré-remplis",
+    irTitle: "Déclaration annuelle IR",
+    irDesc: "Déclaration du revenu global — revenus professionnels",
+    acomptesTitle: "Acomptes provisionnels",
+    acomptesDesc: "Échéancier trimestriel des versements",
+    cmTitle: "Cotisation minimale",
+    cmDesc: "Déclaration et comparaison IR/CM",
+    liasseTitle: "Liasse fiscale complète",
+liasseDesc: "CPC, passage fiscal, ESG, détail des postes, calcul IR",
+  },
+
   // Category families
   families: {
     cabinet_operating: "Cabinet",

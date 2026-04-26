@@ -54,6 +54,19 @@ monthlyActivity: "Monthly activity",
     noCharges: "No expenses recorded",
   },
 
+filings: {
+  title: "Tax filings",
+  subtitle: "Generate your pre-filled tax forms",
+  irTitle: "Annual IR declaration",
+  irDesc: "Global income declaration — professional income",
+  acomptesTitle: "Quarterly advance payments",
+  acomptesDesc: "Quarterly payment schedule",
+  cmTitle: "Minimum contribution",
+  cmDesc: "Declaration and IR/CM comparison",
+  liasseTitle: "Complete tax filing package",
+liasseDesc: "P&L, fiscal passage, ESG, CPC detail, IR calculation",
+},
+
   transactions: {
     title: "Transactions",
     operations: "operations",
