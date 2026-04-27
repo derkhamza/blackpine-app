@@ -34,8 +34,12 @@ import { SafeScreen } from "../components/SafeScreen";
 
 export function TransactionsScreen({ route }: any) {
   const initialFilter = route?.params?.filter as "ALL" | "RECETTE" | "CHARGE" | undefined;
-  const { transactions, updateTransaction, deleteTransaction, addTransaction, result, profile} = useApp();
+ const { transactions, updateTransaction, deleteTransaction, addTransaction, result, profile, fiscalYear, setFiscalYear } = useApp();
   const [addModalType, setAddModalType] = useState<TransactionType | null>(null);
+  const yearTransactions = useMemo(
+  () => transactions.filter(tx => tx.date.startsWith(String(fiscalYear))),
+  [transactions, fiscalYear]
+);
   const [pickerOpenForExisting, setPickerOpenForExisting] = useState<{
     txId: string;
     type: TransactionType;
@@ -47,8 +51,8 @@ export function TransactionsScreen({ route }: any) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const { t } = useT();
   const filtered = useMemo(
-    () => applyFilters(transactions, filters),
-    [transactions, filters]
+    () => applyFilters(yearTransactions, filters),
+    [yearTransactions, filters]
   );
 
 const isFocused = useIsFocused();
@@ -87,7 +91,15 @@ useEffect(() => {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.screenTitle}>{t("transactions.title")}</Text>
-
+      <View style={styles.yearRow}>
+        <Pressable onPress={() => setFiscalYear(fiscalYear - 1)}>
+          <Text style={styles.yearArrow}>‹</Text>
+        </Pressable>
+        <Text style={styles.yearLabel}>{fiscalYear}</Text>
+        <Pressable onPress={() => setFiscalYear(fiscalYear + 1)}>
+          <Text style={styles.yearArrow}>›</Text>
+        </Pressable>
+      </View>
       {/* Summary bar */}
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
@@ -110,12 +122,12 @@ useEffect(() => {
       <TransactionFilters
         filters={filters}
         onChange={handleFilterChange}
-        totalCount={transactions.length}
+        totalCount={yearTransactions.length}
         filteredCount={filtered.length}
       />
 
       {/* Empty state */}
-      {filtered.length === 0 && transactions.length > 0 && (
+      {filtered.length === 0 && yearTransactions.length > 0 && (
         <View style={styles.emptyState}>
         <Text style={styles.emptyTitle}>{t("transactions.noResults")}</Text>
         <Text style={styles.emptyText}>{t("transactions.tryModifyFilters")}</Text>
@@ -128,7 +140,7 @@ useEffect(() => {
         </View>
       )}
 
-      {filtered.length === 0 && transactions.length === 0 && (
+      {filtered.length === 0 && yearTransactions.length === 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>{t("transactions.noTransactions")}</Text>
           <Text style={styles.emptyText}>{t("transactions.addFirst")}</Text>
@@ -283,118 +295,132 @@ function TransactionRow({
   const ratio = transaction.professionalUseRatio ?? 1;
   const { t } = useT();
   const [sliderVisible, setSliderVisible] = useState(ratio < 1);
-  return (
-    <View style={styles.txRow}>
-      <View
-        style={[
-          styles.txAccent,
-          { backgroundColor: isRecette ? colors.recette : colors.charge },
-        ]}
-      />
-      <View style={styles.txContent}>
-        <View style={styles.txTop}>
-          <Pressable style={styles.txCategoryBtn} onPress={onPickCategory}>
-            <Text style={styles.txCategoryText}>
-              {getCategoryLabel(transaction.category)}
-            </Text>
-            <Text style={styles.txCategoryEdit}>Modifier</Text>
-          </Pressable>
-          <Pressable onPress={onDelete} hitSlop={12} style={styles.deleteBtn}>
-            <Icon name="delete" size={16} color={colors.textTertiary} />
-          </Pressable>
-        </View>
+  const accentColor = isRecette ? colors.recette : colors.charge;
 
+  return (
+    <View style={styles.txCard}>
+      {/* Top row: type badge + amount + delete */}
+      <View style={styles.txTopRow}>
+        <View style={[styles.txTypeBadge, { backgroundColor: isRecette ? colors.recetteSoft : colors.chargeSoft }]}>
+          <View style={[styles.txTypeDot, { backgroundColor: accentColor }]} />
+          <Text style={[styles.txTypeText, { color: accentColor }]}>
+            {isRecette ? t("transactions.recettesFilter") : t("transactions.chargesFilter")}
+          </Text>
+        </View>
+        <View style={{ flex: 1 }} />
+        <Pressable onPress={onDelete} hitSlop={12} style={styles.txDeleteBtn}>
+          <Icon name="delete" size={14} color={colors.textTertiary} />
+        </Pressable>
+      </View>
+
+      {/* Category */}
+      <Pressable style={styles.txCategoryRow} onPress={onPickCategory}>
+        <Text style={styles.txCategoryLabel} numberOfLines={1}>
+          {getCategoryLabel(transaction.category)}
+        </Text>
+        <Text style={styles.txCategoryChange}>✎</Text>
+      </Pressable>
+
+      {/* Amount */}
+      <View style={styles.txAmountRow}>
         <TextInput
-          style={styles.txAmount}
+          style={[styles.txAmountInput, { color: accentColor }]}
           value={String(transaction.amount)}
           keyboardType="numeric"
           onChangeText={(v) => onChange({ amount: parseFloat(v) || 0 })}
           placeholder="0"
           placeholderTextColor={colors.textTertiary}
         />
-        <TextInput
-          style={styles.txDescription}
-          value={transaction.description || ""}
-          onChangeText={(v) => onChange({ description: v })}
-          placeholder={t("transactions.descriptionPlaceholder")}
-          placeholderTextColor={colors.textTertiary}
-          multiline={false}
-        />
-        <Pressable style={styles.txDateBtn} onPress={onPickDate}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <Icon name="calendar" size={12} color={colors.textSecondary} />
-            <Text style={styles.txDateText}>
-              {new Date(transaction.date).toLocaleDateString("fr-FR", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-            </Text>
-          </View>
+        <Text style={styles.txAmountCurrency}>MAD</Text>
+      </View>
+
+      {/* Description */}
+      <TextInput
+        style={styles.txDescInput}
+        value={transaction.description || ""}
+        onChangeText={(v) => onChange({ description: v })}
+        placeholder={t("transactions.descriptionPlaceholder")}
+        placeholderTextColor={colors.textTertiary}
+        multiline={false}
+      />
+
+      {/* Bottom row: date + receipt */}
+      <View style={styles.txBottomRow}>
+        <Pressable style={styles.txDateChip} onPress={onPickDate}>
+          <Icon name="calendar" size={12} color={colors.textSecondary} />
+          <Text style={styles.txDateLabel}>
+            {new Date(transaction.date).toLocaleDateString("fr-FR", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </Text>
         </Pressable>
 
-      {!isRecette && (ratio < 1 || sliderVisible) && (
-          <View style={styles.txDeductibility}>
-            <View style={styles.sliderHeader}>
-              <Text style={styles.sliderLabel}>{t("categories.professionalShare")}</Text>
-              <Text style={[
-                styles.sliderValue,
-                { color: ratio === 0 ? colors.danger : ratio < 1 ? colors.warning : colors.success }
-              ]}>
-                {Math.round(ratio * 100)}%
-              </Text>
-            </View>
-            <Slider
-              style={{ width: "100%", height: 36 }}
-              minimumValue={0}
-              maximumValue={1}
-              step={0.05}
-              value={ratio}
-              onSlidingComplete={(v) => {
-                setSliderVisible(true);
-                onChange({
-                  professionalUseRatio: v,
-                  deductibilityStatus: v === 0 ? "NOT_DEDUCTIBLE" : v < 1 ? "PARTIALLY_DEDUCTIBLE" : "FULLY_DEDUCTIBLE",
-                });
-              }}
-              minimumTrackTintColor={colors.brand}
-              maximumTrackTintColor={colors.border}
-              thumbTintColor={colors.brand}
-            />
-            <View style={styles.sliderFooter}>
-              <Text style={styles.sliderHint}>0%</Text>
-              <Text style={styles.sliderDeductible}>
-                {t("categories.deductible")}: {Math.round(transaction.amount * ratio).toLocaleString("fr-FR")} MAD
-              </Text>
-              <Text style={styles.sliderHint}>100%</Text>
-            </View>
-          </View>
-        )}
+        <ReceiptCapture
+          uri={transaction.receiptUri}
+          compact
+          onChange={(newUri) => onChange({ receiptUri: newUri })}
+          onOcrAmount={(ocrAmount) => onChange({ amount: ocrAmount })}
+          onOcrDate={(ocrDate) => onChange({ date: ocrDate })}
+        />
+      </View>
 
-        {!isRecette && (
-          <View style={styles.cgiNote}>
-            <Text style={styles.cgiNoteText}>
-              {ratio === 1 ? "✅" : ratio === 0 ? "❌" : "⚠️"} {Math.round(ratio * 100)}% {t("categories.deductible").toLowerCase()}
-              {getCgiNote(transaction.category) ? ` · ${getCgiNote(transaction.category)}` : ""}
+      {/* Deductibility slider */}
+      {!isRecette && (ratio < 1 || sliderVisible) && (
+        <View style={styles.txSliderBox}>
+          <View style={styles.txSliderHeader}>
+            <Text style={styles.txSliderLabel}>{t("categories.professionalShare")}</Text>
+            <Text style={[
+              styles.txSliderPercent,
+              { color: ratio === 0 ? colors.danger : ratio < 1 ? colors.warning : colors.success }
+            ]}>
+              {Math.round(ratio * 100)}%
             </Text>
           </View>
-        )}
-
-        {!isRecette && (
-          <ReceiptCapture
-            uri={transaction.receiptUri}
-            onChange={(newUri) => onChange({ receiptUri: newUri })}
-            onOcrAmount={(ocrAmount) => onChange({ amount: ocrAmount })}
-            onOcrDate={(ocrDate) => onChange({ date: ocrDate })}
+          <Slider
+            style={{ width: "100%", height: 32 }}
+            minimumValue={0}
+            maximumValue={1}
+            step={0.05}
+            value={ratio}
+            onSlidingComplete={(v) => {
+              setSliderVisible(true);
+              onChange({
+                professionalUseRatio: v,
+                deductibilityStatus: v === 0 ? "NOT_DEDUCTIBLE" : v < 1 ? "PARTIALLY_DEDUCTIBLE" : "FULLY_DEDUCTIBLE",
+              });
+            }}
+            minimumTrackTintColor={colors.brand}
+            maximumTrackTintColor={colors.border}
+            thumbTintColor={colors.brand}
           />
-        )}
+          <View style={styles.txSliderFooter}>
+            <Text style={styles.txSliderHint}>0%</Text>
+            <Text style={styles.txSliderDeductible}>
+              {t("categories.deductible")}: {Math.round(transaction.amount * ratio).toLocaleString("fr-FR")} MAD
+            </Text>
+            <Text style={styles.txSliderHint}>100%</Text>
+          </View>
+        </View>
+      )}
 
-        {!isRecette && ratio >= 1 && !sliderVisible && (
-          <Pressable onPress={() => setSliderVisible(true)} style={styles.adjustBtn}>
-            <Text style={styles.adjustText}>{t("categories.professionalShare")} ✎</Text>
-          </Pressable>
-        )}
-      </View>
+      {/* Adjust ratio link for 100% items */}
+      {!isRecette && ratio >= 1 && !sliderVisible && (
+        <Pressable onPress={() => setSliderVisible(true)} style={styles.txAdjustBtn}>
+          <Text style={styles.txAdjustText}>{t("categories.professionalShare")} ✎</Text>
+        </Pressable>
+      )}
+
+      {/* CGI note */}
+      {!isRecette && getCgiNote(transaction.category) && (
+        <View style={styles.txCgiBox}>
+          <Text style={styles.txCgiText}>
+            {ratio === 1 ? "✅" : ratio === 0 ? "❌" : "⚠️"} {Math.round(ratio * 100)}% {t("categories.deductible").toLowerCase()}
+            {" · "}{getCgiNote(transaction.category)}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -470,6 +496,24 @@ adjustText: {
   backgroundColor: colors.bg,
   borderTopWidth: 1,
   borderTopColor: colors.border,
+},
+yearRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 20,
+  marginBottom: spacing.md,
+},
+yearArrow: {
+  fontSize: 24,
+  fontWeight: "700",
+  color: colors.brand,
+  paddingHorizontal: 12,
+},
+yearLabel: {
+  fontSize: 18,
+  fontWeight: "700",
+  color: colors.textPrimary,
 },
 fabBtn: {
   flex: 1,
@@ -607,6 +651,165 @@ sliderLabel: {
   color: colors.textSecondary,
   fontWeight: "600",
 },
+// ===== Transaction Card =====
+  txCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
+  },
+  txTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+  },
+  txTypeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  txTypeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  txTypeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  txDeleteBtn: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.pill,
+  },
+  txCategoryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
+  txCategoryLabel: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  txCategoryChange: {
+    fontSize: 14,
+    color: colors.brand,
+    paddingLeft: spacing.sm,
+  },
+  txAmountRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: spacing.xs,
+  },
+  txAmountInput: {
+    fontSize: 22,
+    fontWeight: "800",
+    paddingVertical: 2,
+    minWidth: 80,
+  },
+  txAmountCurrency: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textTertiary,
+    marginLeft: 4,
+  },
+  txDescInput: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    paddingVertical: 4,
+    marginBottom: spacing.xs,
+  },
+  txBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  txDateChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.pill,
+  },
+  txDateLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  txSliderBox: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  txSliderHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  txSliderLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  txSliderPercent: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  txSliderFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: -2,
+  },
+  txSliderHint: {
+    fontSize: 10,
+    color: colors.textTertiary,
+  },
+  txSliderDeductible: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  txAdjustBtn: {
+    paddingVertical: 6,
+    marginTop: spacing.xs,
+  },
+  txAdjustText: {
+    fontSize: 11,
+    color: colors.brand,
+    fontWeight: "500",
+  },
+  txCgiBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radii.sm,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginTop: spacing.sm,
+  },
+  txCgiText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    lineHeight: 15,
+  },
 sliderValue: {
   fontSize: 16,
   fontWeight: "700",

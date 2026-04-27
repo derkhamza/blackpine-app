@@ -51,13 +51,10 @@ export function OcrPreview({
   }
 
   // Auto-dismiss if both have been accepted
+  // Show "done" state when both accepted
   const allDone =
     (bestAmount === null || amountAccepted) &&
     (bestDate === null || dateAccepted);
-
-  if (allDone) {
-    return null;
-  }
 
   const confidenceLabel = confidence > 70 ? t("ocr.good") : confidence > 40 ? t("ocr.medium") : t("ocr.low");
   const confidenceColor =
@@ -128,9 +125,11 @@ export function OcrPreview({
         </View>
       )}
 
-      <Pressable style={styles.dismissBtn} onPress={onDismiss}>
-        <Text style={styles.dismissText}>{t("ocr.ignoreManual")}</Text>
-      </Pressable>
+<Pressable style={[styles.dismissBtn, allDone && { backgroundColor: colors.success }]} onPress={onDismiss}>
+  <Text style={[styles.dismissText, allDone && { color: colors.textOnDark }]}>
+    {allDone ? "✓ " + t("close") : t("close")}
+  </Text>
+</Pressable>
     </View>
   );
 }

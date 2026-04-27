@@ -18,12 +18,12 @@ const priorityLabels = {
   low: "Info",
 };
 
-const categoryIcons: Record<string, string> = {
-  deduction: "💰",
-  timing: "⏱️",
-  regime: "📊",
-  structure: "🏗️",
-  compliance: "⚠️",
+const categoryIcons: Record<string, { name: string; color: string }> = {
+  deduction: { name: "dollarSign", color: colors.success },
+  timing: { name: "clock", color: colors.warning },
+  regime: { name: "barChart", color: colors.brand },
+  structure: { name: "tool", color: colors.textSecondary },
+  compliance: { name: "alertCircle", color: colors.danger },
 };
 
 export function OptimizationSection() {
@@ -64,7 +64,9 @@ export function OptimizationSection() {
           onPress={() => setExpanded(expanded === rec.id ? null : rec.id)}
         >
           <View style={styles.recHeader}>
-            <Text style={styles.recIcon}>{categoryIcons[rec.category] || "💡"}</Text>
+            <View style={[styles.recIconBox, { backgroundColor: (categoryIcons[rec.category]?.color || colors.textSecondary) + "18" }]}>
+              <Icon name={(categoryIcons[rec.category]?.name || "zap") as any} size={16} color={categoryIcons[rec.category]?.color || colors.textSecondary} />
+            </View>
             <View style={styles.recHeaderText}>
               <Text style={styles.recTitle}>{rec.title}</Text>
               <View style={[styles.priorityBadge, { backgroundColor: priorityColors[rec.priority] }]}>
@@ -82,7 +84,10 @@ export function OptimizationSection() {
             <View style={styles.recBody}>
               <Text style={styles.recDescription}>{rec.description}</Text>
               <View style={styles.actionBox}>
-                <Text style={styles.actionLabel}>💡 Action recommandée</Text>
+                <View style={styles.actionLabelRow}>
+  <Icon name="zap" size={12} color={colors.brand} />
+  <Text style={styles.actionLabel}>Action recommandée</Text>
+</View>
                 <Text style={styles.actionText}>{rec.action}</Text>
               </View>
             </View>
@@ -167,6 +172,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: spacing.md,
   },
+  actionLabelRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 4,
+  marginBottom: 4,
+},
   actionBox: {
     backgroundColor: colors.brandSoft,
     borderRadius: radii.sm,
@@ -178,6 +189,13 @@ const styles = StyleSheet.create({
     color: colors.brand,
     marginBottom: 4,
   },
+  recIconBox: {
+  width: 36,
+  height: 36,
+  borderRadius: radii.sm,
+  alignItems: "center",
+  justifyContent: "center",
+},
   actionText: {
     ...typography.caption,
     color: colors.brand,

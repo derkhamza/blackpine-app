@@ -1,11 +1,12 @@
 function getAS() { return require("@react-native-async-storage/async-storage").default; }
-import { DoctorProfile, Transaction } from "blackpine-engine";
+import { DoctorProfile, Transaction, FixedAsset } from "blackpine-engine";
 
 const KEYS = {
   PROFILE: "blackpine.profile.v1",
   TRANSACTIONS: "blackpine.transactions.v1",
   LAST_SAVED: "blackpine.lastSaved.v1",
   ONBOARDED: "blackpine.onboarded.v1",
+  ASSETS: "blackpine.assets.v1",
 } as const;
 
 export interface PersistedState {
@@ -13,11 +14,14 @@ export interface PersistedState {
   transactions: Transaction[];
   lastSavedAt: string | null;
   onboarded: boolean;
+    assets: FixedAsset[];
 }
 
 export async function loadState(): Promise<PersistedState> {
   try {
+    const assetsRaw = await getAS().getItem(KEYS.ASSETS);
     const [profileRaw, txsRaw, lastSavedRaw, onboardedRaw] = await Promise.all([
+      
       getAS().getItem(KEYS.PROFILE),
       getAS().getItem(KEYS.TRANSACTIONS),
       getAS().getItem(KEYS.LAST_SAVED),
@@ -27,21 +31,24 @@ export async function loadState(): Promise<PersistedState> {
       profile: profileRaw ? safeParse<DoctorProfile>(profileRaw) : null,
       transactions: txsRaw ? safeParse<Transaction[]>(txsRaw) ?? [] : [],
       lastSavedAt: lastSavedRaw,
+      assets: assetsRaw ? JSON.parse(assetsRaw) : [],
       onboarded: onboardedRaw === "true",
     };
   } catch (err) {
     console.warn("Failed to load state:", err);
-    return { profile: null, transactions: [], lastSavedAt: null, onboarded: false };
+    return { profile: null, transactions: [], lastSavedAt: null, assets: [], onboarded: false };
   }
 }
 
-export async function saveState(profile: DoctorProfile, transactions: Transaction[]): Promise<string> {
+export async function saveState(profile: DoctorProfile, transactions: Transaction[], assets?: FixedAsset[]): Promise<string> {
   const now = new Date().toISOString();
-  await getAS().multiSet([
+  const pairs: [string, string][] = [
     [KEYS.PROFILE, JSON.stringify(profile)],
     [KEYS.TRANSACTIONS, JSON.stringify(transactions)],
     [KEYS.LAST_SAVED, now],
-  ]);
+  ];
+  if (assets) pairs.push([KEYS.ASSETS, JSON.stringify(assets)]);
+  await getAS().multiSet(pairs);
   return now;
 }
 

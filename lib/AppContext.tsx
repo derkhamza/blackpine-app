@@ -7,7 +7,7 @@ import {
 import { loadState, saveState, clearState, setOnboarded } from "./storage";
 import { isLoggedIn, logout as apiLogout } from "./api";
 import { syncPush, syncPull, SyncStatus } from "./syncService";
-
+import { FixedAsset, calculateTotalDotation } from "blackpine-engine";
 const defaultProfile: DoctorProfile = {
   id: "demo", legalForm: "PERSONNE_PHYSIQUE", practiceType: "CABINET_ONLY",
   activityStartDate: "2018-03-01", commune: "Casablanca", communeType: "URBAN",
@@ -34,6 +34,10 @@ interface AppState {
   lastSavedAt: string | null;
   fiscalYear: number;
   setFiscalYear: (y: number) => void;
+  assets: FixedAsset[];
+addAsset: (asset: Omit<FixedAsset, "id">) => void;
+updateAsset: (id: string, patch: Partial<FixedAsset>) => void;
+deleteAsset: (id: string) => void;
   syncStatus: SyncStatus;
   lastSyncedAt: string | null;
   isAuthenticated: boolean;
@@ -58,6 +62,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [saving, setSaving] = useState(false);
   const [transactionFilter, setTransactionFilter] = useState<"ALL" | "RECETTE" | "CHARGE">("ALL");
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
+  const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
@@ -65,6 +70,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [profile, setProfileState] = useState<DoctorProfile>(defaultProfile);
   const [transactions, setTransactions] = useState<Transaction[]>(defaultTransactions);
   const initialized = useRef(false);
+  const addAsset = (a: Omit<FixedAsset, "id">) => setAssets(prev => [...prev, { ...a, id: newId() }]);
+  const updateAsset = (id: string, patch: Partial<FixedAsset>) => setAssets(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
+  const deleteAsset = (id: string) => setAssets(prev => prev.filter(a => a.id !== id));
 
   // Boot: check auth → decide which screen
   useEffect(() => {
@@ -104,7 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSaving(true);
     saveTimer.current = setTimeout(async () => {
       try {
-        const ts = await saveState(profile, transactions);
+        const ts = await saveState(profile, transactions,assets);
         setLastSavedAt(ts);
       } catch (err) { console.warn("save failed", err); }
       finally { setSaving(false); }
@@ -129,22 +137,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [profile, transactions, screen, isAuthenticated]);
 
   const result = useMemo(() => {
-      try {
-        return computeTaxFromTransactions(
-          profile,
-          transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
-          fiscalYear,
-          `${fiscalYear}-12-31`
-        );
-      } catch {
-        return computeTaxFromTransactions(
-          profile,
-          transactions.filter((tx) => tx.date.startsWith(String(fiscalYear))),
-          2026,
-          `${fiscalYear}-12-31`
-        );
-      }
-    }, [profile, transactions, fiscalYear]);
+      const { totalDotation } = calculateTotalDotation(assets, fiscalYear);
+      const yearTx = transactions.filter((tx) => tx.date.startsWith(String(fiscalYear)));
+      // Add amortization as a virtual transaction
+      const txWithAmort = totalDotation > 0
+    ? [...yearTx, { id: "amort_auto", type: "CHARGE" as const, amount: totalDotation, date: `${fiscalYear}-12-31`, category: "gros_equipement_medical", deductibilityStatus: "FULLY_DEDUCTIBLE" as const, professionalUseRatio: 1 }]
+    : yearTx;
+        try {
+          return computeTaxFromTransactions(profile, txWithAmort, fiscalYear, `${fiscalYear}-12-31`);
+        } catch {
+          return computeTaxFromTransactions(profile, txWithAmort, 2026, `${fiscalYear}-12-31`);
+        }
+    }, [profile, transactions, assets, fiscalYear]);
 
   // After signup → go to onboarding
   const onSignup = useCallback(() => {
@@ -195,7 +199,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value: AppState = {
     screen, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated,
-    profile, transactions, result,fiscalYear, setFiscalYear,
+    profile, transactions, result,fiscalYear, setFiscalYear,assets, addAsset, updateAsset, deleteAsset,
     setProfile: setProfileState,transactionFilter, setTransactionFilter,
     addTransaction: (tx) => setTransactions((prev) => [...prev, { ...tx, id: newId() }]),
     updateTransaction: (id, patch) => setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t))),

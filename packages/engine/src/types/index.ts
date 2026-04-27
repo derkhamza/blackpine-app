@@ -174,6 +174,36 @@ export interface TraceEvent {
   value?: number;        // when the event has a number worth highlighting
   formula?: string;      // human-readable formula, e.g. "276 800 × 37% − 27 400"
 }
+export interface FixedAsset {
+  id: string;
+  label: string;
+  category: "immobilisation_corporelle" | "immobilisation_incorporelle" | "non_valeur";
+  subcategory: string; // e.g. "constructions", "materiel_outillage", "mobilier_bureau", "materiel_transport", "informatique"
+  acquisitionDate: string; // ISO date
+  acquisitionAmount: number; // TTC or HT depending on TVA regime
+  amortizationRate: number; // annual rate, e.g. 0.20 for 20%
+  amortizationMethod: "linear"; // only linear for now
+  disposalDate?: string; // if sold/retired
+  disposalAmount?: number;
+  notes?: string;
+}
 
+export interface AmortizationLine {
+  assetId: string;
+  year: number;
+  openingValue: number; // VNC début exercice
+  dotation: number; // amortissement de l'exercice
+  closingValue: number; // VNC fin exercice
+  cumulativeAmortization: number;
+  isProrata: boolean; // first/last year prorata
+}
+
+export interface AmortizationSchedule {
+  asset: FixedAsset;
+  lines: AmortizationLine[];
+  totalAmortized: number;
+  currentYearDotation: number;
+  netBookValue: number;
+}
 // Extend CalculationResult-style outputs to include structured events.
 // Existing `trace: string[]` stays for backward compatibility.

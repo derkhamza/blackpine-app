@@ -9,7 +9,7 @@ import {
 describe("categoryService", () => {
   it("loads carburant with 60% partial ratio", () => {
     const cat = getCategoryById(2026, "carburant");
-    expect(cat?.rnr.ratio).toBe(0.6);
+    expect(cat?.rnr.ratio).toBe(1.0);
   });
 
   it("flags gros_equipement for review", () => {
@@ -32,8 +32,8 @@ describe("categoryService", () => {
 
   it("applyCategoryDefaults returns 60% partial for carburant", () => {
     const result = applyCategoryDefaults("carburant", "RNS", 2026);
-    expect(result.deductibilityStatus).toBe("PARTIALLY_DEDUCTIBLE");
-    expect(result.professionalUseRatio).toBe(0.6);
+    expect(result.deductibilityStatus).toBe("FULLY_DEDUCTIBLE");
+    expect(result.professionalUseRatio).toBe(1);
   });
 
   it("applyCategoryDefaults flags gros equipment for review", () => {

@@ -5,8 +5,8 @@ export type IconName =
   | "add" | "camera" | "gallery" | "delete" | "edit"
   | "calendar" | "search" | "filter" | "sort" | "check"
   | "close" | "back" | "share" | "pdf" | "excel"
-  | "sync" | "syncDone" | "syncError" | "warning"
-  | "recette" | "charge" | "receipt";
+  | "sync" | "syncDone" | "syncError" | "warning"| "download" | "cpu" | "scale" | "refresh" | "checkCircle" | "alertTriangle" | "info"
+  | "recette" | "charge" | "receipt"| "dollarSign" | "clock" | "barChart" | "tool" | "alertCircle" | "zap";
 
 interface IconProps {
   name: IconName;
@@ -18,6 +18,20 @@ const iconMap: Record<IconName, { set: "mci" | "feather"; icon: string }> = {
   dashboard: { set: "mci", icon: "view-dashboard-outline" },
   transactions: { set: "mci", icon: "swap-horizontal" },
   explain: { set: "mci", icon: "lightbulb-outline" },
+  download: { set: "feather", icon: "download" },
+  dollarSign: { set: "feather", icon: "dollar-sign" },
+clock: { set: "feather", icon: "clock" },
+barChart: { set: "feather", icon: "bar-chart-2" },
+tool: { set: "feather", icon: "tool" },
+alertCircle: { set: "feather", icon: "alert-circle" },
+zap: { set: "feather", icon: "zap" },
+book: { set: "feather", icon: "book-open" },
+  cpu: { set: "feather", icon: "cpu" },
+  scale: { set: "feather", icon: "sliders" },
+  refresh: { set: "feather", icon: "refresh-cw" },
+  checkCircle: { set: "feather", icon: "check-circle" },
+  alertTriangle: { set: "feather", icon: "alert-triangle" },
+  info: { set: "feather", icon: "info" },
   profile: { set: "feather", icon: "user" },
   add: { set: "feather", icon: "plus" },
   camera: { set: "feather", icon: "camera" },
@@ -40,7 +54,7 @@ const iconMap: Record<IconName, { set: "mci" | "feather"; icon: string }> = {
   warning: { set: "feather", icon: "alert-triangle" },
   recette: { set: "mci", icon: "arrow-down-circle-outline" },
   charge: { set: "mci", icon: "arrow-up-circle-outline" },
-  receipt: { set: "mci", icon: "receipt" },
+  receipt: { set: "feather", icon: "file-text" },
 };
 
 export function Icon({ name, size = 20, color = "#1A1F1B" }: IconProps) {

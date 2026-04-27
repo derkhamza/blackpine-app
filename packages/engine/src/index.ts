@@ -21,3 +21,4 @@ export {
   getGroupedCategories,
   applyCategoryDefaults,
 } from "./calculators/categoryService";
+export { calculateAmortization, calculateTotalDotation } from "./calculators/amortizationCalculator";
