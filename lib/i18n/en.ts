@@ -38,6 +38,8 @@ loading: "Loading...",
 
   dashboard: {
     brand: "BLACKPINE",
+    syncError: "Sync failed. Your data is not backed up.",
+notBackedUp: "Your data is not backed up to the cloud. Log in to enable backup.",
     brandSub: "Cabinet · Tax Engine",
 taxToPay: "Tax due · estimate",
 taxDetail: "Tax detail",
@@ -295,6 +297,8 @@ notSynced: "Not synced",
 
   auth: {
     login: "Log in",
+    acceptTerms: "I accept the",
+and: "and the",
     signup: "Create account",
     loginSubtitle: "Log in to sync your data",
     signupSubtitle: "Create an account to save to the cloud",

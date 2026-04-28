@@ -17,7 +17,7 @@ import { setPendingFilter } from "../lib/navigationState";
 import { Icon } from "../lib/icons";
 
 export function DashboardScreen({ navigation }: any) {
-  const { loading, saving, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated, fiscalYear, setFiscalYear } = useApp();
+  const { loading, saving,trialDaysLeft, lastSavedAt, result, transactions, syncStatus, lastSyncedAt, isAuthenticated, fiscalYear, setFiscalYear } = useApp();
   const yearTx = transactions.filter((tx) => tx.date.startsWith(String(fiscalYear)));
   const monthlyData = getActiveMonths(getMonthlyData(yearTx, fiscalYear));
   const categorySlices = getCategoryBreakdown(yearTx);
@@ -67,7 +67,28 @@ export function DashboardScreen({ navigation }: any) {
             <Text style={styles.yearArrow}>›</Text>
           </Pressable>
         </View>
+{trialDaysLeft > 0 && trialDaysLeft <= 30 && (
+  <View style={styles.trialBanner}>
+    <Icon name="clock" size={14} color={colors.warning} />
+    <Text style={styles.trialText}>
+      {t("paywall.trialBanner")} · {trialDaysLeft} {t("paywall.trialDaysLeft")}
+    </Text>
+  </View>
+)}
 
+{syncStatus === "error" && (
+  <View style={styles.syncBanner}>
+    <Icon name="alertCircle" size={14} color={colors.danger} />
+    <Text style={styles.syncBannerText}>{t("dashboard.syncError")}</Text>
+  </View>
+)}
+
+{!isAuthenticated && (
+  <View style={styles.syncBanner}>
+    <Icon name="cloud" size={14} color={colors.warning} />
+    <Text style={styles.syncBannerText}>{t("dashboard.notBackedUp")}</Text>
+  </View>
+)}
         {/* Hero tax card */}
         <View style={styles.hero}>
           <Text style={styles.heroLabel}>{t("dashboard.taxToPay")}</Text>
@@ -216,7 +237,42 @@ function InfoRow({ label, value, bold, muted, color, accent }: {
 const styles = StyleSheet.create({
   loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.bg },
   loadingText: { marginTop: spacing.md, color: colors.textSecondary, ...typography.caption },
-
+syncBanner: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  backgroundColor: colors.dangerSoft,
+  borderRadius: radii.md,
+  paddingVertical: spacing.sm,
+  paddingHorizontal: spacing.md,
+  marginBottom: spacing.md,
+  borderWidth: 1,
+  borderColor: colors.danger,
+},
+syncBannerText: {
+  fontSize: 12,
+  fontWeight: "600",
+  color: colors.danger,
+},
+  trialBanner: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  backgroundColor: colors.warningSoft,
+  borderRadius: radii.md,
+  paddingVertical: spacing.sm,
+  paddingHorizontal: spacing.md,
+  marginBottom: spacing.md,
+  borderWidth: 1,
+  borderColor: colors.warning,
+},
+trialText: {
+  fontSize: 12,
+  fontWeight: "600",
+  color: colors.warning,
+},
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: 40 },
 

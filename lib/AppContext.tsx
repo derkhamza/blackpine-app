@@ -9,6 +9,7 @@ import { isLoggedIn, logout as apiLogout } from "./api";
 import { syncPush, syncPull, SyncStatus } from "./syncService";
 import { FixedAsset, calculateTotalDotation } from "blackpine-engine";
 import { RecurringRule, generateRecurringTransactions } from "./recurringTransactions";
+import { saveRecurringRules, loadRecurringRules } from "./storage";
 const defaultProfile: DoctorProfile = {
   id: "demo", legalForm: "PERSONNE_PHYSIQUE", practiceType: "CABINET_ONLY",
   activityStartDate: "2018-03-01", commune: "Casablanca", communeType: "URBAN",
@@ -98,7 +99,8 @@ const deleteRecurringRule = (id: string) => setRecurringRules(prev => prev.filte
     (async () => {
       const loggedIn = await isLoggedIn();
       const savedSub = await loadSubscription();
-
+const savedRules = await loadRecurringRules();
+if (savedRules.length > 0) setRecurringRules(savedRules);
       if (!loggedIn) {
         setScreen("auth");
 
@@ -112,6 +114,11 @@ const deleteRecurringRule = (id: string) => setRecurringRules(prev => prev.filte
         return;
       }
 
+useEffect(() => {
+  if (screen !== "app") return;
+  saveRecurringRules(recurringRules).catch(err => console.warn("save recurring failed", err));
+}, [recurringRules, screen]);
+
       // Logged in — pull data from cloud
       setIsAuthenticated(true);
       setSyncStatus("syncing");
@@ -119,12 +126,15 @@ const deleteRecurringRule = (id: string) => setRecurringRules(prev => prev.filte
       if (cloudData && cloudData.profile) {
         setProfileState(cloudData.profile);
         setTransactions(cloudData.transactions || []);
+        if (cloudData.assets && cloudData.assets.length > 0) setAssets(cloudData.assets);
+        if (cloudData.recurringRules && cloudData.recurringRules.length > 0) setRecurringRules(cloudData.recurringRules);
       } else {
         // Logged in but no cloud data — load local
         const local = await loadState();
         if (local.profile) setProfileState(local.profile);
         if (local.transactions.length > 0) setTransactions(local.transactions);
       }
+
       setSyncStatus("synced");
       setLastSyncedAt(new Date().toISOString());
       initialized.current = true;
@@ -160,16 +170,18 @@ const activateCode = async (code: string): Promise<boolean> => {
   useEffect(() => {
     if (screen !== "app" || !isAuthenticated) return;
     if (syncTimer.current) clearTimeout(syncTimer.current);
+
+    
     syncTimer.current = setTimeout(async () => {
       setSyncStatus("syncing");
-      const result = await syncPush(profile, transactions);
+      const result = await syncPush(profile, transactions, assets, recurringRules);
       if (result.success) {
         setSyncStatus("synced");
         if (result.timestamp) setLastSyncedAt(result.timestamp);
       } else { setSyncStatus("error"); }
     }, 2000);
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
-  }, [profile, transactions, screen, isAuthenticated]);
+  }, [profile, transactions, screen,assets, recurringRules, isAuthenticated]);
 
 const result = useMemo(() => {
   const { totalDotation } = calculateTotalDotation(assets, fiscalYear);
@@ -204,28 +216,47 @@ const result = useMemo(() => {
   }, []);
 
   // After login → pull data → go to app
-  const onLogin = useCallback(async () => {
-    setIsAuthenticated(true);
-    setSyncStatus("syncing");
-    const cloudData = await syncPull();
-    if (cloudData && cloudData.profile) {
-      setProfileState(cloudData.profile);
-      setTransactions(cloudData.transactions || []);
-    }
-    setSyncStatus("synced");
-    setLastSyncedAt(new Date().toISOString());
-    initialized.current = true;
-    setScreen("app");
-  }, []);
+const onLogin = useCallback(async (serverTrialStart?: string) => {
+  setIsAuthenticated(true);
+  setSyncStatus("syncing");
+  const cloudData = await syncPull();
+  if (cloudData && cloudData.profile) {
+    setProfileState(cloudData.profile);
+    setTransactions(cloudData.transactions || []);
+    if (cloudData.assets && cloudData.assets.length > 0) setAssets(cloudData.assets);
+    if (cloudData.recurringRules && cloudData.recurringRules.length > 0) setRecurringRules(cloudData.recurringRules);
+  }
+  
+
+  // Use server trial date — prevents reinstall bypass
+  const savedSub = await loadSubscription();
+  if (savedSub && savedSub.plan !== "free_trial") {
+    setSubscription(savedSub);
+  } else if (serverTrialStart) {
+    const sub: SubscriptionState = {
+      trialStartDate: serverTrialStart.split("T")[0],
+      plan: "free_trial",
+      expiresAt: null,
+    };
+    setSubscription(sub);
+    await saveSubscription(sub);
+  }
+
+  setSyncStatus("synced");
+  setLastSyncedAt(new Date().toISOString());
+  initialized.current = true;
+  setScreen("app");
+}, []);
 
   // After onboarding → save + push + go to app
   const onOnboardingComplete = useCallback(async (newProfile: DoctorProfile, withDemo: boolean) => {
     const txs = withDemo ? defaultTransactions : [];
     setProfileState(newProfile);
     setTransactions(txs);
+    await syncPush(newProfile, txs, []);
     await saveState(newProfile, txs);
     await setOnboarded(true);
-    await syncPush(newProfile, txs);
+    await syncPush(newProfile, txs, [], []);
     initialized.current = true;
     setScreen("app");
   }, []);
@@ -241,6 +272,7 @@ const result = useMemo(() => {
     setSyncStatus("idle");
     setLastSyncedAt(null);
     setLastSavedAt(null);
+    await saveRecurringRules([]);
     initialized.current = false;
     setScreen("auth");
   }, []);

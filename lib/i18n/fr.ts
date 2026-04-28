@@ -28,6 +28,8 @@ loading: "Chargement...",
   // Dashboard
   dashboard: {
     brand: "BLACKPINE",
+    syncError: "Synchronisation échouée. Vos données ne sont pas sauvegardées.",
+notBackedUp: "Vos données ne sont pas sauvegardées dans le cloud. Connectez-vous pour activer la sauvegarde.",
     fiscalYear: "Exercice fiscal",
     brandSub: "Cabinet · Moteur fiscal",
 taxToPay: "Impôt à payer · estimation",
@@ -296,6 +298,8 @@ notSynced: "Non synchronisé",
   // Auth
   auth: {
     login: "Connexion",
+    acceptTerms: "J'accepte les",
+and: "et la",
     signup: "Créer un compte",
     loginSubtitle: "Connectez-vous pour synchroniser vos données",
     signupSubtitle: "Créez un compte pour sauvegarder dans le cloud",

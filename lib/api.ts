@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { DoctorProfile, Transaction } from "blackpine-engine";
+import { DoctorProfile, Transaction ,FixedAsset} from "blackpine-engine";
 function getAS() { return require("@react-native-async-storage/async-storage").default; }
 // For development: your PC's local IP. Change this to your real server URL in production.
 // Find your local IP by running `ipconfig` in Windows terminal and looking for your Wi-Fi IPv4 address.
@@ -43,17 +43,18 @@ export async function signup(email: string, password: string): Promise<AuthUser>
   return data.user;
 }
 
-export async function login(email: string, password: string): Promise<AuthUser> {
-  const res = await request("/auth/login", {
+export async function login(email: string, password: string): Promise<{ trialStart?: string }> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Erreur de connexion");
-
-  await getAS().setItem(KEYS.TOKEN, data.token);
-  await getAS().setItem(KEYS.USER, JSON.stringify(data.user));
-  return data.user;
+  if (!res.ok) throw new Error(data.error || "Login failed");
+  const AsyncStorage = require("@react-native-async-storage/async-storage").default;
+  await AsyncStorage.setItem("blackpine.token", data.token);
+  await AsyncStorage.setItem("blackpine.user", JSON.stringify(data.user));
+  return { trialStart: data.user?.trialStart };
 }
 
 export async function logout(): Promise<void> {
@@ -72,11 +73,13 @@ export async function isLoggedIn(): Promise<boolean> {
 
 export async function pushData(
   profile: DoctorProfile,
-  transactions: Transaction[]
+  transactions: Transaction[],
+  assets?: FixedAsset[],
+  recurringRules?: any[]
 ): Promise<void> {
   const res = await request("/sync/push", {
     method: "POST",
-    body: JSON.stringify({ profile, transactions }),
+    body: JSON.stringify({ profile, transactions, assets: assets || [], recurringRules: recurringRules || [] }),
   });
   if (!res.ok) {
     const data = await res.json();
@@ -87,13 +90,21 @@ export async function pushData(
 export async function pullData(): Promise<{
   profile: DoctorProfile | null;
   transactions: Transaction[];
+  assets: FixedAsset[];
+  recurringRules: any[];
 }> {
   const res = await request("/sync/pull");
   if (!res.ok) {
     const data = await res.json();
     throw new Error(data.error || "Erreur de synchronisation");
   }
-  return res.json();
+  const data = await res.json();
+  return {
+    profile: data.profile || null,
+    transactions: data.transactions || [],
+    assets: data.assets || [],
+    recurringRules: data.recurringRules || [],
+  };
 }
 
 export interface OcrExtraction {

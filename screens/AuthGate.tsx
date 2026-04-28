@@ -11,32 +11,38 @@ import { ResetPasswordScreen } from "./ResetPasswordScreen";
 
 export function AuthGate() {
   const { onSignup, onLogin } = useApp();
+  
   const { t } = useT();
   const [showReset, setShowReset] = useState(false);
-
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!email.trim() || !password) return;
-    setLoading(true);
-    try {
-      if (mode === "signup") {
-        await signup(email.trim(), password);
-        onSignup(); // → onboarding
-      } else {
-        await login(email.trim(), password);
-        await onLogin(); // → pull data → app
-      }
-    } catch (err: any) {
-      Alert.alert(t("error"), err.message || "Error");
-    } finally {
-      setLoading(false);
+const handleSubmit = async () => {
+  if (!email.trim() || !password) return;
+  if (mode === "signup" && !acceptedTerms) return;
+  if (mode === "signup" && password.length < 6) {
+    Alert.alert(t("error"), t("auth.passwordMinLength"));
+    return;
+  }
+  setLoading(true);
+  try {
+    if (mode === "signup") {
+      await signup(email.trim(), password);
+      onSignup();
+    } else {
+      const { trialStart } = await login(email.trim(), password);
+      await onLogin(trialStart);
     }
-  };
+  } catch (err: any) {
+    Alert.alert(t("error"), err.message || "Error");
+  } finally {
+    setLoading(false);
+  }
+};
 
     if (showReset) {
     return <ResetPasswordScreen onBack={() => setShowReset(false)} />;
@@ -80,11 +86,36 @@ export function AuthGate() {
           placeholderTextColor={colors.textTertiary}
           secureTextEntry
         />
-
+{mode === "signup" && (
+  <Pressable
+    style={styles.termsRow}
+    onPress={() => setAcceptedTerms(!acceptedTerms)}
+  >
+    <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+      {acceptedTerms && <Text style={styles.checkmark}>✓</Text>}
+    </View>
+    <Text style={styles.termsText}>
+      {t("auth.acceptTerms")}{" "}
+      <Text
+        style={styles.termsLink}
+        onPress={() => require("react-native").Linking.openURL("https://derkhamza.github.io/blackpine-legal/terms.html")}
+      >
+        {t("profile.terms")}
+      </Text>
+      {" "}{t("auth.and")}{" "}
+      <Text
+        style={styles.termsLink}
+        onPress={() => require("react-native").Linking.openURL("https://derkhamza.github.io/blackpine-legal/")}
+      >
+        {t("profile.privacyPolicy")}
+      </Text>
+    </Text>
+  </Pressable>
+)}
         <Pressable
           style={[styles.submitBtn, (!email.trim() || !password || loading) && styles.submitBtnDisabled]}
           onPress={handleSubmit}
-          disabled={!email.trim() || !password || loading}
+          disabled={!email.trim() || !password || loading || (mode === "signup" && !acceptedTerms)}
         >
           <Text style={styles.submitBtnText}>
             {loading ? t("loading") : mode === "signup" ? t("auth.signupBtn") : t("auth.loginBtn")}
@@ -113,6 +144,43 @@ export function AuthGate() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  termsRow: {
+  flexDirection: "row",
+  alignItems: "flex-start",
+  gap: 10,
+  marginTop: spacing.lg,
+},
+
+checkbox: {
+  width: 22,
+  height: 22,
+  borderRadius: 4,
+  borderWidth: 2,
+  borderColor: colors.border,
+  alignItems: "center",
+  justifyContent: "center",
+  marginTop: 1,
+},
+checkboxChecked: {
+  backgroundColor: colors.brand,
+  borderColor: colors.brand,
+},
+checkmark: {
+  color: "#fff",
+  fontSize: 14,
+  fontWeight: "700",
+},
+termsText: {
+  flex: 1,
+  fontSize: 12,
+  color: colors.textSecondary,
+  lineHeight: 18,
+},
+termsLink: {
+  color: colors.brand,
+  fontWeight: "600",
+  textDecorationLine: "underline",
+},
   content: { padding: spacing.lg, paddingTop: 60 },
   brand: { fontSize: 20, fontWeight: "800", letterSpacing: 3, color: colors.brand, textAlign: "center" },
   brandSub: { fontSize: 12, letterSpacing: 4, color: colors.gold, textAlign: "center", marginBottom: spacing.xxl },

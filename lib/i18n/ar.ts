@@ -41,6 +41,8 @@ loading: "جاري التحميل...",
   // Dashboard
   dashboard: {
     brand: "BLACKPINE",
+    syncError: "فشلت المزامنة. بياناتك غير محفوظة.",
+notBackedUp: "بياناتك غير محفوظة في السحابة. سجل الدخول لتفعيل النسخ الاحتياطي.",
     taxDetail: "تفاصيل الضريبة",
     familyDeduction: "الخصم العائلي",
     fiscalYear: "السنة المالية",
@@ -308,6 +310,8 @@ notSynced: "غير متزامن",
   auth: {
     login: "تسجيل الدخول",
     signup: "إنشاء حساب",
+    acceptTerms: "أوافق على",
+and: "و",
     loginSubtitle: "سجل الدخول لمزامنة بياناتك",
     signupSubtitle: "أنشئ حساباً للحفظ في السحابة",
     emailLabel: "البريد الإلكتروني",

@@ -4,6 +4,7 @@ interface FilingData {
   profile: DoctorProfile;
   result: FullTaxComputation;
   transactions: Transaction[];
+  assets: any[];
   fiscalYear: number;
 }
 
@@ -495,6 +496,125 @@ function detailCPCPage(d: FilingData): string {
 
 // ==================== TABLEAU N°8 — AMORTISSEMENTS ====================
 function amortissementsPage(d: FilingData): string {
+  const { fiscalYear } = d;
+  const assets = (d as any).assets || [];
+
+  if (assets.length === 0) {
+    return `<div class="page">
+      <h2>Tableau n°8</h2>
+      <h3>TABLEAU DES AMORTISSEMENTS</h3>
+      ${entityHeader(d)}
+      <table>
+        <tr>
+          <th style="width:30%">NATURE</th>
+          <th>Cumul début<br>exercice</th>
+          <th>Dotation de<br>l'exercice</th>
+          <th>Amortissements sur<br>immob. sorties</th>
+          <th>Cumul fin<br>exercice</th>
+        </tr>
+        <tr class="grand-total"><td>TOTAL GÉNÉRAL</td><td class="right">0.00</td><td class="right">0.00</td><td class="right">0.00</td><td class="right">0.00</td></tr>
+      </table>
+      <p class="note">Aucune immobilisation enregistrée.</p>
+    </div>`;
+  }
+
+  // Group assets by subcategory
+  const groups: Record<string, { label: string; assets: any[] }> = {
+    frais_preliminaires: { label: "IMMOBILISATION EN NON-VALEURS", assets: [] },
+    constructions: { label: "Constructions", assets: [] },
+    materiel_outillage: { label: "Installations techniques, matériel et outillage", assets: [] },
+    materiel_transport: { label: "Matériel de transport", assets: [] },
+    mobilier_bureau: { label: "Mobilier, matériel de bureau", assets: [] },
+    informatique: { label: "Matériel informatique", assets: [] },
+    agencements: { label: "Agencements et aménagements", assets: [] },
+  };
+
+  assets.forEach((a: any) => {
+    const group = groups[a.subcategory];
+    if (group) group.assets.push(a);
+    else if (groups.mobilier_bureau) groups.mobilier_bureau.assets.push(a);
+  });
+
+  let totalCumulDebut = 0;
+  let totalDotation = 0;
+  let totalSorties = 0;
+  let totalCumulFin = 0;
+
+  let rows = "";
+
+  for (const [key, group] of Object.entries(groups)) {
+    if (group.assets.length === 0) continue;
+
+    let groupCumulDebut = 0;
+    let groupDotation = 0;
+    let groupCumulFin = 0;
+
+    const assetRows = group.assets.map((a: any) => {
+      const startDate = new Date(a.acquisitionDate);
+      const startYear = startDate.getFullYear();
+      const startMonth = startDate.getMonth();
+      let depreciableAmount = a.acquisitionAmount;
+      if (a.subcategory === "materiel_transport") depreciableAmount = Math.min(depreciableAmount, 300000);
+
+      const annualDotation = depreciableAmount * a.amortizationRate;
+      let cumulBefore = 0;
+      let dotationThisYear = 0;
+
+      // Calculate cumul before this year
+      for (let y = startYear; y < fiscalYear; y++) {
+        let d: number;
+        if (y === startYear) {
+          d = (annualDotation * (12 - startMonth)) / 12;
+        } else {
+          d = annualDotation;
+        }
+        d = Math.min(d, depreciableAmount - cumulBefore);
+        if (d <= 0) break;
+        cumulBefore += d;
+      }
+
+      // This year dotation
+      if (cumulBefore < depreciableAmount) {
+        if (startYear === fiscalYear) {
+          dotationThisYear = (annualDotation * (12 - startMonth)) / 12;
+        } else {
+          dotationThisYear = annualDotation;
+        }
+        dotationThisYear = Math.min(dotationThisYear, depreciableAmount - cumulBefore);
+      }
+
+      cumulBefore = Math.round(cumulBefore * 100) / 100;
+      dotationThisYear = Math.round(dotationThisYear * 100) / 100;
+      const cumulFin = Math.round((cumulBefore + dotationThisYear) * 100) / 100;
+
+      groupCumulDebut += cumulBefore;
+      groupDotation += dotationThisYear;
+      groupCumulFin += cumulFin;
+
+      return `<tr>
+        <td class="indent2">* ${a.label}</td>
+        <td class="right">${fmt(cumulBefore)}</td>
+        <td class="right">${fmt(dotationThisYear)}</td>
+        <td class="right"></td>
+        <td class="right">${fmt(cumulFin)}</td>
+      </tr>`;
+    }).join("");
+
+    totalCumulDebut += groupCumulDebut;
+    totalDotation += groupDotation;
+    totalCumulFin += groupCumulFin;
+
+    rows += `<tr><td colspan="5" class="section-header">${group.label}</td></tr>`;
+    rows += assetRows;
+    rows += `<tr class="total">
+      <td class="indent">Sous-total</td>
+      <td class="right">${fmt(groupCumulDebut)}</td>
+      <td class="right">${fmt(groupDotation)}</td>
+      <td class="right"></td>
+      <td class="right">${fmt(groupCumulFin)}</td>
+    </tr>`;
+  }
+
   return `<div class="page">
     <h2>Tableau n°8</h2>
     <h3>TABLEAU DES AMORTISSEMENTS</h3>
@@ -508,22 +628,15 @@ function amortissementsPage(d: FilingData): string {
         <th>Amortissements sur<br>immob. sorties</th>
         <th>Cumul fin<br>exercice</th>
       </tr>
-
-      <tr><td colspan="5" class="section-header">IMMOBILISATION EN NON-VALEURS</td></tr>
-      <tr><td class="indent">* Frais préliminaires</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
-      <tr><td class="indent">* Charges à répartir</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
-
-      <tr><td colspan="5" class="section-header">IMMOBILISATIONS CORPORELLES</td></tr>
-      <tr><td class="indent">* Constructions</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
-      <tr><td class="indent">* Installations techniques, matériel et outillage</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
-      <tr><td class="indent">* Matériel de transport</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
-      <tr><td class="indent">* Mobilier, matériel de bureau</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
-      <tr><td class="indent">* Autres immobilisations corporelles</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
-
-      <tr class="grand-total"><td>TOTAL GÉNÉRAL</td><td class="right"></td><td class="right"></td><td class="right"></td><td class="right"></td></tr>
+      ${rows}
+      <tr class="grand-total">
+        <td>TOTAL GÉNÉRAL</td>
+        <td class="right">${fmt(totalCumulDebut)}</td>
+        <td class="right">${fmt(totalDotation)}</td>
+        <td class="right"></td>
+        <td class="right">${fmt(totalCumulFin)}</td>
+      </tr>
     </table>
-
-    <p class="note">⚠️ Ce tableau doit être complété par votre expert-comptable avec le détail des immobilisations et leurs amortissements.</p>
   </div>`;
 }
 

@@ -7,6 +7,7 @@ const KEYS = {
   SUBSCRIPTION: "blackpine.subscription.v1",
   LAST_SAVED: "blackpine.lastSaved.v1",
   ONBOARDED: "blackpine.onboarded.v1",
+  RECURRING: "blackpine.recurring.v1",
   ASSETS: "blackpine.assets.v1",
 } as const;
 
@@ -20,7 +21,14 @@ export interface PersistedState {
 export async function saveSubscription(sub: SubscriptionState): Promise<void> {
   await getAS().setItem(KEYS.SUBSCRIPTION, JSON.stringify(sub));
 }
+export async function saveRecurringRules(rules: any[]): Promise<void> {
+  await getAS().setItem(KEYS.RECURRING, JSON.stringify(rules));
+}
 
+export async function loadRecurringRules(): Promise<any[]> {
+  const raw = await getAS().getItem(KEYS.RECURRING);
+  return raw ? JSON.parse(raw) : [];
+}
 export async function loadSubscription(): Promise<SubscriptionState | null> {
   const raw = await getAS().getItem(KEYS.SUBSCRIPTION);
   return raw ? JSON.parse(raw) : null;

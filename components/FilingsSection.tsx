@@ -8,13 +8,13 @@ import { colors, radii, shadows, spacing, typography } from "../lib/theme";
 
 export function FilingsSection() {
   const { t } = useT();
-  const { profile, result, transactions, fiscalYear } = useApp();
+  const { profile, result, transactions, fiscalYear, assets } = useApp();
   const [loading, setLoading] = useState(false);
 
   const handleExport = async () => {
     setLoading(true);
     try {
-      await exportLiasseFiscale(profile, result, transactions, fiscalYear);
+      await exportLiasseFiscale(profile, result, transactions, assets, fiscalYear);
     } catch (err: any) {
       Alert.alert(t("error"), err?.message || t("error"));
     } finally {

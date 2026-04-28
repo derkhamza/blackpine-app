@@ -5,11 +5,12 @@ export async function exportLiasseFiscale(
   profile: DoctorProfile,
   result: FullTaxComputation,
   transactions: Transaction[],
+  assets: any[],
   fiscalYear: number
 ): Promise<void> {
   const Print = require("expo-print");
   const Sharing = require("expo-sharing");
-  const html = generateLiasseFiscaleHtml({ profile, result, transactions, fiscalYear });
+  const html = generateLiasseFiscaleHtml({ profile, result, transactions, assets, fiscalYear });
   const { uri } = await Print.printToFileAsync({ html });
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, {
