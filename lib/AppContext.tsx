@@ -8,6 +8,7 @@ import { loadState, saveState, clearState, setOnboarded } from "./storage";
 import { isLoggedIn, logout as apiLogout } from "./api";
 import { syncPush, syncPull, SyncStatus } from "./syncService";
 import { FixedAsset, calculateTotalDotation } from "blackpine-engine";
+import { RecurringRule, generateRecurringTransactions } from "./recurringTransactions";
 const defaultProfile: DoctorProfile = {
   id: "demo", legalForm: "PERSONNE_PHYSIQUE", practiceType: "CABINET_ONLY",
   activityStartDate: "2018-03-01", commune: "Casablanca", communeType: "URBAN",
@@ -33,6 +34,9 @@ export type AppScreen = "loading" | "auth" | "onboarding" | "app";
 interface AppState {
   screen: AppScreen;
   transactionFilter: "ALL" | "RECETTE" | "CHARGE";
+  recurringRules: RecurringRule[];
+addRecurringRule: (rule: Omit<RecurringRule, "id">) => void;
+deleteRecurringRule: (id: string) => void;
   setTransactionFilter: (f: "ALL" | "RECETTE" | "CHARGE") => void;
   saving: boolean;
   subscription: SubscriptionState;
@@ -72,6 +76,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
   const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
+  
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -79,11 +85,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [subscription, setSubscription] = useState<SubscriptionState>(getDefaultSubscription());
   const [transactions, setTransactions] = useState<Transaction[]>(defaultTransactions);
   const initialized = useRef(false);
+  
   const addAsset = (a: Omit<FixedAsset, "id">) => setAssets(prev => [...prev, { ...a, id: newId() }]);
   const updateAsset = (id: string, patch: Partial<FixedAsset>) => setAssets(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
   const deleteAsset = (id: string) => setAssets(prev => prev.filter(a => a.id !== id));
 const trialDaysLeft = getTrialDaysLeft(subscription);
 const isActive = isSubscriptionActive(subscription);
+const addRecurringRule = (r: Omit<RecurringRule, "id">) => setRecurringRules(prev => [...prev, { ...r, id: newId() }]);
+const deleteRecurringRule = (id: string) => setRecurringRules(prev => prev.filter(r => r.id !== id));
   // Boot: check auth → decide which screen
   useEffect(() => {
     (async () => {
@@ -162,19 +171,31 @@ const activateCode = async (code: string): Promise<boolean> => {
     return () => { if (syncTimer.current) clearTimeout(syncTimer.current); };
   }, [profile, transactions, screen, isAuthenticated]);
 
-  const result = useMemo(() => {
-      const { totalDotation } = calculateTotalDotation(assets, fiscalYear);
-      const yearTx = transactions.filter((tx) => tx.date.startsWith(String(fiscalYear)));
-      // Add amortization as a virtual transaction
-      const txWithAmort = totalDotation > 0
-    ? [...yearTx, { id: "amort_auto", type: "CHARGE" as const, amount: totalDotation, date: `${fiscalYear}-12-31`, category: "gros_equipement_medical", deductibilityStatus: "FULLY_DEDUCTIBLE" as const, professionalUseRatio: 1 }]
-    : yearTx;
-        try {
-          return computeTaxFromTransactions(profile, txWithAmort, fiscalYear, `${fiscalYear}-12-31`);
-        } catch {
-          return computeTaxFromTransactions(profile, txWithAmort, 2026, `${fiscalYear}-12-31`);
-        }
-    }, [profile, transactions, assets, fiscalYear]);
+const result = useMemo(() => {
+  const { totalDotation } = calculateTotalDotation(assets, fiscalYear);
+  const yearTx = transactions.filter((tx) => tx.date.startsWith(String(fiscalYear)));
+  const recurringTx = generateRecurringTransactions(
+    recurringRules,
+    `${fiscalYear}-01-01`,
+    `${fiscalYear}-12-31`
+  );
+  const allTx = [
+    ...yearTx,
+    ...recurringTx.map(tx => ({ ...tx, id: "rec_" + Math.random().toString(36).slice(2) })),
+  ];
+  const txWithAmort = totalDotation > 0
+    ? [...allTx, {
+        id: "amort_auto", type: "CHARGE" as const, amount: totalDotation,
+        date: `${fiscalYear}-12-31`, category: "gros_equipement_medical",
+        deductibilityStatus: "FULLY_DEDUCTIBLE" as const, professionalUseRatio: 1,
+      }]
+    : allTx;
+  try {
+    return computeTaxFromTransactions(profile, txWithAmort, fiscalYear, `${fiscalYear}-12-31`);
+  } catch {
+    return computeTaxFromTransactions(profile, txWithAmort, 2026, `${fiscalYear}-12-31`);
+  }
+}, [profile, transactions, assets, recurringRules, fiscalYear]);
 
   // After signup → go to onboarding
   const onSignup = useCallback(() => {
@@ -213,6 +234,7 @@ const activateCode = async (code: string): Promise<boolean> => {
   const onLogout = useCallback(async () => {
     await apiLogout();
     await clearState();
+    setRecurringRules([]);
     setProfileState(defaultProfile);
     setTransactions(defaultTransactions);
     setIsAuthenticated(false);
@@ -226,7 +248,7 @@ const activateCode = async (code: string): Promise<boolean> => {
   const value: AppState = {
     screen, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated,subscription, trialDaysLeft, isActive, activateCode,
     profile, transactions, result,fiscalYear, setFiscalYear,assets, addAsset, updateAsset, deleteAsset,
-    setProfile: setProfileState,transactionFilter, setTransactionFilter,
+    setProfile: setProfileState,transactionFilter, setTransactionFilter,recurringRules, addRecurringRule, deleteRecurringRule,
     addTransaction: (tx) => setTransactions((prev) => [...prev, { ...tx, id: newId() }]),
     updateTransaction: (id, patch) => setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t))),
     deleteTransaction: (id) => setTransactions((prev) => prev.filter((t) => t.id !== id)),

@@ -327,7 +327,11 @@ function TransactionRow({
           style={[styles.txAmountInput, { color: accentColor }]}
           value={String(transaction.amount)}
           keyboardType="numeric"
-          onChangeText={(v) => onChange({ amount: parseFloat(v) || 0 })}
+          onChangeText={(v) => {
+  const n = parseFloat(v) || 0;
+  if (n > 5000000) return;
+  onChange({ amount: n });
+}}
           placeholder="0"
           placeholderTextColor={colors.textTertiary}
         />

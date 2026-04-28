@@ -11,6 +11,7 @@ import { useT } from "../lib/useT";
 import { AssetSection } from "../components/AssetSection";
 import { SafeScreen } from "../components/SafeScreen";
 import { FilingsSection } from "../components/FilingsSection";
+import { RecurringSection } from "../components/RecurringSection";
 import { OptimizationSection } from "../components/OptimizationSection";
 import { setPendingFilter } from "../lib/navigationState";
 import { Icon } from "../lib/icons";
@@ -163,6 +164,7 @@ export function DashboardScreen({ navigation }: any) {
 
         {/* Sections */}
         <AssetSection />
+        <RecurringSection />
         <OptimizationSection />
         <ExportButtons />
         <FilingsSection />

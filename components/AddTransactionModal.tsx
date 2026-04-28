@@ -17,6 +17,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Alert,
   TextInput,
   View,
 } from "react-native";
@@ -97,6 +98,20 @@ const handleSave = () => {
   if (!amount) return;
   const n = parseFloat(amount);
   if (isNaN(n) || n <= 0) return;
+  if (n > 5000000) {
+    Alert.alert(t("error"), t("transactions.amountTooHigh"));
+    return;
+  }
+  const txDate = new Date(date);
+  const now = new Date();
+  if (txDate > now) {
+    Alert.alert(t("error"), t("transactions.futureDate"));
+    return;
+  }
+  if (txDate.getFullYear() < 2015) {
+    Alert.alert(t("error"), t("transactions.dateTooOld"));
+    return;
+  }
 
   const defaults = applyCategoryDefaults(category.id, regime, fiscalYear);
 
