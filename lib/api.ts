@@ -108,58 +108,31 @@ export interface OcrExtraction {
 
 export async function extractReceipt(imageUri: string): Promise<OcrExtraction> {
   const FileSystem = require("expo-file-system/legacy");
-  const ImageManipulator = require("expo-image-manipulator");
+
   const base64 = await FileSystem.readAsStringAsync(imageUri, {
     encoding: FileSystem.EncodingType.Base64,
   });
 
-  // Compress image first
-  const compressed = await ImageManipulator.manipulateAsync(
-    imageUri,
-    [{ resize: { width: 1200 } }],
-    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
-  );
-console.log("[OCR] Image size:", Math.round(base64.length / 1024), "KB");
+  console.log("[OCR] Image size:", Math.round(base64.length / 1024), "KB");
 
-  const formBody = new URLSearchParams({
-    apikey: "K81225402888957",
-    base64Image: `data:image/jpeg;base64,${base64}`,
-    language: "fre",
-    isOverlayRequired: "false",
-    detectOrientation: "true",
-    scale: "true",
-    OCREngine: "2",
-  });
-
-  console.log("[OCR] Sending to OCR.space...");
-
-  const res = await fetch("https://api.ocr.space/parse/image", {
+  const res = await fetch(`${API_BASE}/ocr-proxy/extract`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: formBody.toString(),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ base64Image: `data:image/jpeg;base64,${base64}` }),
   });
 
   const data = await res.json();
-  console.log("[OCR] Response:", JSON.stringify(data).substring(0, 500));
 
-  if (data.IsErroredOnProcessing) {
-    console.error("[OCR] API error:", data.ErrorMessage);
-    throw new Error(data.ErrorMessage?.[0] || "OCR failed");
-  }
+  if (data.error) throw new Error(data.error);
+  if (data.IsErroredOnProcessing) throw new Error(data.ErrorMessage?.[0] || "OCR failed");
 
   if (!data.ParsedResults || data.ParsedResults.length === 0) {
-    console.log("[OCR] No parsed results");
     return { amounts: [], dates: [], bestAmount: null, bestDate: null, confidence: 0 };
   }
 
   const text = data.ParsedResults[0].ParsedText || "";
-  console.log("[OCR] Extracted text:", text.substring(0, 300));
-
   const amounts = extractAmountsFromText(text);
   const dates = extractDatesFromText(text);
-
-  console.log("[OCR] Amounts:", amounts);
-  console.log("[OCR] Dates:", dates);
 
   return {
     amounts,
