@@ -23,7 +23,11 @@ const defaultTransactions: Transaction[] = [
   { id: "c5", type: "CHARGE", amount: 8000, date: "2026-12-31", category: "rc_pro" },
   { id: "c6", type: "CHARGE", amount: 18000, date: "2026-12-31", category: "honoraires_comptable" },
 ];
-
+import {
+  SubscriptionState, getDefaultSubscription, isSubscriptionActive,
+  getTrialDaysLeft, activateSubscription, validateActivationCodeOnline,
+} from "./subscription";
+import { saveSubscription, loadSubscription } from "./storage";
 export type AppScreen = "loading" | "auth" | "onboarding" | "app";
 
 interface AppState {
@@ -31,6 +35,10 @@ interface AppState {
   transactionFilter: "ALL" | "RECETTE" | "CHARGE";
   setTransactionFilter: (f: "ALL" | "RECETTE" | "CHARGE") => void;
   saving: boolean;
+  subscription: SubscriptionState;
+trialDaysLeft: number;
+isActive: boolean;
+activateCode: (code: string) => Promise<boolean>;
   lastSavedAt: string | null;
   fiscalYear: number;
   setFiscalYear: (y: number) => void;
@@ -68,19 +76,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [profile, setProfileState] = useState<DoctorProfile>(defaultProfile);
+  const [subscription, setSubscription] = useState<SubscriptionState>(getDefaultSubscription());
   const [transactions, setTransactions] = useState<Transaction[]>(defaultTransactions);
   const initialized = useRef(false);
   const addAsset = (a: Omit<FixedAsset, "id">) => setAssets(prev => [...prev, { ...a, id: newId() }]);
   const updateAsset = (id: string, patch: Partial<FixedAsset>) => setAssets(prev => prev.map(a => a.id === id ? { ...a, ...patch } : a));
   const deleteAsset = (id: string) => setAssets(prev => prev.filter(a => a.id !== id));
-
+const trialDaysLeft = getTrialDaysLeft(subscription);
+const isActive = isSubscriptionActive(subscription);
   // Boot: check auth → decide which screen
   useEffect(() => {
     (async () => {
       const loggedIn = await isLoggedIn();
+      const savedSub = await loadSubscription();
 
       if (!loggedIn) {
         setScreen("auth");
+
+      if (savedSub) {
+        setSubscription(savedSub);
+      } else {
+        const newSub = getDefaultSubscription();
+        setSubscription(newSub);
+        await saveSubscription(newSub);
+      }
         return;
       }
 
@@ -103,7 +122,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setScreen("app");
     })();
   }, []);
-
+const activateCode = async (code: string): Promise<boolean> => {
+  const result = await validateActivationCodeOnline(code);
+  if (!result.valid || !result.plan) return false;
+  const updated = activateSubscription(subscription, result.plan, result.durationDays ?? null);
+  setSubscription(updated);
+  await saveSubscription(updated);
+  return true;
+};
   // Auto-save locally (debounced)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -198,7 +224,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value: AppState = {
-    screen, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated,
+    screen, saving, lastSavedAt, syncStatus, lastSyncedAt, isAuthenticated,subscription, trialDaysLeft, isActive, activateCode,
     profile, transactions, result,fiscalYear, setFiscalYear,assets, addAsset, updateAsset, deleteAsset,
     setProfile: setProfileState,transactionFilter, setTransactionFilter,
     addTransaction: (tx) => setTransactions((prev) => [...prev, { ...tx, id: newId() }]),

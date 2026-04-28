@@ -17,13 +17,14 @@ import { useT } from "./lib/useT";
 import { loadSavedLanguage } from "./lib/i18n";
 import { applyRTL } from "./lib/rtl";
 import { colors } from "./lib/theme";
+import { PaywallScreen } from "./screens/PaywallScreen";
 
 const Tab = createBottomTabNavigator();
 
 function RootRouter() {
-  const { screen } = useApp();
+  const { screen, isActive} = useApp();
   const { t } = useT();
-  const [langLoaded, setLangLoaded] = useState(false);
+  const [langLoaded, setLangLoaded ] = useState(false);
 
   useEffect(() => {
     loadSavedLanguage().then(() => {
@@ -42,7 +43,7 @@ function RootRouter() {
 
   if (screen === "auth") return <AuthGate />;
   if (screen === "onboarding") return <OnboardingFlow />;
-
+  if (!isActive) return <PaywallScreen />;
   return (
     <NavigationContainer>
       <Tab.Navigator

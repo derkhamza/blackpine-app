@@ -1,9 +1,10 @@
 function getAS() { return require("@react-native-async-storage/async-storage").default; }
 import { DoctorProfile, Transaction, FixedAsset } from "blackpine-engine";
-
+import { SubscriptionState } from "./subscription";
 const KEYS = {
   PROFILE: "blackpine.profile.v1",
   TRANSACTIONS: "blackpine.transactions.v1",
+  SUBSCRIPTION: "blackpine.subscription.v1",
   LAST_SAVED: "blackpine.lastSaved.v1",
   ONBOARDED: "blackpine.onboarded.v1",
   ASSETS: "blackpine.assets.v1",
@@ -16,7 +17,14 @@ export interface PersistedState {
   onboarded: boolean;
     assets: FixedAsset[];
 }
+export async function saveSubscription(sub: SubscriptionState): Promise<void> {
+  await getAS().setItem(KEYS.SUBSCRIPTION, JSON.stringify(sub));
+}
 
+export async function loadSubscription(): Promise<SubscriptionState | null> {
+  const raw = await getAS().getItem(KEYS.SUBSCRIPTION);
+  return raw ? JSON.parse(raw) : null;
+}
 export async function loadState(): Promise<PersistedState> {
   try {
     const assetsRaw = await getAS().getItem(KEYS.ASSETS);
