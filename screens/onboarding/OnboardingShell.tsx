@@ -1,7 +1,12 @@
+﻿import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTopInset } from "../../components/SafeScreen";
 import { useT } from "../../lib/useT";
-import { colors, radii, spacing, typography } from "../../lib/theme";
+import { radii, spacing, typography, ColorPalette } from "../../lib/theme";
+import { useColors } from "../../lib/ThemeContext";
+import { ScalePressable } from "../../components/ScalePressable";
+import { tapLight } from "../../lib/haptics";
 
 interface Props {
   stepIndex: number;
@@ -26,14 +31,16 @@ export function OnboardingShell({
   nextDisabled,
   children,
 }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const insets = useSafeAreaInsets();
+  const topInset = useTopInset();
   return (
-    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: topInset, paddingBottom: insets.bottom }]}>
       <View style={styles.header}>
         {onBack ? (
           <Pressable onPress={onBack} hitSlop={12}>
-            <Text style={styles.backBtn}>‹ {t("cancel")}</Text>
+            <Text style={styles.backBtn}>‹ {t("back")}</Text>
           </Pressable>
         ) : (
           <View style={{ width: 60 }} />
@@ -59,23 +66,24 @@ export function OnboardingShell({
 
       {onNext && (
         <View style={styles.footer}>
-          <Pressable
+          <ScalePressable
+            scaleTo={0.97}
             style={[
               styles.nextBtn,
               nextDisabled && styles.nextBtnDisabled,
             ]}
-            onPress={onNext}
+            onPress={() => { if (!nextDisabled) { tapLight(); onNext(); } }}
             disabled={nextDisabled}
           >
             <Text style={styles.nextBtnText}>{nextLabel || t("continue")}</Text>
-          </Pressable>
+          </ScalePressable>
         </View>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: "row",
@@ -84,14 +92,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
-  backBtn: { color: colors.brand, fontSize: 15, fontWeight: "600" },
+  backBtn: { color: colors.brand, fontSize: 15, fontWeight: "700" },
   stepCounter: {
-    ...typography.caption,
+    fontSize: 12,
     color: colors.textTertiary,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   progress: {
-    height: 3,
+    height: 4,
     marginHorizontal: spacing.lg,
     backgroundColor: colors.border,
     borderRadius: radii.pill,
@@ -104,15 +113,17 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, padding: spacing.lg, paddingTop: spacing.xl },
   title: {
-    ...typography.h1,
+    fontSize: 26,
+    fontWeight: "800",
     color: colors.textPrimary,
     marginBottom: spacing.sm,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    ...typography.body,
+    fontSize: 15,
     color: colors.textSecondary,
     marginBottom: spacing.xl,
-    lineHeight: 22,
+    lineHeight: 23,
   },
   content: { flex: 1 },
   footer: {
@@ -122,15 +133,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   nextBtn: {
-    paddingVertical: 14,
-    borderRadius: radii.md,
+    paddingVertical: 15,
+    borderRadius: radii.lg,
     alignItems: "center",
     backgroundColor: colors.brand,
+    shadowColor: colors.brand,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  nextBtnDisabled: { backgroundColor: colors.borderStrong },
+  nextBtnDisabled: {
+    backgroundColor: colors.borderStrong,
+    shadowColor: "transparent",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
   nextBtnText: {
     color: colors.textOnDark,
-    fontWeight: "600",
+    fontWeight: "700",
     fontSize: 15,
+    letterSpacing: 0.2,
   },
 });

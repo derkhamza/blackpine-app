@@ -1,7 +1,10 @@
+﻿import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G } from "react-native-svg";
 import { CategorySlice } from "../lib/chartHelpers";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
+import { formatMAD } from "../lib/format";
 import { useT } from "../lib/useT";
 
 interface Props {
@@ -11,6 +14,7 @@ interface Props {
 
 export function CategoryDonut({ slices, totalCharges }: Props) {
  
+   const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
    const { t } = useT();
   if (slices.length === 0) {
     return (
@@ -38,12 +42,11 @@ export function CategoryDonut({ slices, totalCharges }: Props) {
     return { ...slice, length, offset, rotation };
   });
 
-  const formatAmount = (n: number) =>
-    Math.round(n).toLocaleString("fr-FR") + "\u00A0MAD";
+  const formatAmount = (n: number) => formatMAD(n);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Répartition des charges</Text>
+      <Text style={styles.title}>{t("dashboard.chargeBreakdown")}</Text>
 
       <View style={styles.chartRow}>
         <View style={styles.svgContainer}>
@@ -106,18 +109,21 @@ export function CategoryDonut({ slices, totalCharges }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadows.card,
   },
   title: {
     ...typography.micro,
-    color: colors.textSecondary,
+    color: colors.brand,
     textTransform: "uppercase",
+    letterSpacing: 0.6,
     marginBottom: spacing.lg,
   },
   chartRow: {

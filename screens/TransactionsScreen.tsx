@@ -1,9 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, Pressable, TextInput, Image } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View, Pressable, TextInput, Image } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import Slider from "@react-native-community/slider";
-import { useIsFocused } from "@react-navigation/native";
-import { consumePendingFilter } from "../lib/navigationState";
 import {
   TransactionFilters,
   FilterState,
@@ -17,24 +15,26 @@ import {
   applyCategoryDefaults,
   getCategoryById,
 } from "blackpine-engine";
-import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
 import { useApp } from "../lib/AppContext";
 import { CategoryPicker } from "../components/CategoryPicker";
 import { AddTransactionModal } from "../components/AddTransactionModal";
-import { ReceiptCapture } from "../components/ReceiptCapture";
 import { applyFilters } from "../lib/transactionFilters";
 import { useDatePicker } from "../lib/useDatePicker";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { tapLight, tapWarning } from "../lib/haptics";
+import { ScalePressable } from "../components/ScalePressable";
 import { Icon } from "../lib/icons";
 import { useT } from "../lib/useT";
+import { formatMAD, langToLocale } from "../lib/format";
 import { SafeScreen } from "../components/SafeScreen";
 
 
-export function TransactionsScreen({ route }: any) {
-  const initialFilter = route?.params?.filter as "ALL" | "RECETTE" | "CHARGE" | undefined;
- const { transactions, updateTransaction, deleteTransaction, addTransaction, result, profile, fiscalYear, setFiscalYear } = useApp();
+export function TransactionsScreen({ route, initialFilter: initialFilterProp, onFilterConsumed, initialAddType, onAddTypeConsumed }: any) {
+  const initialFilter = (initialFilterProp ?? route?.params?.filter) as "ALL" | "RECETTE" | "CHARGE" | undefined;
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { transactions, updateTransaction, deleteTransaction, addTransaction, result, profile, fiscalYear, setFiscalYear } = useApp();
   const [addModalType, setAddModalType] = useState<TransactionType | null>(null);
   const yearTransactions = useMemo(
   () => transactions.filter(tx => tx.date.startsWith(String(fiscalYear))),
@@ -55,16 +55,23 @@ export function TransactionsScreen({ route }: any) {
     [yearTransactions, filters]
   );
 
-const isFocused = useIsFocused();
-
+// Apply pre-set filter when this component mounts with a pending filter from FinancesScreen
 useEffect(() => {
-  if (isFocused) {
-    const pending = consumePendingFilter();
-    if (pending !== "ALL") {
-      setFilters((prev) => ({ ...prev, type: pending }));
-    }
+  if (initialFilter && initialFilter !== "ALL") {
+    setFilters((prev) => ({ ...prev, typeFilter: initialFilter }));
+    onFilterConsumed?.();
   }
-}, [isFocused]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+// Auto-open add modal when navigated from HomeScreen quick action
+useEffect(() => {
+  if (initialAddType) {
+    setAddModalType(initialAddType as TransactionType);
+    onAddTypeConsumed?.();
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
   const recettes = filtered.filter((t) => t.type === "RECETTE");
   const charges = filtered.filter((t) => t.type === "CHARGE");
 
@@ -72,7 +79,7 @@ useEffect(() => {
   const totalCharges = charges.reduce((s, t) => s + t.amount, 0);
 
   const handleCategoryChange = (txId: string, category: Category) => {
-    const defaults = applyCategoryDefaults(category.id, result.tax.regime, 2026);
+    const defaults = applyCategoryDefaults(category.id, result.tax.regime, fiscalYear);
     updateTransaction(txId, {
       category: category.id,
       deductibilityStatus: defaults.deductibilityStatus,
@@ -80,8 +87,26 @@ useEffect(() => {
     });
   };
 
+  const handleDelete = (id: string) => {
+    tapWarning();
+    Alert.alert(
+      t("delete"),
+      t("transactions.deleteWarning"),
+      [
+        { text: t("cancel"), style: "cancel" },
+        { text: t("delete"), style: "destructive", onPress: () => deleteTransaction(id) },
+      ]
+    );
+  };
+
   return (
   <SafeScreen>
+    {/* ── Header ── */}
+    <View style={styles.header}>
+      <Text style={styles.headerTitle}>{t("transactions.title")}</Text>
+      <Text style={styles.headerSub}>{yearTransactions.length} {t("transactions.operations")}</Text>
+    </View>
+
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -90,31 +115,35 @@ useEffect(() => {
       contentContainerStyle={[styles.content, { paddingBottom: 80 }]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.screenTitle}>{t("transactions.title")}</Text>
       <View style={styles.yearRow}>
-        <Pressable onPress={() => setFiscalYear(fiscalYear - 1)}>
-          <Text style={styles.yearArrow}>‹</Text>
-        </Pressable>
-        <Text style={styles.yearLabel}>{fiscalYear}</Text>
-        <Pressable onPress={() => setFiscalYear(fiscalYear + 1)}>
-          <Text style={styles.yearArrow}>›</Text>
-        </Pressable>
+        <ScalePressable scaleTo={0.88} style={styles.yearBtn} onPress={() => { tapLight(); setFiscalYear(fiscalYear - 1); }}>
+          <Icon name="back" size={16} color={colors.brand} />
+        </ScalePressable>
+        <View style={styles.yearCenter}>
+          <Text style={styles.yearLabel}>{fiscalYear}</Text>
+          <Text style={styles.yearSub}>{t("fiscalYear")}</Text>
+        </View>
+        <ScalePressable scaleTo={0.88} style={styles.yearBtn} onPress={() => { tapLight(); setFiscalYear(fiscalYear + 1); }}>
+          <View style={{ transform: [{ scaleX: -1 }] }}>
+            <Icon name="back" size={16} color={colors.brand} />
+          </View>
+        </ScalePressable>
       </View>
       {/* Summary bar */}
       <View style={styles.summaryRow}>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>{t("transactions.filteredRecettes")}</Text>
+        <View style={[styles.summaryCard, { borderLeftWidth: 4, borderLeftColor: colors.recette }]}>
+          <Text style={[styles.summaryLabel, { color: colors.recette }]}>{t("transactions.filteredRecettes")}</Text>
           <Text style={[styles.summaryValue, { color: colors.recette }]}>
             {formatMAD(totalRecettes)}
           </Text>
-          <Text style={styles.summaryCount}>{recettes.length} opération{recettes.length > 1 ? "s" : ""}</Text>
+          <Text style={styles.summaryCount}>{recettes.length} {t("transactions.operations")}</Text>
         </View>
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>{t("transactions.filteredCharges")}</Text>
+        <View style={[styles.summaryCard, { borderLeftWidth: 4, borderLeftColor: colors.charge }]}>
+          <Text style={[styles.summaryLabel, { color: colors.charge }]}>{t("transactions.filteredCharges")}</Text>
           <Text style={[styles.summaryValue, { color: colors.charge }]}>
             {formatMAD(totalCharges)}
           </Text>
-          <Text style={styles.summaryCount}>{charges.length} opération{charges.length > 1 ? "s" : ""}</Text>
+          <Text style={styles.summaryCount}>{charges.length} {t("transactions.operations")}</Text>
         </View>
       </View>
 
@@ -126,22 +155,26 @@ useEffect(() => {
         filteredCount={filtered.length}
       />
 
-      {/* Empty state */}
+      {/* Empty state — filters active */}
       {filtered.length === 0 && yearTransactions.length > 0 && (
         <View style={styles.emptyState}>
-        <Text style={styles.emptyTitle}>{t("transactions.noResults")}</Text>
-        <Text style={styles.emptyText}>{t("transactions.tryModifyFilters")}</Text>
-          <Pressable
-            style={styles.resetBtn}
-            onPress={() => setFilters(DEFAULT_FILTERS)}
-          >
+          <View style={styles.emptyIcon}>
+            <Icon name="filter" size={22} color={colors.textTertiary} />
+          </View>
+          <Text style={styles.emptyTitle}>{t("transactions.noResults")}</Text>
+          <Text style={styles.emptyText}>{t("transactions.tryModifyFilters")}</Text>
+          <Pressable style={styles.resetBtn} onPress={() => setFilters(DEFAULT_FILTERS)}>
             <Text style={styles.resetBtnText}>{t("transactions.resetFilters")}</Text>
           </Pressable>
         </View>
       )}
 
+      {/* Empty state — no transactions at all */}
       {filtered.length === 0 && yearTransactions.length === 0 && (
         <View style={styles.emptyState}>
+          <View style={styles.emptyIcon}>
+            <Icon name="receipt" size={22} color={colors.textTertiary} />
+          </View>
           <Text style={styles.emptyTitle}>{t("transactions.noTransactions")}</Text>
           <Text style={styles.emptyText}>{t("transactions.addFirst")}</Text>
         </View>
@@ -153,18 +186,19 @@ useEffect(() => {
           {recettes.length > 0 && (
             <Text style={styles.groupLabel}>{t("dashboard.recettes")} · {recettes.length}</Text>
           )}
-          {recettes.map((t) => (
+          {recettes.map((tx, i) => (
             <TransactionRow
-              key={t.id}
-              transaction={t}
-              onChange={(patch) => updateTransaction(t.id, patch)}
-              onDelete={() => { tapWarning(); deleteTransaction(t.id); }}
+              key={tx.id}
+              transaction={tx}
+
+              onChange={(patch) => updateTransaction(tx.id, patch)}
+              onDelete={() => handleDelete(tx.id)}
               onPickCategory={() =>
-                setPickerOpenForExisting({ txId: t.id, type: t.type })
+                setPickerOpenForExisting({ txId: tx.id, type: tx.type })
               }
               onPickDate={() =>
-                datePicker.show(t.date, (iso) =>
-                  updateTransaction(t.id, { date: iso })
+                datePicker.show(tx.date, (iso) =>
+                  updateTransaction(tx.id, { date: iso })
                 )
               }
             />
@@ -173,18 +207,19 @@ useEffect(() => {
           {charges.length > 0 && (
             <Text style={[styles.groupLabel, { marginTop: spacing.lg }]}>{t("dashboard.charges")} · {charges.length}</Text>
           )}
-          {charges.map((t) => (
+          {charges.map((tx, i) => (
             <TransactionRow
-              key={t.id}
-              transaction={t}
-              onChange={(patch) => updateTransaction(t.id, patch)}
-              onDelete={() => { tapWarning(); deleteTransaction(t.id); }}
+              key={tx.id}
+              transaction={tx}
+
+              onChange={(patch) => updateTransaction(tx.id, patch)}
+              onDelete={() => handleDelete(tx.id)}
               onPickCategory={() =>
-                setPickerOpenForExisting({ txId: t.id, type: t.type })
+                setPickerOpenForExisting({ txId: tx.id, type: tx.type })
               }
               onPickDate={() =>
-                datePicker.show(t.date, (iso) =>
-                  updateTransaction(t.id, { date: iso })
+                datePicker.show(tx.date, (iso) =>
+                  updateTransaction(tx.id, { date: iso })
                 )
               }
             />
@@ -192,18 +227,18 @@ useEffect(() => {
         </>
       ) : (
         // When filtered by type, show a flat list
-        filtered.map((t) => (
+        filtered.map((tx, i) => (
           <TransactionRow
-            key={t.id}
-            transaction={t}
-            onChange={(patch) => updateTransaction(t.id, patch)}
-            onDelete={() => { tapWarning(); deleteTransaction(t.id); }}
+            key={tx.id}
+            transaction={tx}
+            onChange={(patch) => updateTransaction(tx.id, patch)}
+            onDelete={() => handleDelete(tx.id)}
             onPickCategory={() =>
-              setPickerOpenForExisting({ txId: t.id, type: t.type })
+              setPickerOpenForExisting({ txId: tx.id, type: tx.type })
             }
             onPickDate={() =>
-              datePicker.show(t.date, (iso) =>
-                updateTransaction(t.id, { date: iso })
+              datePicker.show(tx.date, (iso) =>
+                updateTransaction(tx.id, { date: iso })
               )
             }
           />
@@ -216,30 +251,32 @@ useEffect(() => {
 
     {/* Floating add buttons */}
     <View style={styles.fab}>
-      <Pressable
+      <ScalePressable
+        scaleTo={0.95}
         style={[styles.fabBtn, { backgroundColor: colors.recette }]}
         onPress={() => { tapLight(); setAddModalType("RECETTE"); }}
       >
+        <Icon name="add" size={16} color="#fff" />
         <Text style={styles.fabText}>{t("transactions.addRecette")}</Text>
-      </Pressable>
-      <Pressable
+      </ScalePressable>
+      <ScalePressable
+        scaleTo={0.95}
         style={[styles.fabBtn, { backgroundColor: colors.charge }]}
         onPress={() => { tapLight(); setAddModalType("CHARGE"); }}
       >
-
+        <Icon name="add" size={16} color="#fff" />
         <Text style={styles.fabText}>{t("transactions.addCharge")}</Text>
-      </Pressable>
+      </ScalePressable>
     </View>
 
     {/* Modals */}
-     {/* Modals */}
       {addModalType && (
         <AddTransactionModal
           visible={true}
           type={addModalType}
           specialty={profile.specialty}
           regime={result.tax.regime}
-          fiscalYear={2026}
+          fiscalYear={fiscalYear}
           onClose={() => setAddModalType(null)}
           onCreate={addTransaction}
         />
@@ -250,7 +287,7 @@ useEffect(() => {
           visible={true}
           type={pickerOpenForExisting.type}
           specialty={profile.specialty}
-          fiscalYear={2026}
+          fiscalYear={fiscalYear}
           onClose={() => setPickerOpenForExisting(null)}
           onSelect={(cat) =>
             handleCategoryChange(pickerOpenForExisting.txId, cat)
@@ -266,16 +303,13 @@ useEffect(() => {
   );
 }
 
-function getCategoryLabel(categoryId: string): string {
-  const cat = getCategoryById(2026, categoryId);
+function getCategoryLabel(categoryId: string, year = 2026): string {
+  const cat = getCategoryById(year, categoryId);
   return cat?.labelFr ?? categoryId;
 }
 
-function formatMAD(n: number): string {
-  return Math.round(n).toLocaleString("fr-FR") + "\u00A0MAD";
-}
-function getCgiNote(categoryId: string): string | null {
-  const cat = getCategoryById(2026, categoryId);
+function getCgiNote(categoryId: string, year = 2026): string | null {
+  const cat = getCategoryById(year, categoryId);
   return (cat as any)?.notes || null;
 }
 function TransactionRow({
@@ -293,14 +327,67 @@ function TransactionRow({
 }) {
   const isRecette = transaction.type === "RECETTE";
   const ratio = transaction.professionalUseRatio ?? 1;
-  const { t } = useT();
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
+  const { t, currentLang } = useT();
+  const [expanded, setExpanded] = useState(false);
   const [sliderVisible, setSliderVisible] = useState(ratio < 1);
   const accentColor = isRecette ? colors.recette : colors.charge;
 
+  const shortDate = new Date(transaction.date).toLocaleDateString(langToLocale(currentLang), {
+    day: "numeric", month: "short",
+  });
+
+  // ── COLLAPSED ────────────────────────────────────────────────────────────
+  if (!expanded) {
+    return (
+      <View style={styles.txRowWrapper}>
+        <ScalePressable
+          scaleTo={0.97}
+          style={styles.txCollapsed}
+          onPress={() => { tapLight(); setExpanded(true); }}
+        >
+          {/* Left accent bar */}
+          <View style={[styles.txCollapsedAccent, { backgroundColor: accentColor }]} />
+
+          {/* Main content */}
+          <View style={styles.txCollapsedBody}>
+            {/* Row 1: category + amount */}
+            <View style={styles.txCollapsedRow}>
+              <Text style={styles.txCollapsedCategory} numberOfLines={1}>
+                {getCategoryLabel(transaction.category)}
+              </Text>
+              <Text style={[styles.txAmountFigure, { color: accentColor }]}>
+                {Math.round(transaction.amount).toLocaleString("fr-FR")}
+                <Text style={styles.txAmountUnit}>{" MAD"}</Text>
+              </Text>
+            </View>
+
+            {/* Row 2: description (if any) + date */}
+            <View style={styles.txCollapsedMeta}>
+              {transaction.description ? (
+                <Text style={styles.txCollapsedDesc} numberOfLines={1}>
+                  {transaction.description}
+                </Text>
+              ) : (
+                <View style={[styles.txCollapsedTypeDot, { backgroundColor: accentColor + "66" }]} />
+              )}
+              <Text style={styles.txCollapsedDate}>{shortDate}</Text>
+            </View>
+          </View>
+
+          {/* Expand chevron */}
+          <Text style={styles.txChevron}>›</Text>
+        </ScalePressable>
+      </View>
+    );
+  }
+
+  // ── EXPANDED ─────────────────────────────────────────────────────────────
   return (
-    <View style={styles.txCard}>
-      {/* Top row: type badge + amount + delete */}
-      <View style={styles.txTopRow}>
+    <View style={styles.txRowWrapper}>
+      <View style={styles.txCard}>
+      {/* Header — tap anywhere except the delete icon to collapse */}
+      <Pressable style={styles.txTopRow} onPress={() => setExpanded(false)}>
         <View style={[styles.txTypeBadge, { backgroundColor: isRecette ? colors.recetteSoft : colors.chargeSoft }]}>
           <View style={[styles.txTypeDot, { backgroundColor: accentColor }]} />
           <Text style={[styles.txTypeText, { color: accentColor }]}>
@@ -308,10 +395,10 @@ function TransactionRow({
           </Text>
         </View>
         <View style={{ flex: 1 }} />
-        <Pressable onPress={onDelete} hitSlop={12} style={styles.txDeleteBtn}>
+        <Pressable onPress={onDelete} hitSlop={8} style={styles.txDeleteBtn}>
           <Icon name="delete" size={14} color={colors.textTertiary} />
         </Pressable>
-      </View>
+      </Pressable>
 
       {/* Category */}
       <Pressable style={styles.txCategoryRow} onPress={onPickCategory}>
@@ -328,10 +415,10 @@ function TransactionRow({
           value={String(transaction.amount)}
           keyboardType="numeric"
           onChangeText={(v) => {
-  const n = parseFloat(v) || 0;
-  if (n > 5000000) return;
-  onChange({ amount: n });
-}}
+            const n = parseFloat(v) || 0;
+            if (n < 0 || n > 5000000) return;
+            onChange({ amount: n });
+          }}
           placeholder="0"
           placeholderTextColor={colors.textTertiary}
         />
@@ -348,26 +435,16 @@ function TransactionRow({
         multiline={false}
       />
 
-      {/* Bottom row: date + receipt */}
+      {/* Bottom row: date */}
       <View style={styles.txBottomRow}>
         <Pressable style={styles.txDateChip} onPress={onPickDate}>
           <Icon name="calendar" size={12} color={colors.textSecondary} />
           <Text style={styles.txDateLabel}>
-            {new Date(transaction.date).toLocaleDateString("fr-FR", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
+            {new Date(transaction.date).toLocaleDateString(langToLocale(currentLang), {
+              day: "numeric", month: "short", year: "numeric",
             })}
           </Text>
         </Pressable>
-
-        <ReceiptCapture
-          uri={transaction.receiptUri}
-          compact
-          onChange={(newUri) => onChange({ receiptUri: newUri })}
-          onOcrAmount={(ocrAmount) => onChange({ amount: ocrAmount })}
-          onOcrDate={(ocrDate) => onChange({ date: ocrDate })}
-        />
       </View>
 
       {/* Deductibility slider */}
@@ -402,14 +479,14 @@ function TransactionRow({
           <View style={styles.txSliderFooter}>
             <Text style={styles.txSliderHint}>0%</Text>
             <Text style={styles.txSliderDeductible}>
-              {t("categories.deductible")}: {Math.round(transaction.amount * ratio).toLocaleString("fr-FR")} MAD
+              {t("categories.deductible")}: {Math.round(transaction.amount * ratio).toLocaleString(langToLocale(currentLang))} MAD
             </Text>
             <Text style={styles.txSliderHint}>100%</Text>
           </View>
         </View>
       )}
 
-      {/* Adjust ratio link for 100% items */}
+      {/* Adjust ratio link for charges at 100% */}
       {!isRecette && ratio >= 1 && !sliderVisible && (
         <Pressable onPress={() => setSliderVisible(true)} style={styles.txAdjustBtn}>
           <Text style={styles.txAdjustText}>{t("categories.professionalShare")} ✎</Text>
@@ -426,14 +503,24 @@ function TransactionRow({
         </View>
       )}
     </View>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
 // Update existing styles for cleaner look:
 container: { flex: 1, backgroundColor: colors.bg },
-content: { padding: spacing.lg, paddingTop: spacing.md },
-screenTitle: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.md },
+content: { padding: spacing.lg, paddingTop: spacing.lg },
+header: {
+  paddingHorizontal: spacing.lg,
+  paddingTop: spacing.lg,
+  paddingBottom: spacing.md,
+  backgroundColor: colors.surface,
+  borderBottomWidth: 1,
+  borderBottomColor: colors.border,
+},
+headerTitle: { fontSize: 26, fontWeight: "800" as const, color: colors.textPrimary, letterSpacing: -0.5 },
+headerSub: { ...typography.caption, color: colors.brand, marginTop: 2 },
 
   summaryRow: {
     flexDirection: "row",
@@ -443,14 +530,17 @@ screenTitle: { ...typography.h1, color: colors.textPrimary, marginBottom: spacin
   summaryCard: {
     flex: 1,
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadows.card,
   },
   summaryLabel: {
     ...typography.micro,
-    color: colors.textTertiary,
+    color: colors.brand,
     textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
   summaryValue: {
@@ -470,18 +560,31 @@ screenTitle: { ...typography.h1, color: colors.textPrimary, marginBottom: spacin
     marginBottom: spacing.sm,
   },
 
-  emptyState: { paddingVertical: spacing.xl, alignItems: "center" },
+  emptyState: {
+    paddingVertical: spacing.xxl,
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.sm,
+  },
   emptyTitle: {
-    ...typography.h2,
+    fontSize: 16,
+    fontWeight: "700",
     color: colors.textPrimary,
-    marginBottom: 6,
   },
   emptyText: {
-    ...typography.caption,
+    fontSize: 13,
     color: colors.textSecondary,
     textAlign: "center",
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+    lineHeight: 20,
   },
   adjustBtn: {
   paddingVertical: 6,
@@ -496,28 +599,45 @@ adjustText: {
   flexDirection: "row",
   gap: 10,
   paddingHorizontal: spacing.lg,
-  paddingVertical: spacing.sm,
-  backgroundColor: colors.bg,
+  paddingVertical: 10,
+  backgroundColor: colors.surface,
   borderTopWidth: 1,
   borderTopColor: colors.border,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: -3 },
+  shadowOpacity: 0.05,
+  shadowRadius: 10,
+  elevation: 6,
 },
 yearRow: {
   flexDirection: "row",
   alignItems: "center",
   justifyContent: "center",
-  gap: 20,
-  marginBottom: spacing.md,
+  marginBottom: spacing.lg,
 },
-yearArrow: {
-  fontSize: 24,
-  fontWeight: "700",
-  color: colors.brand,
-  paddingHorizontal: 12,
+yearBtn: {
+  width: 40,
+  height: 40,
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: radii.pill,
+  backgroundColor: colors.brandSoft,
+},
+yearCenter: {
+  alignItems: "center",
+  marginHorizontal: spacing.xl,
 },
 yearLabel: {
-  fontSize: 18,
-  fontWeight: "700",
+  fontSize: 22,
+  fontWeight: "800",
   color: colors.textPrimary,
+  letterSpacing: -0.5,
+},
+yearSub: {
+  fontSize: 10,
+  color: colors.textTertiary,
+  marginTop: 1,
+  letterSpacing: 0.3,
 },
 fabBtn: {
   flex: 1,
@@ -525,13 +645,19 @@ fabBtn: {
   alignItems: "center",
   justifyContent: "center",
   gap: 6,
-  paddingVertical: 12,
-  borderRadius: radii.md,
+  paddingVertical: 14,
+  borderRadius: radii.lg,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.15,
+  shadowRadius: 6,
+  elevation: 3,
 },
 fabText: {
   color: "#fff",
   fontWeight: "700",
   fontSize: 14,
+  letterSpacing: 0.2,
 },
   resetBtn: {
     paddingVertical: 8,
@@ -548,14 +674,14 @@ fabText: {
   txRow: {
     flexDirection: "row",
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     marginBottom: spacing.sm,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.card,
   },
-  txAccent: { width: 3 },
+  txAccent: { width: 4 },
   txContent: { flex: 1, padding: spacing.md },
   txTop: {
     flexDirection: "row",
@@ -655,11 +781,132 @@ sliderLabel: {
   color: colors.textSecondary,
   fontWeight: "600",
 },
+  txRowWrapper: {
+    marginBottom: spacing.sm,
+  },
+
+// ===== Collapsed row =====
+  txCollapsed: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    ...shadows.card,
+  },
+  txCollapsedAccent: {
+    width: 4,
+    alignSelf: "stretch",
+  },
+  txCollapsedBody: {
+    flex: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    gap: 3,
+  },
+  txCollapsedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  txCollapsedCategory: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  txCollapsedAmount: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  // Amount figure + currency label (replaces txCollapsedAmount in collapsed card)
+  txAmountFigure: {
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: -0.5,   // tight tracking makes large numbers look cleaner
+  },
+  txAmountUnit: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: colors.textTertiary,
+    letterSpacing: 0.8,
+  },
+  txCollapsedMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  txCollapsedDesc: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    flex: 1,
+  },
+  txCollapsedTypeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    flex: 1,         // takes up space so date stays at right
+    maxWidth: 6,
+  },
+  txCollapsedDate: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    fontWeight: "500",
+  },
+  txChevron: {
+    fontSize: 18,
+    color: colors.textTertiary,
+    paddingHorizontal: spacing.sm,
+    lineHeight: 22,
+  },
+  txNum: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.brand,
+    backgroundColor: colors.brandSoft,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    overflow: "hidden",
+    minWidth: 22,
+    textAlign: "center",
+  },
+  txNumExpanded: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: colors.brand,
+    backgroundColor: colors.brandSoft,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.pill,
+    overflow: "hidden",
+    marginLeft: spacing.sm,
+  },
+
+// ===== Collapse button inside expanded card =====
+  txCollapseBtn: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceAlt,
+    marginRight: 4,
+  },
+  txCollapseBtnText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+
 // ===== Transaction Card =====
   txCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,
-    marginBottom: spacing.md,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,

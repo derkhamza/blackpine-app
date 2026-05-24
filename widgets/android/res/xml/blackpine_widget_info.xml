@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AppWidgetProviderInfo for the Blackpine Cabinet home-screen widget.
+  minWidth / minHeight  → 3 × 2 cell grid (≈ 250 × 110 dp on standard density)
+  targetCellWidth/Height → preferred size on Android 12+ (API 31+)
+  updatePeriodMillis    → system-triggered refresh every 30 minutes;
+                          the app also pushes updates via WidgetDataModule.
+-->
+<appwidget-provider
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/blackpine_widget"
+    android:widgetCategory="home_screen"
+    android:previewImage="@mipmap/ic_launcher"
+    android:resizeMode="horizontal|vertical"
+    android:description="@string/app_name" />

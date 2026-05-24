@@ -1,4 +1,4 @@
-import { DoctorProfile, FullTaxComputation, Transaction, getCategoryById } from "blackpine-engine";
+import { DoctorProfile, FullTaxComputation, Transaction, getCategoryById, loadFiscalYearConfig } from "blackpine-engine";
 
 interface FilingData {
   profile: DoctorProfile;
@@ -679,7 +679,7 @@ function irCalcPage(d: FilingData): string {
       <tr><td>IR brut</td><td class="right">${fmt(tax.ir.grossIR)}</td></tr>
       <tr><td>Déduction pour charges de famille (Art. 74 CGI) — ${profile.dependentsCount} × 500 MAD</td><td class="right">- ${fmt(tax.familyDeduction)}</td></tr>
       <tr><td>IR net</td><td class="right">${fmt(Math.max(0, tax.ir.grossIR - tax.familyDeduction))}</td></tr>
-      <tr><td>Cotisation minimale (Art. 144 CGI) — taux ${(tax.cm.cmRate * 100).toFixed(1)}%</td><td class="right">${fmt(tax.cm.cmDue)}${tax.cm.exempted ? " (exemptée — Art. 144-I)" : ""}</td></tr>
+      <tr><td>Cotisation minimale (Art. 144 CGI) — taux ${(loadFiscalYearConfig(d.fiscalYear).cotisationMinimale.rateMedical * 100).toFixed(1)}%</td><td class="right">${fmt(tax.cm.cmDue)}${tax.cm.exempted ? " (exemptée — Art. 144-I)" : ""}</td></tr>
       <tr><td>Règle appliquée (Art. 144-II CGI)</td><td class="right">${tax.payableRule}</td></tr>
       <tr class="grand-total"><td>IMPÔT DÛ</td><td class="right">${fmt(tax.taxDue)}</td></tr>
     </table>

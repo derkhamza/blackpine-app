@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import {
   Alert,
   Pressable,
@@ -9,7 +9,8 @@ import {
   View,
 } from "react-native";
 import { signup, login, AuthUser } from "../lib/api";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { useT } from "../lib/useT";
 
 interface Props {
@@ -22,6 +23,7 @@ export function AuthScreen({ onAuth }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const handleSubmit = async () => {
     if (!email.trim() || !password) return;
@@ -87,7 +89,7 @@ export function AuthScreen({ onAuth }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { backgroundColor: "transparent" },
   content: { padding: spacing.lg, paddingTop: spacing.lg },
   brandMark: {
@@ -101,30 +103,35 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.xl, lineHeight: 22 },
   form: {
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadows.card,
   },
   label: {
     ...typography.caption,
-    color: colors.textSecondary,
+    color: colors.brand,
     marginBottom: 6,
     marginTop: spacing.md,
     fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    fontSize: 11,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     fontSize: 16,
     color: colors.textPrimary,
     backgroundColor: colors.bg,
   },
   submitBtn: {
-    paddingVertical: 14,
-    borderRadius: radii.md,
+    paddingVertical: 15,
+    borderRadius: radii.lg,
     alignItems: "center",
     backgroundColor: colors.brand,
     marginTop: spacing.xl,

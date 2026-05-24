@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import {
   Platform,
   Pressable,
@@ -9,9 +9,11 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { TransactionType } from "blackpine-engine";
-import { colors, radii, spacing, typography } from "../lib/theme";
+import { radii, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { Icon } from "../lib/icons";
 import { useT } from "../lib/useT";
+import { langToLocale } from "../lib/format";
 export type SortField = "date" | "amount";
 export type SortOrder = "desc" | "asc";
 export type TypeFilter = "ALL" | "RECETTE" | "CHARGE";
@@ -42,9 +44,10 @@ interface Props {
 }
 
 export function TransactionFilters({ filters, onChange, totalCount, filteredCount }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const [showDateFrom, setShowDateFrom] = useState(false);
   const [showDateTo, setShowDateTo] = useState(false);
-  const { t } = useT();
+  const { t, currentLang } = useT();
   const update = (patch: Partial<FilterState>) => onChange({ ...filters, ...patch });
 
   const hasActiveFilters =
@@ -135,7 +138,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
           onPress={() => setShowDateFrom(true)}
         >
           <Text style={styles.dateBtnText}>
-            {filters.dateFrom ? formatShortDate(filters.dateFrom) : t("transactions.dateFrom")}
+            {filters.dateFrom ? formatShortDate(filters.dateFrom, langToLocale(currentLang)) : t("transactions.dateFrom")}
           </Text>
         </Pressable>
 
@@ -144,7 +147,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
           onPress={() => setShowDateTo(true)}
         >
           <Text style={styles.dateBtnText}>
-            {filters.dateTo ? formatShortDate(filters.dateTo) : t("transactions.dateTo")}
+            {filters.dateTo ? formatShortDate(filters.dateTo, langToLocale(currentLang)) : t("transactions.dateTo")}
           </Text>
         </Pressable>
 
@@ -186,7 +189,7 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
       {hasActiveFilters && (
         <View style={styles.resultRow}>
           <Text style={styles.resultText}>
-            {filteredCount} sur {totalCount} transaction{totalCount > 1 ? "s" : ""}
+            {filteredCount} {t("transactions.of")} {totalCount} {totalCount > 1 ? t("transactions.operations_plural") : t("transactions.operation")}
           </Text>
           <Pressable onPress={() => onChange(DEFAULT_FILTERS)}>
             <Text style={styles.resetFiltersText}>{t("transactions.resetFilters")}</Text>
@@ -197,14 +200,14 @@ export function TransactionFilters({ filters, onChange, totalCount, filteredCoun
   );
 }
 
-function formatShortDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", {
+function formatShortDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
   });
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { marginBottom: spacing.md },
 
   searchRow: {

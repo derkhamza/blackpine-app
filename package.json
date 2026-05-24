@@ -15,6 +15,7 @@
     "@react-native-community/slider": "5.0.1",
     "@react-navigation/bottom-tabs": "^7.15.9",
     "@react-navigation/native": "^7.2.2",
+    "@react-navigation/native-stack": "^7.15.0",
     "blackpine-engine": "file:packages/engine",
     "expo": "~54.0.33",
     "expo-dev-client": "~6.0.21",
@@ -22,8 +23,11 @@
     "expo-haptics": "~15.0.8",
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.10",
+    "expo-local-authentication": "~17.0.8",
     "expo-localization": "^55.0.13",
+    "expo-notifications": "~0.32.17",
     "expo-print": "~15.0.8",
+    "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -35,6 +39,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@expo/ngrok": "^4.1.3",
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2"
   },

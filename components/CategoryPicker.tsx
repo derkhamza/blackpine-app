@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -13,7 +13,8 @@ import {
   TransactionType,
   getGroupedCategories,
 } from "blackpine-engine";
-import { colors, radii, spacing, typography } from "../lib/theme";
+import { radii, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { useT } from "../lib/useT";
 
 interface Props {
@@ -27,6 +28,7 @@ interface Props {
 
 export function CategoryPicker({ visible, type, fiscalYear, specialty, onClose, onSelect }: Props) {
 
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const [query, setQuery] = useState("");
   const groups = useMemo(() => getGroupedCategories(fiscalYear, type, specialty), [fiscalYear, type, specialty]);
@@ -91,6 +93,7 @@ export function CategoryPicker({ visible, type, fiscalYear, specialty, onClose, 
 }
 
 function CategoryItem({ category, onPress, t }: { category: Category; onPress: () => void; t: (k: string) => string }) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const rule = category.rns;
   let hint = "";
   let hintColor = colors.textTertiary;
@@ -125,7 +128,7 @@ function CategoryItem({ category, onPress, t }: { category: Category; onPress: (
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: "row",

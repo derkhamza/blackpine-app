@@ -9,44 +9,69 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
+      "backgroundColor": "#EFF6FB"
+    },
+    "ios": {
+      "bundleIdentifier": "com.blackpine.cabinet",
+      "buildNumber": "1",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Blackpine Cabinet uses the camera to photograph receipts and expense documents.",
+        "NSPhotoLibraryUsageDescription": "Blackpine Cabinet accesses your photos to import expense receipts.",
+        "NSPhotoLibraryAddUsageDescription": "Blackpine Cabinet saves documents to your photo library.",
+        "NSFaceIDUsageDescription": "Blackpine Cabinet uses Face ID to keep your patient data secure."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0A4E7E"
       },
       "package": "com.blackpine.cabinet",
+      "versionCode": 3,
+      "statusBar": {
+        "translucent": true,
+        "backgroundColor": "#00000000",
+        "barStyle": "dark-content"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.VIBRATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
       ]
-    },
-    "ios": {
-      "bundleIdentifier": "com.blackpine.cabinet"
     },
     "plugins": [
       [
         "expo-image-picker",
         {
-          "cameraPermission": "L'application a besoin d'accéder à votre caméra pour photographier vos reçus.",
-          "photosPermission": "L'application a besoin d'accéder à vos photos pour ajouter des justificatifs."
+          "cameraPermission": "Blackpine Cabinet uses the camera to photograph your receipts and expense documents.",
+          "photosPermission": "Blackpine Cabinet accesses your photos to import expense receipts."
         }
-      ]
+      ],
+      "expo-local-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0A4E7E",
+          "sounds": []
+        }
+      ],
+      "./plugins/withWidget",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
         "projectId": "c9495e3a-4c26-4de5-9a9b-41cadcd6e354"
       }
     },
-    "ios": {
-      "bundleIdentifier": "com.blackpine.cabinet"
-    },
     "web": {
-      "privacyPolicyUrl": "https://derkhamza.github.io/blackpine-legal/"
+      "privacyPolicyUrl": "https://blackpinecap.com/cabinet/privacy"
     }
   }
 }

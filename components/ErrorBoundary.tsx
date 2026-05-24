@@ -1,5 +1,6 @@
-import React from "react";
+﻿import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { radii, spacing, typography, lightColors, ColorPalette } from "../lib/theme";
 
 interface Props {
   children: React.ReactNode;
@@ -21,7 +22,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[ErrorBoundary]", error.message, info.componentStack);
+    if (__DEV__) console.error("[ErrorBoundary]", error.message, info.componentStack);
   }
 
   render() {
@@ -30,7 +31,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <View style={styles.container}>
           <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.message}>
-            {this.state.error?.message || "Error"}
+            {this.state.error?.message || "An unexpected error occurred"}
           </Text>
           <Pressable
             style={styles.btn}
@@ -45,37 +46,38 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F5F4EF",
+    backgroundColor: colors.bg,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
+    padding: spacing.xl,
   },
   title: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#1A1F1B",
-    marginBottom: 8,
+    ...typography.h1,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
     textAlign: "center",
   },
   message: {
-    fontSize: 13,
-    color: "#6B6F6B",
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: spacing.xl,
     lineHeight: 20,
   },
   btn: {
     paddingVertical: 12,
     paddingHorizontal: 32,
-    backgroundColor: "#1F3A2E",
-    borderRadius: 12,
+    backgroundColor: colors.brand,
+    borderRadius: radii.md,
   },
   btnText: {
-    color: "#FFFFFF",
+    color: colors.textOnDark,
     fontWeight: "600",
     fontSize: 15,
   },
 });
+
+const styles = makeStyles(lightColors);

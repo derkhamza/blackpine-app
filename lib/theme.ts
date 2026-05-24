@@ -1,85 +1,140 @@
-export const colors = {
-  // Surfaces — warmer, softer
-  bg: "#FAFAF7",
+// ─── Palette type ─────────────────────────────────────────────────────────────
+
+export type ColorPalette = typeof lightColors;
+
+// ─── Light palette ────────────────────────────────────────────────────────────
+
+export const lightColors = {
+  // Core backgrounds — soft medical blue-white
+  bg: "#EFF6FB",
   surface: "#FFFFFF",
-  surfaceAlt: "#F6F5F0",
-  surfaceDark: "#1B2A3D",
+  surfaceAlt: "#E2EFF8",
+  surfaceDark: "#0A4E7E",       // Deep marine blue — hero cards
 
-  // Text — softer blacks, better contrast hierarchy
-  textPrimary: "#2C3E50",
-  textSecondary: "#7F8C8D",
-  textTertiary: "#BDC3C7",
+  // Text hierarchy — blue-black tones
+  textPrimary: "#122B42",       // Dark navy (clinical print quality)
+  textSecondary: "#4A6C84",     // Muted blue-grey
+  textTertiary: "#91B2C6",      // Light blue-grey
   textOnDark: "#FFFFFF",
-  textOnDarkMuted: "#A8C0D0",
+  textOnDarkMuted: "#9DCCE6",
 
-  // Borders — lighter, more airy
-  border: "#ECE9E1",
-  borderStrong: "#D5D0C5",
+  // Borders — airy blue
+  border: "#C6DEF0",
+  borderStrong: "#93BACD",
 
-  // Brand — richer teal-green, more vibrant
-  brand: "#1A7F64",
-  brandSoft: "#E3F5EF",
-  brandDark: "#0F5C47",
-  gold: "#D4A843",
-  goldSoft: "#FDF5E6",
+  // Brand — medical teal-blue
+  brand: "#1890C5",
+  brandSoft: "#D4EDF9",
+  brandDark: "#0C6E9B",
+  gold: "#D4962A",
+  goldSoft: "#FBF0DD",
 
-  // Semantic — friendlier tones
-  success: "#27AE60",
-  successSoft: "#E8F8F0",
-  warning: "#F39C12",
-  warningSoft: "#FEF5E7",
-  danger: "#E74C3C",
-  dangerSoft: "#FDEDEC",
+  // Semantic
+  success: "#15A876",
+  successSoft: "#D4F2E8",
+  warning: "#E89010",
+  warningSoft: "#FEF3DC",
+  danger: "#E04040",
+  dangerSoft: "#FDDEDE",
 
-  // Recette / charge — clearer distinction
-  recette: "#27AE60",
-  recetteSoft: "#E8F8F0",
-  charge: "#E67E22",
-  chargeSoft: "#FDF2E9",
+  // Transaction types
+  recette: "#15A876",           // Rich emerald — income = health
+  recetteSoft: "#D4F2E8",
+  charge: "#E85B5B",            // Soft coral — expenses (not harsh orange)
+  chargeSoft: "#FDEAEA",
 };
 
+// ─── Dark palette ─────────────────────────────────────────────────────────────
+
+export const darkColors: ColorPalette = {
+  // Core backgrounds — deep navy
+  bg: "#0D1B2A",
+  surface: "#142333",
+  surfaceAlt: "#1C2F40",
+  surfaceDark: "#0A4E7E",       // Same — hero cards
+
+  // Text hierarchy
+  textPrimary: "#E8F4FF",
+  textSecondary: "#7AACC4",
+  textTertiary: "#5D8FA8",
+  textOnDark: "#FFFFFF",
+  textOnDarkMuted: "#9DCCE6",
+
+  // Borders
+  border: "#1E3347",
+  borderStrong: "#2B4A63",
+
+  // Brand — same hue, adjusted softs
+  brand: "#1890C5",
+  brandSoft: "#0B1E2E",
+  brandDark: "#0C6E9B",
+  gold: "#D4962A",
+  goldSoft: "#1E1508",
+
+  // Semantic — vivid colours stay, softs go dark
+  success: "#15A876",
+  successSoft: "#0A1F17",
+  warning: "#E89010",
+  warningSoft: "#1E1808",
+  danger: "#E04040",
+  dangerSoft: "#1E0A0A",
+
+  // Transaction types
+  recette: "#15A876",
+  recetteSoft: "#0A1F17",
+  charge: "#E85B5B",
+  chargeSoft: "#1E0D0D",
+};
+
+// ─── Default export (backward-compat alias for light palette) ─────────────────
+// Components that import `colors` directly from theme get the light palette.
+// Prefer useColors() from ThemeContext for theme-aware colours.
+
+export const colors = lightColors;
+
 export const radii = {
-  xs: 6,
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 22,
+  xl: 32,
   pill: 999,
 };
 
 export const spacing = {
   xs: 4,
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
-  xxl: 32,
+  md: 14,
+  lg: 20,
+  xl: 28,
+  xxl: 40,
 };
 
 export const typography = {
-  display: { fontSize: 38, fontWeight: "800" as const, letterSpacing: -0.5 },
-  h1: { fontSize: 24, fontWeight: "700" as const, letterSpacing: -0.3 },
+  display: { fontSize: 38, fontWeight: "800" as const, letterSpacing: -0.8 },
+  h1: { fontSize: 24, fontWeight: "700" as const, letterSpacing: -0.4 },
   h2: { fontSize: 18, fontWeight: "600" as const },
+  h3: { fontSize: 16, fontWeight: "700" as const },
   body: { fontSize: 15, fontWeight: "400" as const },
   bodyStrong: { fontSize: 15, fontWeight: "600" as const },
   caption: { fontSize: 13, fontWeight: "400" as const },
-  micro: { fontSize: 11, fontWeight: "600" as const, letterSpacing: 0.8 },
+  micro: { fontSize: 11, fontWeight: "600" as const, letterSpacing: 0.5 },
   mono: { fontSize: 11, fontFamily: "Courier" as const },
 };
 
 export const shadows = {
   card: {
-    shadowColor: "#1A7F64",
+    shadowColor: "#1890C5",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
     elevation: 2,
   },
   hero: {
-    shadowColor: "#1B2A3D",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 5,
+    shadowColor: "#0A4E7E",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 6,
   },
 };

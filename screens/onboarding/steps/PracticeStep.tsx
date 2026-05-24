@@ -1,9 +1,11 @@
+﻿import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { PracticeType } from "blackpine-engine";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
 import { useT } from "../../../lib/useT";
-import { colors, radii, spacing, typography } from "../../../lib/theme";
+import { radii, spacing, typography, ColorPalette } from "../../../lib/theme";
+import { useColors } from "../../../lib/ThemeContext";
 
 interface Props {
   value: PracticeType | "SALARIED" | null;
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export function PracticeStep({ value, onChange, onNext, onBack }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const isSalaried = value === "SALARIED";
 
@@ -65,7 +68,7 @@ export function PracticeStep({ value, onChange, onNext, onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   warning: {
     marginTop: spacing.md,
     padding: spacing.md,

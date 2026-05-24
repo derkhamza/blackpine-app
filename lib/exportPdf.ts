@@ -1,4 +1,16 @@
-import { FullTaxComputation, DoctorProfile, TraceEvent } from "blackpine-engine";
+import { FullTaxComputation, DoctorProfile, TraceEvent, Transaction, loadFiscalYearConfig, getCategoryById } from "blackpine-engine";
+import type { DoctorProfile as CabinetProfile } from "./cabinetTypes";
+
+/** Escape user-supplied strings before injecting into HTML. */
+function h(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 function fmt(n: number): string {
   return Math.round(n).toLocaleString("fr-FR") + " MAD";
@@ -128,8 +140,8 @@ export async function generateTaxSummaryPdf(
     <div class="info-grid">
       <div class="info-card">
         <div class="info-card-title">Profil fiscal</div>
-        <div class="info-row"><span class="info-label">Profession</span><span class="info-value">${specialtyLabels[profile.specialty || ""] || "Professionnel de santé"}</span></div>
-        <div class="info-row"><span class="info-label">Commune</span><span class="info-value">${profile.commune}</span></div>
+        <div class="info-row"><span class="info-label">Profession</span><span class="info-value">${h(specialtyLabels[profile.specialty || ""] || "Professionnel de santé")}</span></div>
+        <div class="info-row"><span class="info-label">Commune</span><span class="info-value">${h(profile.commune)}</span></div>
         <div class="info-row"><span class="info-label">Zone</span><span class="info-value">${profile.communeType === "URBAN" ? "Urbaine" : "Rurale"}</span></div>
         <div class="info-row"><span class="info-label">Régime</span><span class="info-value">${tax.regime}</span></div>
       </div>
@@ -156,7 +168,7 @@ export async function generateTaxSummaryPdf(
       <tr><td>IR brut (barème progressif)</td><td class="amt">${fmt(tax.ir.grossIR)}</td></tr>
       <tr><td>Déduction pour charges de famille</td><td class="amt">− ${fmt(tax.familyDeduction)}</td></tr>
       <tr><td>IR net</td><td class="amt">${fmt(Math.max(0, tax.ir.grossIR - tax.familyDeduction))}</td></tr>
-      <tr><td>Cotisation minimale (${(tax.cm.cmRate * 100).toFixed(1)}%)</td><td class="amt">${fmt(tax.cm.cmDue)}${tax.cm.exempted ? " (exemptée)" : ""}</td></tr>
+      <tr><td>Cotisation minimale (${(loadFiscalYearConfig(year).cotisationMinimale.rateMedical * 100).toFixed(1)}%)</td><td class="amt">${fmt(tax.cm.cmDue)}${tax.cm.exempted ? " (exemptée)" : ""}</td></tr>
       <tr><td>Règle appliquée</td><td class="amt">${tax.payableRule}</td></tr>
       <tr class="highlight"><td>Impôt dû</td><td class="amt">${fmt(tax.taxDue)}</td></tr>
     </table>
@@ -176,5 +188,447 @@ export async function generateTaxSummaryPdf(
   const { uri } = await Print.printToFileAsync({ html });
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Résumé fiscal", UTI: "com.adobe.pdf" });
+  }
+}
+
+// ── Accountant bilan PDF ─────────────────────────────────────────────────────
+
+export async function generateAccountantBilanPdf(
+  transactions: Transaction[],
+  computation: FullTaxComputation,
+  cabinetProfile: CabinetProfile,
+  fiscalYear: number,
+): Promise<void> {
+  const Print   = require("expo-print");
+  const Sharing = require("expo-sharing");
+
+  const dr = cabinetProfile.fullName ? `Dr. ${h(cabinetProfile.fullName)}` : "Docteur";
+  const specialty = h(cabinetProfile.specialtyLabel);
+  const inpe = cabinetProfile.inpe ? `N° INPE : ${h(cabinetProfile.inpe)}` : "";
+  const address = h(cabinetProfile.address);
+  const phone = h(cabinetProfile.phone);
+  const generated = fmtDate(new Date().toISOString());
+
+  const yearTx = transactions.filter(tx => tx.date.startsWith(String(fiscalYear)));
+  const recettes = yearTx.filter(tx => tx.type === "RECETTE");
+  const charges  = yearTx.filter(tx => tx.type === "CHARGE");
+
+  const totalRecettes = recettes.reduce((s, tx) => s + tx.amount, 0);
+  const totalCharges  = charges.reduce((s, tx) => s + tx.amount, 0);
+
+  // Group charges by category
+  const chargesByCategory = new Map<string, { label: string; total: number; count: number }>();
+  for (const tx of charges) {
+    const cat = getCategoryById(fiscalYear, tx.category);
+    const label = cat?.labelFr || tx.category;
+    const entry = chargesByCategory.get(tx.category) ?? { label, total: 0, count: 0 };
+    entry.total += tx.amount;
+    entry.count++;
+    chargesByCategory.set(tx.category, entry);
+  }
+  const catRows = [...chargesByCategory.values()]
+    .sort((a, b) => b.total - a.total)
+    .map(c => `<tr><td>${h(c.label)}</td><td class="amt">${c.count} op.</td><td class="amt">${fmt(c.total)}</td></tr>`)
+    .join("");
+
+  // Monthly summary
+  const MONTHS = ["Jan","Fév","Mar","Apr","Mai","Jun","Jul","Aoû","Sep","Oct","Nov","Déc"];
+  const monthlyRows = MONTHS.map((m, idx) => {
+    const prefix = `${fiscalYear}-${String(idx + 1).padStart(2, "0")}`;
+    const rec = yearTx.filter(tx => tx.type === "RECETTE" && tx.date.startsWith(prefix)).reduce((s, tx) => s + tx.amount, 0);
+    const chg = yearTx.filter(tx => tx.type === "CHARGE" && tx.date.startsWith(prefix)).reduce((s, tx) => s + tx.amount, 0);
+    if (rec === 0 && chg === 0) return "";
+    return `<tr>
+      <td>${m}</td>
+      <td class="amt rec">${fmt(rec)}</td>
+      <td class="amt chg">${fmt(chg)}</td>
+      <td class="amt">${fmt(rec - chg)}</td>
+    </tr>`;
+  }).filter(Boolean).join("");
+
+  // Transaction list (most recent first, max 500)
+  const txSorted = [...yearTx]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 500);
+  const txRows = txSorted.map(tx => {
+    const cat = getCategoryById(fiscalYear, tx.category);
+    const catLabel = cat?.labelFr || tx.category;
+    const color = tx.type === "RECETTE" ? "#22863a" : "#d73a49";
+    const sign  = tx.type === "RECETTE" ? "+" : "−";
+    return `<tr>
+      <td>${fmtDate(tx.date)}</td>
+      <td>${h(tx.description) || "—"}</td>
+      <td><span style="font-size:9px;background:#f0f0f0;padding:2px 6px;border-radius:3px">${h(catLabel)}</span></td>
+      <td class="amt" style="color:${color};font-weight:700">${sign} ${fmt(tx.amount)}</td>
+    </tr>`;
+  }).join("");
+
+  const { breakdown, tax } = computation;
+  const irNet = Math.max(0, tax.ir.grossIR - tax.familyDeduction);
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  @page { margin: 15mm; size: A4; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; font-size: 10.5px; line-height: 1.5; }
+  .page { padding: 0; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2.5px solid #1B4F72; padding-bottom: 12px; margin-bottom: 18px; }
+  .doctor-name { font-size: 18pt; font-weight: 800; color: #1B4F72; }
+  .doctor-meta { font-size: 9pt; color: #555; line-height: 1.7; margin-top: 4px; }
+  .header-right { text-align: right; }
+  .bilan-title { font-size: 11pt; font-weight: 700; color: #1B4F72; }
+  .bilan-year { font-size: 26pt; font-weight: 900; color: #1B4F72; line-height: 1; }
+  .bilan-gen { font-size: 8pt; color: #999; margin-top: 4px; }
+
+  /* Summary boxes */
+  .summary-row { display: flex; gap: 12px; margin-bottom: 18px; }
+  .summary-box { flex: 1; border-radius: 8px; padding: 12px 16px; }
+  .summary-box.rec { background: #e8f5e9; border: 1px solid #a5d6a7; }
+  .summary-box.chg { background: #fce4ec; border: 1px solid #f48fb1; }
+  .summary-box.net { background: #e3f2fd; border: 1px solid #90caf9; }
+  .summary-box.tax { background: #fff3e0; border: 1px solid #ffcc80; }
+  .summary-label { font-size: 8pt; text-transform: uppercase; letter-spacing: 0.8px; color: #666; margin-bottom: 4px; }
+  .summary-value { font-size: 15pt; font-weight: 800; }
+  .summary-box.rec .summary-value { color: #1b5e20; }
+  .summary-box.chg .summary-value { color: #880e4f; }
+  .summary-box.net .summary-value { color: #0d47a1; }
+  .summary-box.tax .summary-value { color: #e65100; }
+
+  h2 { font-size: 11pt; font-weight: 700; color: #1B4F72; border-bottom: 1px solid #dde; padding-bottom: 6px; margin: 20px 0 10px; letter-spacing: 0.5px; }
+
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; page-break-inside: auto; }
+  thead th { background: #1B4F72; color: white; padding: 7px 10px; font-size: 9pt; text-align: left; }
+  td { padding: 6px 10px; font-size: 9.5pt; border-bottom: 1px solid #eee; }
+  tr:nth-child(even) td { background: #f9f9f9; }
+  .amt { text-align: right; font-variant-numeric: tabular-nums; }
+  .rec { color: #1b5e20; }
+  .chg { color: #880e4f; }
+
+  tfoot td { font-weight: 700; background: #f0f4f8; border-top: 2px solid #1B4F72; font-size: 10pt; }
+
+  .disclaimer { font-size: 8pt; color: #999; border-top: 1px solid #eee; padding-top: 8px; margin-top: 20px; }
+  .footer { font-size: 8pt; color: #bbb; text-align: center; margin-top: 10px; }
+  .page-break { page-break-before: always; }
+</style>
+</head><body><div class="page">
+
+  <div class="header">
+    <div>
+      <div class="doctor-name">${dr}</div>
+      <div class="doctor-meta">
+        ${specialty ? specialty + "<br>" : ""}
+        ${inpe ? inpe + "<br>" : ""}
+        ${address ? address + "<br>" : ""}
+        ${phone || ""}
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="bilan-title">BILAN FISCAL</div>
+      <div class="bilan-year">${fiscalYear}</div>
+      <div class="bilan-gen">Généré le ${generated}</div>
+    </div>
+  </div>
+
+  <div class="summary-row">
+    <div class="summary-box rec">
+      <div class="summary-label">Recettes totales</div>
+      <div class="summary-value">${fmt(totalRecettes)}</div>
+    </div>
+    <div class="summary-box chg">
+      <div class="summary-label">Charges totales</div>
+      <div class="summary-value">${fmt(totalCharges)}</div>
+    </div>
+    <div class="summary-box net">
+      <div class="summary-label">Résultat fiscal</div>
+      <div class="summary-value">${fmt(breakdown.resultatFiscal)}</div>
+    </div>
+    <div class="summary-box tax">
+      <div class="summary-label">IR estimé</div>
+      <div class="summary-value">${fmt(irNet)}</div>
+    </div>
+  </div>
+
+  <h2>Récapitulatif mensuel</h2>
+  <table>
+    <thead><tr><th>Mois</th><th>Recettes</th><th>Charges</th><th>Solde</th></tr></thead>
+    <tbody>${monthlyRows}</tbody>
+    <tfoot><tr>
+      <td>TOTAL ${fiscalYear}</td>
+      <td class="amt rec">${fmt(totalRecettes)}</td>
+      <td class="amt chg">${fmt(totalCharges)}</td>
+      <td class="amt">${fmt(totalRecettes - totalCharges)}</td>
+    </tr></tfoot>
+  </table>
+
+  <h2>Répartition des charges par catégorie</h2>
+  <table>
+    <thead><tr><th>Catégorie</th><th>Nb. opérations</th><th>Montant</th></tr></thead>
+    <tbody>${catRows || "<tr><td colspan='3' style='text-align:center;color:#999'>Aucune charge enregistrée</td></tr>"}</tbody>
+  </table>
+
+  <div class="page-break"></div>
+
+  <h2>Détail des opérations (${yearTx.length} au total)</h2>
+  <table>
+    <thead><tr><th>Date</th><th>Description</th><th>Catégorie</th><th>Montant</th></tr></thead>
+    <tbody>${txRows || "<tr><td colspan='4' style='text-align:center;color:#999'>Aucune opération</td></tr>"}</tbody>
+  </table>
+
+  <div class="disclaimer">
+    ⚠️ Ce document est généré automatiquement à partir des données saisies dans BLACKPINE Cabinet.
+    Il est destiné à faciliter le travail de votre expert-comptable et ne remplace pas une déclaration fiscale officielle.
+  </div>
+  <div class="footer">BLACKPINE Cabinet · Bilan fiscal ${fiscalYear} · ${generated}</div>
+</div></body></html>`;
+
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(uri, {
+      mimeType: "application/pdf",
+      dialogTitle: `Bilan fiscal ${fiscalYear} — ${dr}`,
+      UTI: "com.adobe.pdf",
+    });
+  }
+}
+
+// ── Liasse fiscale helper PDF ─────────────────────────────────────────────────
+// Moroccan DAS helper: compte de résultat + IR barème breakdown for the accountant
+
+export async function generateLiasseFiscalePdf(
+  transactions: Transaction[],
+  computation: FullTaxComputation,
+  profile: DoctorProfile,
+  cabinetProfile: CabinetProfile,
+  fiscalYear: number,
+): Promise<void> {
+  const Print   = require("expo-print");
+  const Sharing = require("expo-sharing");
+
+  const dr = cabinetProfile.fullName ? `Dr. ${h(cabinetProfile.fullName)}` : "Docteur";
+  const generated = fmtDate(new Date().toISOString());
+  const { breakdown, tax } = computation;
+
+  const yearTx = transactions.filter(tx => tx.date.startsWith(String(fiscalYear)));
+  const recettes = yearTx.filter(tx => tx.type === "RECETTE");
+  const charges  = yearTx.filter(tx => tx.type === "CHARGE");
+
+  const totalRecettes = recettes.reduce((s, tx) => s + tx.amount, 0);
+  const totalCharges  = charges.reduce((s, tx) => s + tx.amount, 0);
+
+  // Group recettes by category
+  const recByCategory = new Map<string, { label: string; total: number }>();
+  for (const tx of recettes) {
+    const cat = getCategoryById(fiscalYear, tx.category);
+    const label = cat?.labelFr || tx.category;
+    const e = recByCategory.get(tx.category) ?? { label, total: 0 };
+    e.total += tx.amount;
+    recByCategory.set(tx.category, e);
+  }
+
+  // Group charges by category
+  const chgByCategory = new Map<string, { label: string; total: number; deductible: boolean }>();
+  for (const tx of charges) {
+    const cat = getCategoryById(fiscalYear, tx.category);
+    const label = cat?.labelFr || tx.category;
+    const deductible = tx.deductibilityStatus !== "NOT_DEDUCTIBLE";
+    const e = chgByCategory.get(tx.category) ?? { label, total: 0, deductible };
+    e.total += tx.amount;
+    chgByCategory.set(tx.category, e);
+  }
+
+  const recRows = [...recByCategory.values()].sort((a, b) => b.total - a.total)
+    .map(r => `<tr><td>${h(r.label)}</td><td class="amt gr">${fmt(r.total)}</td></tr>`).join("") ||
+    `<tr><td colspan="2" class="empty">Aucune recette</td></tr>`;
+
+  const chgRows = [...chgByCategory.values()].sort((a, b) => b.total - a.total)
+    .map(c => `<tr>
+      <td>${h(c.label)}</td>
+      <td style="text-align:center;font-size:9pt">${c.deductible ? "✓" : "✗"}</td>
+      <td class="amt rd">${fmt(c.total)}</td>
+    </tr>`).join("") ||
+    `<tr><td colspan="3" class="empty">Aucune charge</td></tr>`;
+
+  // IR barème table
+  const slabs = [
+    { from: 0,      to: 30_000,  rate: "0%",   abat: 0 },
+    { from: 30_001, to: 50_000,  rate: "10%",  abat: 3_000 },
+    { from: 50_001, to: 60_000,  rate: "20%",  abat: 8_000 },
+    { from: 60_001, to: 80_000,  rate: "30%",  abat: 14_000 },
+    { from: 80_001, to: 180_000, rate: "34%",  abat: 17_200 },
+    { from: 180_001, to: Infinity, rate: "38%", abat: 24_400 },
+  ];
+  const rf = breakdown.resultatFiscal;
+  const irBrut = tax.ir.grossIR;
+  const familyDed = tax.familyDeduction;
+  const irNet = Math.max(0, irBrut - familyDed);
+
+  const slabRows = slabs.map(s => {
+    const active = rf > s.from;
+    const style = active ? `font-weight:700;background:#f0f6fb` : `color:#bbb`;
+    const toLabel = s.to === Infinity ? "∞" : s.to.toLocaleString("fr-FR");
+    return `<tr style="${style}">
+      <td>${s.from.toLocaleString("fr-FR")} — ${toLabel} MAD</td>
+      <td style="text-align:center">${s.rate}</td>
+      <td style="text-align:right">${s.abat.toLocaleString("fr-FR")} MAD</td>
+    </tr>`;
+  }).join("");
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+  @page { margin: 15mm; size: A4; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; font-size: 10pt; line-height: 1.5; }
+
+  .header { display:flex; justify-content:space-between; align-items:flex-start;
+            border-bottom:3px solid #1B4F72; padding-bottom:12px; margin-bottom:18px; }
+  .doc-left .dr-name { font-size:17pt; font-weight:800; color:#1B4F72; }
+  .doc-left .dr-meta { font-size:9pt; color:#555; margin-top:4px; line-height:1.7; }
+  .doc-right { text-align:right; }
+  .doc-right .doc-title { font-size:9pt; text-transform:uppercase; letter-spacing:1px; color:#888; }
+  .doc-right .doc-year { font-size:28pt; font-weight:900; color:#1B4F72; line-height:1; }
+  .doc-right .doc-gen { font-size:8pt; color:#bbb; margin-top:4px; }
+
+  .hero-row { display:flex; gap:10px; margin-bottom:18px; }
+  .hero-box { flex:1; border-radius:8px; padding:12px 14px; }
+  .hero-box.rec { background:#e8f5e9; border:1px solid #a5d6a7; }
+  .hero-box.chg { background:#fce4ec; border:1px solid #f48fb1; }
+  .hero-box.rf  { background:#e3f2fd; border:1px solid #90caf9; }
+  .hero-box.ir  { background:#fff3e0; border:1px solid #ffcc80; }
+  .hero-lbl { font-size:8pt; text-transform:uppercase; letter-spacing:0.7px; color:#666; margin-bottom:3px; }
+  .hero-val { font-size:14pt; font-weight:800; }
+  .hero-box.rec .hero-val { color:#1b5e20; }
+  .hero-box.chg .hero-val { color:#880e4f; }
+  .hero-box.rf  .hero-val { color:#0d47a1; }
+  .hero-box.ir  .hero-val { color:#e65100; }
+
+  h2 { font-size:11pt; font-weight:700; color:#1B4F72; border-bottom:2px solid #d0e4f0;
+       padding-bottom:5px; margin:20px 0 8px; text-transform:uppercase; letter-spacing:0.5px; }
+
+  table { width:100%; border-collapse:collapse; margin-bottom:14px; }
+  thead th { background:#1B4F72; color:white; padding:7px 10px; font-size:9pt; text-align:left; }
+  td { padding:6px 10px; font-size:9.5pt; border-bottom:1px solid #eee; }
+  tr:nth-child(even) td { background:#fafaf8; }
+  .amt { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .gr { color:#1b5e20; }
+  .rd { color:#880e4f; }
+  .empty { text-align:center; color:#bbb; font-style:italic; padding:16px; }
+  tfoot td { font-weight:700; background:#f0f4f8; border-top:2px solid #1B4F72; font-size:10.5pt; }
+
+  .compte-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px; }
+  .compte-side { }
+  .compte-total { display:flex; justify-content:space-between; font-weight:700; font-size:11pt;
+                  padding:8px 10px; border-top:2px solid #1B4F72; margin-top:4px; }
+
+  .resultat-box { background:#0A4E7E; color:white; border-radius:8px; padding:14px 18px;
+                  display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .resultat-label { font-size:10pt; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:0.5px; }
+  .resultat-value { font-size:20pt; font-weight:900; }
+
+  .ir-box { background:#fff3e0; border:1px solid #ffcc80; border-radius:8px;
+            padding:14px 18px; margin-top:10px; }
+  .ir-row { display:flex; justify-content:space-between; padding:4px 0; font-size:10pt; }
+  .ir-row.total { font-weight:700; font-size:12pt; border-top:2px solid #e65100;
+                  margin-top:8px; padding-top:8px; color:#e65100; }
+
+  .notice { font-size:8pt; color:#888; background:#f9f9f9; border:1px solid #eee;
+            border-radius:5px; padding:10px 12px; margin-top:16px; text-align:center; }
+  .footer { font-size:8pt; color:#bbb; text-align:center; margin-top:14px; padding-top:8px;
+            border-top:1px solid #eee; }
+</style>
+</head><body>
+
+<div class="header">
+  <div class="doc-left">
+    <div class="dr-name">${dr}</div>
+    <div class="dr-meta">
+      ${cabinetProfile.specialtyLabel ? h(cabinetProfile.specialtyLabel) + "<br>" : ""}
+      ${cabinetProfile.inpe ? `N° INPE : ${h(cabinetProfile.inpe)}<br>` : ""}
+      ${cabinetProfile.address ? h(cabinetProfile.address) + "<br>" : ""}
+      ${h(cabinetProfile.phone)}
+    </div>
+  </div>
+  <div class="doc-right">
+    <div class="doc-title">Liasse Fiscale — DAS</div>
+    <div class="doc-year">${fiscalYear}</div>
+    <div class="doc-gen">Édité le ${generated}</div>
+  </div>
+</div>
+
+<div class="hero-row">
+  <div class="hero-box rec">
+    <div class="hero-lbl">Recettes totales</div>
+    <div class="hero-val">${fmt(totalRecettes)}</div>
+  </div>
+  <div class="hero-box chg">
+    <div class="hero-lbl">Charges totales</div>
+    <div class="hero-val">${fmt(totalCharges)}</div>
+  </div>
+  <div class="hero-box rf">
+    <div class="hero-lbl">Résultat fiscal</div>
+    <div class="hero-val">${fmt(breakdown.resultatFiscal)}</div>
+  </div>
+  <div class="hero-box ir">
+    <div class="hero-lbl">IR estimé</div>
+    <div class="hero-val">${fmt(irNet)}</div>
+  </div>
+</div>
+
+<h2>Compte de résultat simplifié</h2>
+<div class="compte-grid">
+  <div class="compte-side">
+    <table>
+      <thead><tr><th colspan="2">Produits (Recettes)</th></tr></thead>
+      <tbody>${recRows}</tbody>
+      <tfoot><tr><td>Total recettes</td><td class="amt gr">${fmt(totalRecettes)}</td></tr></tfoot>
+    </table>
+  </div>
+  <div class="compte-side">
+    <table>
+      <thead><tr><th>Charges</th><th style="text-align:center">Ded.</th><th>Montant</th></tr></thead>
+      <tbody>${chgRows}</tbody>
+      <tfoot><tr><td colspan="2">Total charges</td><td class="amt rd">${fmt(totalCharges)}</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="resultat-box">
+  <div class="resultat-label">Résultat fiscal net imposable</div>
+  <div class="resultat-value">${fmt(breakdown.resultatFiscal)}</div>
+</div>
+
+<h2>Calcul de l'IR — Barème annuel progressif</h2>
+<table>
+  <thead><tr><th>Tranche de revenu</th><th style="text-align:center">Taux</th><th style="text-align:right">Abattement</th></tr></thead>
+  <tbody>${slabRows}</tbody>
+</table>
+
+<div class="ir-box">
+  <div class="ir-row"><span>IR brut (barème)</span><span>${fmt(irBrut)}</span></div>
+  <div class="ir-row"><span>Déduction charges de famille (${profile.dependentsCount} pers. × 500 MAD)</span><span>− ${fmt(familyDed)}</span></div>
+  <div class="ir-row"><span>Cotisation minimale</span><span>${fmt(tax.cm.cmDue)}${tax.cm.exempted ? " (exemptée)" : ""}</span></div>
+  <div class="ir-row"><span>Règle appliquée</span><span>${tax.payableRule}</span></div>
+  <div class="ir-row total"><span>IR NET À PAYER</span><span>${fmt(tax.taxDue)}</span></div>
+</div>
+
+<div class="notice">
+  Ce document est un outil d'aide à la déclaration. Il ne remplace pas la déclaration officielle DAS
+  à déposer avant le 31 mars ${fiscalYear + 1} auprès de votre CDI/Percepteur.
+  Vérifiez toujours avec votre expert-comptable.
+</div>
+<div class="footer">
+  BLACKPINE Cabinet · Liasse fiscale ${fiscalYear} · ${generated} · Régime ${tax.regime}
+</div>
+
+</body></html>`;
+
+  const { uri } = await Print.printToFileAsync({ html, base64: false });
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(uri, {
+      mimeType: "application/pdf",
+      dialogTitle: `Liasse fiscale ${fiscalYear} — ${dr}`,
+      UTI: "com.adobe.pdf",
+    });
   }
 }

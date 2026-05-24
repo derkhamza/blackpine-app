@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import {
   Alert,
   Pressable,
@@ -10,7 +10,8 @@ import {
 import { OnboardingShell } from "../OnboardingShell";
 import { useT } from "../../../lib/useT";
 import { signup, login } from "../../../lib/api";
-import { colors, radii, shadows, spacing, typography } from "../../../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../../../lib/theme";
+import { useColors } from "../../../lib/ThemeContext";
 
 interface Props {
   onNext: () => void;
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export function AuthStep({ onNext, onBack }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
@@ -112,7 +114,7 @@ export function AuthStep({ onNext, onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   form: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,

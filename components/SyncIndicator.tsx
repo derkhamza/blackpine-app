@@ -1,7 +1,9 @@
+﻿import { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SyncStatus } from "../lib/syncService";
 import { Icon } from "../lib/icons";
-import { colors, spacing } from "../lib/theme";
+import { spacing, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { formatTime } from "../lib/format";
 import { useT } from "../lib/useT";
 
@@ -20,6 +22,7 @@ export function SyncIndicator({
   lastSyncedAt,
   isAuthenticated,
 }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   if (syncStatus === "syncing") {
     return (
@@ -35,6 +38,15 @@ export function SyncIndicator({
       <View style={styles.row}>
         <ActivityIndicator size="small" color={colors.textTertiary} />
         <Text style={styles.text}>{t("sync.saving")}</Text>
+      </View>
+    );
+  }
+
+  if (syncStatus === "offline") {
+    return (
+      <View style={styles.row}>
+        <Icon name="offline" size={14} color={colors.warning} />
+        <Text style={[styles.text, { color: colors.warning }]}>{t("sync.offline")}</Text>
       </View>
     );
   }
@@ -71,7 +83,7 @@ export function SyncIndicator({
   return null;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",

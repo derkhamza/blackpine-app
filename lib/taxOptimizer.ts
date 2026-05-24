@@ -1,4 +1,4 @@
-import { DoctorProfile, FullTaxComputation, Transaction, getCategoriesByType } from "blackpine-engine";
+import { DoctorProfile, FullTaxComputation, Transaction, getCategoriesByType, loadFiscalYearConfig } from "blackpine-engine";
 
 export interface Recommendation {
   id: string;
@@ -148,7 +148,7 @@ export function analyzeOptimizations(
       priority: "high",
       category: "compliance",
       title: "Exemption CM expire bientôt",
-      description: `Votre exemption de cotisation minimale expire dans ${36 - monthsActive} mois. À partir du mois ${36}, la CM de ${(tax.cm.cmRate * 100).toFixed(1)}% sera applicable sur votre chiffre d'affaires.`,
+      description: `Votre exemption de cotisation minimale expire dans ${36 - monthsActive} mois. À partir du mois ${36}, la CM de ${(loadFiscalYearConfig(fiscalYear).cotisationMinimale.rateMedical * 100).toFixed(1)}% sera applicable sur votre chiffre d'affaires.`,
       potentialSavings: null,
       action: "Anticipez le coût de la CM dans votre trésorerie. Consultez votre comptable pour optimiser le timing.",
     });
@@ -183,20 +183,6 @@ export function analyzeOptimizations(
       description: `Vos charges représentent ${Math.round(chargeRatio * 100)}% de vos recettes. Un ratio supérieur à 70% peut attirer l'attention de l'administration fiscale lors d'un contrôle.`,
       potentialSavings: null,
       action: "Assurez-vous de conserver tous les justificatifs de vos charges. Consultez votre comptable.",
-    });
-  }
-
-  // 9. No receipts warning
-  const chargesWithoutReceipt = charges.filter(tx => !tx.receiptUri);
-  if (chargesWithoutReceipt.length > charges.length * 0.5 && charges.length > 5) {
-    recs.push({
-      id: "missing_receipts",
-      priority: "medium",
-      category: "compliance",
-      title: "Justificatifs manquants",
-      description: `${chargesWithoutReceipt.length} charge(s) sur ${charges.length} n'ont pas de justificatif. En cas de contrôle, les charges sans justificatif peuvent être rejetées.`,
-      potentialSavings: null,
-      action: "Photographiez vos reçus et factures via l'onglet Transactions.",
     });
   }
 

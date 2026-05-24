@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget background: brand blue with 80 % opacity + rounded corners.
+  On Android 12+ the launcher clips widgets to its own rounded rect,
+  but this drawable still shows correctly on older devices.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#CC0A4E7E" />
+    <corners android:radius="20dp" />
+</shape>

@@ -1,3 +1,5 @@
+import { TRIAL_DAYS } from "./constants";
+
 export type PlanType = "free_trial" | "monthly" | "yearly" | "lifetime";
 
 export interface SubscriptionState {
@@ -5,8 +7,6 @@ export interface SubscriptionState {
   plan: PlanType;
   expiresAt: string | null;
 }
-
-const TRIAL_DAYS = 30;
 
 export function getDefaultSubscription(): SubscriptionState {
   return {
@@ -49,7 +49,8 @@ export async function validateActivationCodeOnline(code: string): Promise<{ vali
     const data = await res.json();
     if (!res.ok) return { valid: false };
     return { valid: true, plan: data.plan as PlanType, durationDays: data.durationDays };
-  } catch {
+  } catch (e) {
+    if (__DEV__) console.warn("[subscription] Code validation request failed:", e);
     return { valid: false };
   }
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import {
   Alert,
   Pressable,
@@ -9,9 +9,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTopInset } from "../components/SafeScreen";
 import { useT } from "../lib/useT";
 import { requestPasswordReset, verifyResetCode } from "../lib/api";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 
 type Step = "email" | "code" | "done";
 
@@ -20,13 +22,28 @@ interface Props {
 }
 
 export function ResetPasswordScreen({ onBack }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const insets = useSafeAreaInsets();
+  const topInset = useTopInset();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function friendlyResetError(err: any): string {
+    const msg: string = (err?.message || "").toLowerCase();
+    if (msg.includes("aborted") || msg.includes("network") || msg.includes("fetch"))
+      return "Erreur de connexion. Vérifiez votre connexion internet.";
+    if (msg.includes("user not found") || msg.includes("no user") || msg.includes("not found"))
+      return "Aucun compte trouvé avec cet email.";
+    if (msg.includes("invalid") && msg.includes("code"))
+      return "Code incorrect ou expiré. Vérifiez votre email et réessayez.";
+    if (msg.includes("expired"))
+      return "Le code a expiré. Veuillez en demander un nouveau.";
+    return "Une erreur est survenue. Veuillez réessayer.";
+  }
 
   const handleSendCode = async () => {
     if (!email.trim()) return;
@@ -35,7 +52,7 @@ export function ResetPasswordScreen({ onBack }: Props) {
       await requestPasswordReset(email.trim());
       setStep("code");
     } catch (err: any) {
-      Alert.alert(t("error"), err.message);
+      Alert.alert(t("error"), friendlyResetError(err));
     } finally {
       setLoading(false);
     }
@@ -43,12 +60,20 @@ export function ResetPasswordScreen({ onBack }: Props) {
 
   const handleVerify = async () => {
     if (!code.trim() || !newPassword) return;
+    if (newPassword.length < 8) {
+      Alert.alert(t("error"), "Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+    if (!/[\d!@#$%^&*()\-_=+[\]{}|;:',.<>?/\\~`]/.test(newPassword)) {
+      Alert.alert(t("error"), "Le mot de passe doit contenir au moins un chiffre ou caractère spécial.");
+      return;
+    }
     setLoading(true);
     try {
       await verifyResetCode(email.trim(), code.trim(), newPassword);
       setStep("done");
     } catch (err: any) {
-      Alert.alert(t("error"), err.message);
+      Alert.alert(t("error"), friendlyResetError(err));
     } finally {
       setLoading(false);
     }
@@ -56,7 +81,7 @@ export function ResetPasswordScreen({ onBack }: Props) {
 
   return (
     <ScrollView
-      style={[styles.container, { paddingTop: insets.top }]}
+      style={[styles.container, { paddingTop: topInset }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
@@ -80,6 +105,8 @@ export function ResetPasswordScreen({ onBack }: Props) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            textContentType="emailAddress"
+            autoComplete="email"
           />
 
           <Pressable
@@ -107,6 +134,8 @@ export function ResetPasswordScreen({ onBack }: Props) {
             placeholderTextColor={colors.textTertiary}
             keyboardType="number-pad"
             maxLength={6}
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
           />
 
           <Text style={[styles.label, { marginTop: spacing.md }]}>{t("reset.newPassword")}</Text>
@@ -117,6 +146,8 @@ export function ResetPasswordScreen({ onBack }: Props) {
             placeholder={t("auth.passwordMinLength")}
             placeholderTextColor={colors.textTertiary}
             secureTextEntry
+            textContentType="newPassword"
+            autoComplete="password-new"
           />
 
           <Pressable
@@ -145,7 +176,7 @@ export function ResetPasswordScreen({ onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingTop: 20 },
   backBtn: { marginBottom: spacing.lg },

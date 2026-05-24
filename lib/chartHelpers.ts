@@ -1,4 +1,5 @@
 import { Transaction, getCategoryById } from "blackpine-engine";
+import { colors } from "./theme";
 
 export interface MonthlyData {
   label: string;        // "Jan", "Fév", etc.
@@ -22,9 +23,18 @@ const MONTH_LABELS = [
 ];
 
 const SLICE_COLORS = [
-  "#1F3A2E", "#2D6A4F", "#40916C", "#52B788", "#74C69D",
-  "#8A4F1F", "#B8923A", "#D4A853", "#E8C470", "#F0D878",
-  "#6B6F6B", "#9CA09C",
+  colors.brand,        // #1890C5 — medical blue
+  colors.success,      // #15A876 — emerald green
+  colors.gold,         // #D4962A — warm gold
+  colors.warning,      // #E89010 — amber
+  colors.danger,       // #E04040 — coral red
+  colors.surfaceDark,  // #0A4E7E — deep marine
+  colors.brandDark,    // #0C6E9B — dark teal
+  colors.charge,       // #E85B5B — soft coral
+  colors.textSecondary, // #4A6C84 — muted blue-grey
+  colors.borderStrong, // #93BACD — steel blue
+  colors.goldSoft,     // #FBF0DD — pale gold (last resort)
+  colors.brandSoft,    // #D4EDF9 — pale blue (last resort)
 ];
 
 /**

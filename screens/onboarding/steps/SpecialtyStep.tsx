@@ -26,15 +26,19 @@ export function SpecialtyStep({
 }) {
   const { t } = useT();
 
+  const handleSelect = (id: string) => {
+    onChange(id);
+    // Brief selection feedback, then auto-advance
+    setTimeout(onNext, 350);
+  };
+
   return (
     <OnboardingShell
-      stepIndex={3}
-      totalSteps={9}
+      stepIndex={2}
+      totalSteps={6}
       title={t("onboarding.specialtyTitle")}
       subtitle={t("onboarding.specialtySub")}
-      onNext={onNext}
       onBack={onBack}
-      nextDisabled={!value}
     >
       {SPECIALTY_IDS.map((id, i) => (
         <Choice
@@ -42,7 +46,7 @@ export function SpecialtyStep({
           label={t(`onboarding.specialties.${id}`)}
           icon={ICONS[i]}
           selected={value === id}
-          onPress={() => onChange(id)}
+          onPress={() => handleSelect(id)}
         />
       ))}
     </OnboardingShell>

@@ -1,18 +1,22 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { TraceEvent } from "blackpine-engine";
 import { useApp } from "../lib/AppContext";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { formatMAD } from "../lib/format";
 import { ExportButtons } from "../components/ExportButtons";
+import { AcomptesSection } from "../components/AcomptesSection";
 import { useT } from "../lib/useT";
 import { SafeScreen } from "../components/SafeScreen";
 import { findLegalRef } from "../lib/legalReferences";
+import { translateTraceTitle, translateTraceDetail } from "../lib/traceTranslations";
 import { Icon } from "../lib/icons";
 
-export function ExplainTabScreen() {
+export function ExplainTabScreen({ navigation }: { navigation?: any }) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t, currentLang } = useT();
-  const { result } = useApp();
+  const { result, fiscalYear } = useApp();
   const [expandedRef, setExpandedRef] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
@@ -45,11 +49,19 @@ export function ExplainTabScreen() {
   return (
     <SafeScreen>
       <ScrollView style={styles.container} contentContainerStyle={styles.scroll}>
-        <Text style={styles.screenTitle}>{t("explain.title")}</Text>
+        {/* Header row with optional back button when pushed on a stack */}
+        <View style={styles.headerRow}>
+          {navigation?.canGoBack?.() && (
+            <Pressable style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={10}>
+              <Icon name="back" size={20} color={colors.textSecondary} />
+            </Pressable>
+          )}
+          <Text style={styles.screenTitle}>{t("explain.title")}</Text>
+        </View>
 
         {/* Hero card */}
         <View style={styles.hero}>
-          <Text style={styles.heroLabel}>{t("explain.taxToPay")}</Text>
+          <Text style={styles.heroLabel}>{t("dashboard.taxToPay")} · {fiscalYear}</Text>
           <Text style={styles.heroAmount}>{formatMAD(result.tax.taxDue)}</Text>
           <View style={styles.heroChips}>
             <View style={styles.heroChip}>
@@ -75,21 +87,19 @@ export function ExplainTabScreen() {
 
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>IR brut</Text>
+            <Text style={styles.summaryLabel}>{t("explain.irBrut")}</Text>
             <Text style={styles.summaryValue}>{formatMAD(result.tax.ir.grossIR)}</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>CM</Text>
+            <Text style={styles.summaryLabel}>{t("explain.cotisationMinimale")}</Text>
             <Text style={styles.summaryValue}>
               {formatMAD(result.tax.cm.cmDue)}
-              {result.tax.cm.exempted ? " (exemptée)" : ""}
+              {result.tax.cm.exempted ? ` (${t("explain.cmExempted").split("—")[0].trim()})` : ""}
             </Text>
           </View>
         </View>
 
-        {currentLang !== "fr" && (
-          <Text style={styles.engineNote}>{t("explain.engineNote")}</Text>
-        )}
+        <AcomptesSection />
 
         {/* Trace sections */}
         {sections.map((section, si) => (
@@ -107,11 +117,13 @@ export function ExplainTabScreen() {
 
             {section.events.map((ev, ei) => {
               const meta = eventMeta(ev.kind);
-              const ref = findLegalRef(ev.title);
+              const ref = findLegalRef(ev.title); // must use original French title
               const refKey = `${si}-${ei}`;
               const cardKey = `${si}-${ei}`;
               const isExpanded = expandedCard === cardKey;
               const hasDetail = !!ev.detail || !!ev.formula || !!ref;
+              const cardTitle = translateTraceTitle(ev.title, currentLang);
+              const cardDetail = translateTraceDetail(ev.detail, currentLang);
 
               return (
                 <Pressable
@@ -128,7 +140,7 @@ export function ExplainTabScreen() {
                       <Text style={styles.cardKindLabel} numberOfLines={1}>
                         {meta.label}
                       </Text>
-                      <Text style={styles.cardTitle}>{ev.title}</Text>
+                      <Text style={styles.cardTitle}>{cardTitle}</Text>
                     </View>
                     {typeof ev.value === "number" && (
                       <Text style={[styles.cardAmount, { color: meta.accent }]}>
@@ -145,8 +157,8 @@ export function ExplainTabScreen() {
                           <Text style={styles.formulaText}>{ev.formula}</Text>
                         </View>
                       )}
-                      {ev.detail && (
-                        <Text style={styles.cardDetail}>{ev.detail}</Text>
+                      {cardDetail && (
+                        <Text style={styles.cardDetail}>{cardDetail}</Text>
                       )}
 
                       {ref && (
@@ -156,7 +168,7 @@ export function ExplainTabScreen() {
                             onPress={() => setExpandedRef(expandedRef === refKey ? null : refKey)}
                           >
                             <Text style={styles.refButtonText}>
-                              {expandedRef === refKey ? "✕ Fermer" : `📜 ${ref.article}`}
+                              {expandedRef === refKey ? `✕ ${t("close")}` : `📜 ${ref.article}`}
                             </Text>
                           </Pressable>
 
@@ -176,7 +188,7 @@ export function ExplainTabScreen() {
 
                   {/* Expand hint */}
                   {hasDetail && !isExpanded && (
-                    <Text style={styles.expandHint}>Appuyer pour détails ›</Text>
+                    <Text style={styles.expandHint}>{t("explain.tapForDetails")}</Text>
                   )}
                 </Pressable>
               );
@@ -194,15 +206,30 @@ export function ExplainTabScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
-  scroll: { padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 40 },
-  screenTitle: { ...typography.h1, color: colors.textPrimary, marginBottom: spacing.md },
+  scroll: { padding: spacing.lg, paddingTop: spacing.md, paddingBottom: 48 },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  screenTitle: { ...typography.h1, color: colors.textPrimary, flex: 1 },
 
   // Hero
   hero: {
     backgroundColor: colors.surfaceDark,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     padding: spacing.xl,
     marginBottom: spacing.md,
     alignItems: "center",
@@ -211,15 +238,15 @@ const styles = StyleSheet.create({
   heroLabel: {
     color: colors.textOnDarkMuted,
     fontSize: 11,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
     marginBottom: 6,
   },
   heroAmount: {
     color: colors.textOnDark,
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: "800",
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
   heroChips: {
     flexDirection: "row",
@@ -227,7 +254,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   heroChip: {
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.14)",
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: radii.pill,
@@ -266,14 +293,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: colors.textPrimary,
-  },
-
-  engineNote: {
-    ...typography.caption,
-    color: colors.textTertiary,
-    textAlign: "center",
-    fontStyle: "italic",
-    marginVertical: spacing.sm,
   },
 
   // Sections
@@ -316,9 +335,6 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     alignItems: "center",
     justifyContent: "center",
-  },
-  cardIcon: {
-    fontSize: 16,
   },
   cardMainCol: {
     flex: 1,

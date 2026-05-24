@@ -1,15 +1,22 @@
-import { Dimensions, StyleSheet, Text, View } from "react-native";
+﻿import { useMemo } from "react";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import { MonthlyData } from "../lib/chartHelpers";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { useT } from "../lib/useT";
 
 interface Props {
   data: MonthlyData[];
+  fiscalYear?: number;
 }
 
-export function MonthlyChart({ data }: Props) {
+export function MonthlyChart({ data, fiscalYear }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
+  const { width } = useWindowDimensions();
+  const chartWidth = width - 32 - 32; // account for screen padding
+
   if (data.length === 0) {
     return (
       <View style={styles.container}>
@@ -18,8 +25,6 @@ export function MonthlyChart({ data }: Props) {
       </View>
     );
   }
-
-  const screenWidth = Dimensions.get("window").width - 32 - 32; // padding
 
   const chartData = {
     labels: data.map((m) => m.label),
@@ -32,10 +37,12 @@ export function MonthlyChart({ data }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Activité mensuelle · 2026</Text>
+      <Text style={styles.title}>
+        {t("dashboard.monthlyActivity")} · {fiscalYear ?? new Date().getFullYear()}
+      </Text>
       <BarChart
         data={chartData}
-        width={screenWidth}
+        width={chartWidth}
         height={200}
         yAxisSuffix="k"
         yAxisLabel=""
@@ -46,13 +53,14 @@ export function MonthlyChart({ data }: Props) {
           backgroundGradientFrom: colors.surface,
           backgroundGradientTo: colors.surface,
           decimalPlaces: 0,
-          color: (opacity = 1) => `rgba(31, 58, 46, ${opacity})`,
-          labelColor: () => colors.textSecondary,
-          barPercentage: 0.4,
+          color: (opacity = 1) => `rgba(24, 144, 197, ${opacity})`,
+          labelColor: () => colors.textTertiary,
+          barPercentage: 0.45,
           propsForBackgroundLines: {
             stroke: colors.border,
-            strokeDasharray: "",
+            strokeDasharray: "4,4",
           },
+          style: { borderRadius: 12 },
         }}
         style={styles.chart}
       />
@@ -60,18 +68,21 @@ export function MonthlyChart({ data }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadows.card,
   },
   title: {
     ...typography.micro,
-    color: colors.textSecondary,
+    color: colors.brand,
     textTransform: "uppercase",
+    letterSpacing: 0.6,
     marginBottom: spacing.md,
   },
   chart: {

@@ -1,10 +1,14 @@
-import { StyleSheet, Text, View, Pressable } from "react-native";
+﻿import { useMemo } from "react";
+import { Linking, StyleSheet, Text, View, Pressable } from "react-native";
 import { OnboardingShell } from "../OnboardingShell";
 import { useT } from "../../../lib/useT";
-import { colors, radii, spacing, typography } from "../../../lib/theme";
+import { radii, spacing, typography, ColorPalette } from "../../../lib/theme";
+import { useColors } from "../../../lib/ThemeContext";
+import { PRIVACY_POLICY_URL } from "../../../lib/constants";
 
 
 export function TrustStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
 
   return (
@@ -33,10 +37,7 @@ export function TrustStep({ onNext, onBack }: { onNext: () => void; onBack: () =
           detail={t("onboarding.freeTrialDetail")}
         />
       </View>
-          <Pressable onPress={() => {
-            const Linking = require("react-native").Linking;
-            Linking.openURL("https://derkhamza.github.io/blackpine-legal/");
-          }}>
+          <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}>
             <Text style={styles.legalLink}>{t("profile.privacyPolicy")} →</Text>
           </Pressable>
     </OnboardingShell>
@@ -44,6 +45,7 @@ export function TrustStep({ onNext, onBack }: { onNext: () => void; onBack: () =
 }
 
 function PromiseCard({ icon, title, detail }: { icon: string; title: string; detail: string }) {
+   const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
    const { t } = useT();
   return (
     <View style={styles.item}>
@@ -59,7 +61,7 @@ function PromiseCard({ icon, title, detail }: { icon: string; title: string; det
 
 
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   list: { gap: spacing.md },
   item: {
     flexDirection: "row",

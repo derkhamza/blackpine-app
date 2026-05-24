@@ -1,5 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, radii, shadows, spacing, typography } from "../../lib/theme";
+﻿import { useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { radii, shadows, spacing, typography, ColorPalette } from "../../lib/theme";
+import { useColors } from "../../lib/ThemeContext";
+import { ScalePressable } from "../../components/ScalePressable";
+import { tapLight } from "../../lib/haptics";
 
 interface Props {
   label: string;
@@ -10,10 +14,12 @@ interface Props {
 }
 
 export function Choice({ label, description, icon, selected, onPress }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
-    <Pressable
+    <ScalePressable
+      scaleTo={0.97}
       style={[styles.choice, selected && styles.choiceSelected]}
-      onPress={onPress}
+      onPress={() => { tapLight(); onPress(); }}
     >
       {icon && <Text style={styles.icon}>{icon}</Text>}
       <View style={{ flex: 1 }}>
@@ -25,11 +31,11 @@ export function Choice({ label, description, icon, selected, onPress }: Props) {
       <View style={[styles.check, selected && styles.checkSelected]}>
         {selected && <Text style={styles.checkMark}>✓</Text>}
       </View>
-    </Pressable>
+    </ScalePressable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   choice: {
     flexDirection: "row",
     alignItems: "center",

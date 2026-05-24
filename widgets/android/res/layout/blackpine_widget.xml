@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  RemoteViews layout for the Blackpine Cabinet home-screen widget.
+  Only a subset of Android views is allowed in RemoteViews; this layout
+  uses LinearLayout + TextView which are always supported.
+
+  IDs referenced in BlackpineWidgetProvider.kt:
+    widget_root       → receives the tap → open app PendingIntent
+    widget_appt_count → today's appointment count (String)
+    widget_revenue    → this month's RECETTE total (e.g. "12 450 MAD")
+    widget_next_appt  → next appointment label or tax deadline label
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center_vertical">
+
+    <!-- ── Brand strip ──────────────────────────────────────────────────── -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BLACKPINE CABINET"
+        android:textColor="#99FFFFFF"
+        android:textSize="8sp"
+        android:letterSpacing="0.18"
+        android:textAllCaps="false" />
+
+    <!-- ── Hairline divider ─────────────────────────────────────────────── -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#33FFFFFF"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp" />
+
+    <!-- ── KPI row ──────────────────────────────────────────────────────── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2">
+
+        <!-- Consultations column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widget_appt_count"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textColor="#FFFFFF"
+                android:textSize="30sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="consultations"
+                android:textColor="#99FFFFFF"
+                android:textSize="9sp" />
+        </LinearLayout>
+
+        <!-- Revenue column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/widget_revenue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 MAD"
+                android:textColor="#D4AF37"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ce mois"
+                android:textColor="#99FFFFFF"
+                android:textSize="9sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ── Next appointment ─────────────────────────────────────────────── -->
+    <TextView
+        android:id="@+id/widget_next_appt"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Aucun RDV prévu"
+        android:textColor="#CCFFFFFF"
+        android:textSize="10sp"
+        android:layout_marginTop="8dp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>

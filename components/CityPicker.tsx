@@ -1,10 +1,11 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import {
   FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { MOROCCAN_CITIES } from "../lib/cities";
 import { useT } from "../lib/useT";
-import { colors, radii, spacing, typography } from "../lib/theme";
+import { radii, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 
 interface Props {
   visible: boolean;
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function CityPicker({ visible, value, onSelect, onClose }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const [query, setQuery] = useState("");
 
@@ -60,7 +62,7 @@ export function CityPicker({ visible, value, onSelect, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   sheet: {
     backgroundColor: colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20,

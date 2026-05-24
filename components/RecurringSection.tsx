@@ -1,18 +1,21 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import {
   Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import { applyCategoryDefaults, Category } from "blackpine-engine";
+import { formatMAD } from "../lib/format";
 import { useApp } from "../lib/AppContext";
 import { useT } from "../lib/useT";
 import { CategoryPicker } from "./CategoryPicker";
 import { Icon } from "../lib/icons";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { RecurringRule } from "../lib/recurringTransactions";
 
 export function RecurringSection() {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
-  const { profile, result, recurringRules, addRecurringRule, deleteRecurringRule } = useApp();
+  const { profile, result, recurringRules, addRecurringRule, deleteRecurringRule, fiscalYear } = useApp();
   const [modalVisible, setModalVisible] = useState(false);
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
@@ -31,7 +34,7 @@ export function RecurringSection() {
     if (!category || !amount || !label.trim()) return;
     const n = parseFloat(amount);
     if (isNaN(n) || n <= 0) return;
-    const defaults = applyCategoryDefaults(category.id, result.tax.regime, 2026);
+    const defaults = applyCategoryDefaults(category.id, result.tax.regime, fiscalYear);
     addRecurringRule({
       templateTransaction: {
         type,
@@ -76,12 +79,22 @@ export function RecurringSection() {
             <View style={[styles.ruleDot, { backgroundColor: rule.templateTransaction.type === "RECETTE" ? colors.recette : colors.charge }]} />
             <View style={{ flex: 1 }}>
               <Text style={styles.ruleLabel}>{rule.label}</Text>
-              <Text style={styles.ruleMeta}>{freqLabel(rule.frequency)} · Jour {rule.dayOfMonth}</Text>
+              <Text style={styles.ruleMeta}>{freqLabel(rule.frequency)} · {t("recurring.day")} {rule.dayOfMonth}</Text>
             </View>
             <Text style={[styles.ruleAmount, { color: rule.templateTransaction.type === "RECETTE" ? colors.recette : colors.charge }]}>
-              {Math.round(rule.templateTransaction.amount).toLocaleString("fr-FR")} MAD
+              {formatMAD(rule.templateTransaction.amount)}
             </Text>
-            <Pressable onPress={() => deleteRecurringRule(rule.id)} hitSlop={12}>
+            <Pressable
+              onPress={() => Alert.alert(
+                t("delete"),
+                `"${rule.label}"`,
+                [
+                  { text: t("cancel"), style: "cancel" },
+                  { text: t("delete"), style: "destructive", onPress: () => deleteRecurringRule(rule.id) },
+                ]
+              )}
+              hitSlop={12}
+            >
               <Icon name="delete" size={14} color={colors.textTertiary} />
             </Pressable>
           </View>
@@ -107,7 +120,7 @@ export function RecurringSection() {
                 style={styles.input}
                 value={label}
                 onChangeText={setLabel}
-                placeholder="Ex: Loyer cabinet, CNSS..."
+                placeholder={t("recurring.labelPlaceholder")}
                 placeholderTextColor={colors.textTertiary}
               />
 
@@ -117,13 +130,13 @@ export function RecurringSection() {
                   style={[styles.chip, type === "CHARGE" && styles.chipActive]}
                   onPress={() => setType("CHARGE")}
                 >
-                  <Text style={[styles.chipText, type === "CHARGE" && styles.chipTextActive]}>Charge</Text>
+                  <Text style={[styles.chipText, type === "CHARGE" && styles.chipTextActive]}>{t("transactions.chargesFilter")}</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.chip, type === "RECETTE" && styles.chipActive]}
                   onPress={() => setType("RECETTE")}
                 >
-                  <Text style={[styles.chipText, type === "RECETTE" && styles.chipTextActive]}>Recette</Text>
+                  <Text style={[styles.chipText, type === "RECETTE" && styles.chipTextActive]}>{t("transactions.recettesFilter")}</Text>
                 </Pressable>
               </View>
 
@@ -192,7 +205,7 @@ export function RecurringSection() {
           visible={true}
           type={type}
           specialty={profile.specialty}
-          fiscalYear={2026}
+          fiscalYear={fiscalYear}
           onClose={() => setPickerOpen(false)}
           onSelect={(cat) => { setCategory(cat); setPickerOpen(false); }}
         />
@@ -201,10 +214,10 @@ export function RecurringSection() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { backgroundColor: colors.surface, borderRadius: radii.md, padding: spacing.lg, marginBottom: spacing.md, ...shadows.card },
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
+  container: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.card },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
-  title: { ...typography.micro, color: colors.textSecondary, textTransform: "uppercase" },
+  title: { ...typography.micro, color: colors.brand, textTransform: "uppercase", letterSpacing: 0.6 },
   subtitle: { ...typography.caption, color: colors.textTertiary, marginTop: 2 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.brand, paddingVertical: 6, paddingHorizontal: 12, borderRadius: radii.pill },
   addBtnText: { color: colors.textOnDark, fontSize: 12, fontWeight: "600" },
@@ -216,7 +229,7 @@ const styles = StyleSheet.create({
   ruleAmount: { fontSize: 14, fontWeight: "700" },
   empty: { ...typography.caption, color: colors.textTertiary, textAlign: "center", paddingVertical: spacing.lg },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.lg, maxHeight: "85%", paddingBottom: 0 },
+  modalSheet: { backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.lg, maxHeight: "85%", paddingBottom: 0 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.lg },
   modalTitle: { ...typography.h2, color: colors.textPrimary },
   modalCancel: { fontSize: 15, color: colors.brand, fontWeight: "600" },

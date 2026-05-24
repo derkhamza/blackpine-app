@@ -1,10 +1,11 @@
-import { StyleSheet, Text, Pressable, View } from "react-native";
+﻿import { StyleSheet, Text, Pressable, View } from "react-native";
 import { CommuneType } from "blackpine-engine";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
 import { useT } from "../../../lib/useT";
-import { colors, radii, spacing, typography } from "../../../lib/theme";
-import { useState } from "react";
+import { radii, spacing, typography, ColorPalette } from "../../../lib/theme";
+import { useColors } from "../../../lib/ThemeContext";
+import { useState, useMemo } from "react";
 import { CityPicker } from "../../../components/CityPicker";
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function LocationStep({ commune, communeType, onChangeCommune, onChangeType, onNext, onBack }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const [cityPickerOpen, setCityPickerOpen] = useState(false); 
   return (
@@ -63,7 +65,7 @@ export function LocationStep({ commune, communeType, onChangeCommune, onChangeTy
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: 6, fontWeight: "600" },
   input: {
     borderWidth: 1, borderColor: colors.border, borderRadius: radii.md,

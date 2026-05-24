@@ -6,7 +6,14 @@ export type IconName =
   | "calendar" | "search" | "filter" | "sort" | "check"
   | "close" | "back" | "share" | "pdf" | "excel"
   | "sync" | "syncDone" | "syncError" | "warning"| "download" | "cpu" | "scale" | "refresh" | "checkCircle" | "alertTriangle" | "info"
-  | "recette" | "charge" | "receipt"| "dollarSign" | "clock" | "barChart" | "tool" | "alertCircle" | "zap";
+  | "recette" | "charge" | "receipt"| "dollarSign" | "clock" | "barChart" | "tool" | "alertCircle" | "zap"
+  | "book" | "stethoscope" | "heartPulse" | "cloud" | "users" | "calendarPlus"
+  | "pill" | "clipboard" | "award" | "phone" | "fileCheck"
+  | "chevronUp" | "chevronDown"
+  | "lock" | "mail" | "messageCircle"
+  | "sun" | "moon" | "monitor"
+  | "bell"
+  | "offline";
 
 interface IconProps {
   name: IconName;
@@ -55,6 +62,26 @@ book: { set: "feather", icon: "book-open" },
   recette: { set: "mci", icon: "arrow-down-circle-outline" },
   charge: { set: "mci", icon: "arrow-up-circle-outline" },
   receipt: { set: "feather", icon: "file-text" },
+  stethoscope: { set: "mci", icon: "stethoscope" },
+  heartPulse: { set: "mci", icon: "heart-pulse" },
+  cloud: { set: "feather", icon: "cloud" },
+  users: { set: "feather", icon: "users" },
+  calendarPlus: { set: "mci", icon: "calendar-plus" },
+  pill: { set: "mci", icon: "pill" },
+  clipboard: { set: "mci", icon: "clipboard-text-outline" },
+  award: { set: "mci", icon: "certificate-outline" },
+  phone: { set: "feather", icon: "phone" },
+  fileCheck: { set: "mci", icon: "file-check-outline" },
+  chevronUp: { set: "feather", icon: "chevron-up" },
+  chevronDown: { set: "feather", icon: "chevron-down" },
+  lock: { set: "feather", icon: "lock" },
+  mail: { set: "feather", icon: "mail" },
+  messageCircle: { set: "feather", icon: "message-circle" },
+  sun: { set: "feather", icon: "sun" },
+  moon: { set: "feather", icon: "moon" },
+  monitor: { set: "feather", icon: "monitor" },
+  bell: { set: "feather", icon: "bell" },
+  offline: { set: "feather", icon: "wifi-off" },
 };
 
 export function Icon({ name, size = 20, color = "#1A1F1B" }: IconProps) {

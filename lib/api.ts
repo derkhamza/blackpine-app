@@ -1,14 +1,10 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { DoctorProfile, Transaction ,FixedAsset} from "blackpine-engine";
+import { DoctorProfile, Transaction, FixedAsset } from "blackpine-engine";
+import { RecurringRule } from "./recurringTransactions";
+import { getDoctorToken, setDoctorToken, deleteDoctorToken } from "./tokenStorage";
 function getAS() { return require("@react-native-async-storage/async-storage").default; }
-// For development: your PC's local IP. Change this to your real server URL in production.
-// Find your local IP by running `ipconfig` in Windows terminal and looking for your Wi-Fi IPv4 address.
 const API_BASE = "https://blackpine-backend.vercel.app";
 
-const KEYS = {
-  TOKEN: "blackpine.auth.token.v1",
-  USER: "blackpine.auth.user.v1",
-};
+const USER_KEY = "blackpine.auth.user.v1";
 
 export interface AuthUser {
   id: string;
@@ -16,8 +12,10 @@ export interface AuthUser {
 }
 
 async function getToken(): Promise<string | null> {
-  return getAS().getItem(KEYS.TOKEN);
+  return getDoctorToken();
 }
+
+const REQUEST_TIMEOUT_MS = 15_000;
 
 async function request(path: string, opts: RequestInit = {}): Promise<Response> {
   const token = await getToken();
@@ -27,7 +25,13 @@ async function request(path: string, opts: RequestInit = {}): Promise<Response> 
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  return fetch(`${API_BASE}${path}`, { ...opts, headers });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(`${API_BASE}${path}`, { ...opts, headers, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function signup(email: string, password: string): Promise<AuthUser> {
@@ -36,33 +40,39 @@ export async function signup(email: string, password: string): Promise<AuthUser>
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Erreur d'inscription");
+  if (!res.ok) throw new Error(data.error || "Signup failed");
 
-  await getAS().setItem(KEYS.TOKEN, data.token);
-  await getAS().setItem(KEYS.USER, JSON.stringify(data.user));
+  await setDoctorToken(data.token);
+  await getAS().setItem(USER_KEY, JSON.stringify(data.user));
   return data.user;
 }
 
-export async function login(email: string, password: string): Promise<{ trialStart?: string }> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+function fetchWithTimeout(url: string, opts: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timeout));
+}
+
+export async function login(email: string, password: string): Promise<AuthUser & { trialStart?: string }> {
+  const res = await fetchWithTimeout(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Login failed");
-  const AsyncStorage = require("@react-native-async-storage/async-storage").default;
-  await AsyncStorage.setItem("blackpine.token", data.token);
-  await AsyncStorage.setItem("blackpine.user", JSON.stringify(data.user));
-  return { trialStart: data.user?.trialStart };
+  await setDoctorToken(data.token);
+  await getAS().setItem(USER_KEY, JSON.stringify(data.user));
+  return { ...data.user, trialStart: data.user?.trialStart };
 }
 
 export async function logout(): Promise<void> {
-  await getAS().multiRemove([KEYS.TOKEN, KEYS.USER]);
+  await deleteDoctorToken();
+  await getAS().removeItem(USER_KEY);
 }
 
 export async function getStoredUser(): Promise<AuthUser | null> {
-  const raw = await getAS().getItem(KEYS.USER);
+  const raw = await getAS().getItem(USER_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
@@ -75,15 +85,24 @@ export async function pushData(
   profile: DoctorProfile,
   transactions: Transaction[],
   assets?: FixedAsset[],
-  recurringRules?: any[]
+  recurringRules?: RecurringRule[]
 ): Promise<void> {
   const res = await request("/sync/push", {
     method: "POST",
     body: JSON.stringify({ profile, transactions, assets: assets || [], recurringRules: recurringRules || [] }),
   });
   if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.error || "Erreur de synchronisation");
+    if (res.status === 401) {
+      await deleteDoctorToken(); await getAS().removeItem(USER_KEY);
+      throw new Error("TOKEN_EXPIRED");
+    }
+    const data = await res.json().catch(() => ({}));
+    const err: any = new Error(data.error || "Sync failed");
+    if (res.status === 403 && data.error === "subscription_expired") {
+      err.code = "subscription_expired";
+      err.trialStart = data.trialStart ?? null;
+    }
+    throw err;
   }
 }
 
@@ -91,12 +110,22 @@ export async function pullData(): Promise<{
   profile: DoctorProfile | null;
   transactions: Transaction[];
   assets: FixedAsset[];
-  recurringRules: any[];
+  recurringRules: RecurringRule[];
+  serverSubscription: { trialStart: string | null; plan: string; expiresAt: string | null } | null;
 }> {
   const res = await request("/sync/pull");
   if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.error || "Erreur de synchronisation");
+    if (res.status === 401) {
+      await deleteDoctorToken(); await getAS().removeItem(USER_KEY);
+      throw new Error("TOKEN_EXPIRED");
+    }
+    const data = await res.json().catch(() => ({}));
+    const err: any = new Error(data.error || "Sync failed");
+    if (res.status === 403 && data.error === "subscription_expired") {
+      err.code = "subscription_expired";
+      err.trialStart = data.trialStart ?? null;
+    }
+    throw err;
   }
   const data = await res.json();
   return {
@@ -104,6 +133,7 @@ export async function pullData(): Promise<{
     transactions: data.transactions || [],
     assets: data.assets || [],
     recurringRules: data.recurringRules || [],
+    serverSubscription: data.subscription ?? null,
   };
 }
 
@@ -124,11 +154,10 @@ export async function extractReceipt(imageUri: string): Promise<OcrExtraction> {
     encoding: FileSystem.EncodingType.Base64,
   });
 
-  console.log("[OCR] Image size:", Math.round(base64.length / 1024), "KB");
+  if (__DEV__) console.log("[api] OCR image size:", Math.round(base64.length / 1024), "KB");
 
-  const res = await fetch(`${API_BASE}/ocr-proxy/extract`, {
+  const res = await request("/ocr-proxy/extract", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ base64Image: `data:image/jpeg;base64,${base64}` }),
   });
 
@@ -138,7 +167,7 @@ export async function extractReceipt(imageUri: string): Promise<OcrExtraction> {
   if (data.IsErroredOnProcessing) throw new Error(data.ErrorMessage?.[0] || "OCR failed");
 
   if (!data.ParsedResults || data.ParsedResults.length === 0) {
-    return { amounts: [], dates: [], bestAmount: null, bestDate: null, confidence: 0 };
+    return { success: false, amounts: [], dates: [], bestAmount: null, bestDate: null, confidence: 0, rawTextPreview: "" };
   }
 
   const text = data.ParsedResults[0].ParsedText || "";
@@ -146,11 +175,13 @@ export async function extractReceipt(imageUri: string): Promise<OcrExtraction> {
   const dates = extractDatesFromText(text);
 
   return {
+    success: true,
     amounts,
     dates,
     bestAmount: amounts.length > 0 ? amounts[0] : null,
     bestDate: dates.length > 0 ? dates.sort().reverse()[0] : null,
     confidence: 70,
+    rawTextPreview: text.slice(0, 300),
   };
 }
 
@@ -189,13 +220,13 @@ function extractDatesFromText(text: string): string[] {
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/reset/request`, {
+  const res = await fetchWithTimeout(`${API_BASE}/reset/request`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Erreur");
+  if (!res.ok) throw new Error(data.error || "Request failed");
 }
 
 export async function verifyResetCode(
@@ -203,11 +234,11 @@ export async function verifyResetCode(
   code: string,
   newPassword: string
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/reset/verify`, {
+  const res = await fetchWithTimeout(`${API_BASE}/reset/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, code, newPassword }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Erreur");
+  if (!res.ok) throw new Error(data.error || "Request failed");
 }

@@ -1,21 +1,16 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useApp } from "../lib/AppContext";
 import { useT } from "../lib/useT";
 import { analyzeOptimizations, Recommendation } from "../lib/taxOptimizer";
 import { Icon } from "../lib/icons";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, colors, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 
 const priorityColors = {
   high: colors.danger,
   medium: colors.warning,
   low: colors.textTertiary,
-};
-
-const priorityLabels = {
-  high: "Priorité haute",
-  medium: "Priorité moyenne",
-  low: "Info",
 };
 
 const categoryIcons: Record<string, { name: string; color: string }> = {
@@ -27,8 +22,15 @@ const categoryIcons: Record<string, { name: string; color: string }> = {
 };
 
 export function OptimizationSection() {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const { profile, result, transactions, fiscalYear } = useApp();
+
+  const priorityLabels = {
+    high: t("optimization.priorityHigh"),
+    medium: t("optimization.priorityMedium"),
+    low: t("optimization.priorityInfo"),
+  };
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const recommendations = analyzeOptimizations(profile, result, transactions, fiscalYear);
@@ -85,9 +87,9 @@ export function OptimizationSection() {
               <Text style={styles.recDescription}>{rec.description}</Text>
               <View style={styles.actionBox}>
                 <View style={styles.actionLabelRow}>
-  <Icon name="zap" size={12} color={colors.brand} />
-  <Text style={styles.actionLabel}>Action recommandée</Text>
-</View>
+                  <Icon name="zap" size={12} color={colors.brand} />
+                  <Text style={styles.actionLabel}>{t("optimization.actionRecommended")}</Text>
+                </View>
                 <Text style={styles.actionText}>{rec.action}</Text>
               </View>
             </View>
@@ -98,18 +100,21 @@ export function OptimizationSection() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: radii.md,
+    borderRadius: radii.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     ...shadows.card,
   },
   title: {
     ...typography.micro,
-    color: colors.textSecondary,
+    color: colors.brand,
     textTransform: "uppercase",
+    letterSpacing: 0.6,
     marginBottom: 4,
   },
   subtitle: {
@@ -153,7 +158,7 @@ const styles = StyleSheet.create({
   priorityText: {
     fontSize: 10,
     fontWeight: "600",
-    color: "#fff",
+    color: colors.textOnDark,
   },
   savingsText: {
     fontSize: 14,

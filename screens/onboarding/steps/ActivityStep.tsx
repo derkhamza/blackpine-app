@@ -1,10 +1,11 @@
-import { useState } from "react";
+﻿import { useState, useMemo } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
 import { useT } from "../../../lib/useT";
-import { colors, radii, spacing } from "../../../lib/theme";
+import { radii, spacing, ColorPalette } from "../../../lib/theme";
+import { useColors } from "../../../lib/ThemeContext";
 
 interface Props {
   value: string | null;
@@ -24,6 +25,7 @@ function bucketToDate(bucket: Bucket): string {
 }
 
 export function ActivityStep({ value, onChange, onNext, onBack }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const [bucket, setBucket] = useState<Bucket | null>(null);
   const [showPicker, setShowPicker] = useState(false);
@@ -105,7 +107,7 @@ export function ActivityStep({ value, onChange, onNext, onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   datePickerWrapper: { marginTop: spacing.md },
   dateBtn: {
     backgroundColor: colors.surface, padding: spacing.md,

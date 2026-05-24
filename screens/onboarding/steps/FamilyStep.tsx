@@ -1,9 +1,11 @@
+﻿import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { MaritalStatus } from "blackpine-engine";
 import { OnboardingShell } from "../OnboardingShell";
 import { Choice } from "../Choice";
 import { useT } from "../../../lib/useT";
-import { colors, radii, spacing, typography } from "../../../lib/theme";
+import { radii, spacing, typography, ColorPalette } from "../../../lib/theme";
+import { useColors } from "../../../lib/ThemeContext";
 
 interface Props {
   marital: MaritalStatus | null;
@@ -15,6 +17,7 @@ interface Props {
 }
 
 export function FamilyStep({ marital, dependents, onChangeMarital, onChangeDependents, onNext, onBack }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
 
   return (
@@ -59,7 +62,7 @@ export function FamilyStep({ marital, dependents, onChangeMarital, onChangeDepen
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   label: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.sm, fontWeight: "600" },
   counterRow: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
   counterBtn: {

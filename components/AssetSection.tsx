@@ -1,29 +1,36 @@
-import { useState } from "react";
-import { ReceiptCapture } from "./ReceiptCapture";
-import { TouchableOpacity } from "react-native";
+﻿import { useState, useMemo } from "react";
 import {
-  Alert, FlatList, Modal, ScrollView, Platform, Pressable, StyleSheet, Text, TextInput, View,
+  Alert, Modal, ScrollView, Platform, Pressable, StyleSheet, Text, TextInput, View,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { FixedAsset, calculateAmortization } from "blackpine-engine";
 import { useApp } from "../lib/AppContext";
 import { useT } from "../lib/useT";
 import { Icon } from "../lib/icons";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
+import { radii, shadows, spacing, typography, colors, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 
-const SUBCATEGORIES = [
-  { id: "constructions", label: "Constructions", rate: 0.05, duration: 20, explanation: "Amortissement linéaire sur 20 ans (5%/an). Inclut le local professionnel si propriétaire." },
-  { id: "materiel_outillage", label: "Installations techniques et outillage", rate: 0.10, duration: 10, explanation: "Amortissement sur 10 ans (10%/an). Fauteuils dentaires, appareils médicaux, échographie..." },
-  { id: "materiel_transport", label: "Matériel de transport", rate: 0.20, duration: 5, explanation: "Amortissement sur 5 ans (20%/an). Plafonné à 300 000 MAD TTC (Art. 10-II CGI). 400 000 MAD pour les véhicules électriques." },
-  { id: "mobilier_bureau", label: "Mobilier et matériel de bureau", rate: 0.20, duration: 5, explanation: "Amortissement sur 5 ans (20%/an). Bureaux, chaises, rangements, décoration professionnelle." },
-  { id: "informatique", label: "Matériel informatique", rate: 0.20, duration: 5, explanation: "Amortissement sur 5 ans (20%/an). Ordinateurs, imprimantes, écrans, tablettes professionnelles." },
-  { id: "agencements", label: "Agencements et aménagements", rate: 0.10, duration: 10, explanation: "Amortissement sur 10 ans (10%/an). Travaux d'aménagement du cabinet, climatisation, plomberie." },
-  { id: "frais_preliminaires", label: "Frais préliminaires", rate: 0.20, duration: 5, explanation: "Amortissement sur 5 ans (20%/an). Frais de constitution, frais d'installation, études préalables." },
-];
+const SUBCATEGORY_RATES: Record<string, { rate: number; duration: number }> = {
+  constructions:        { rate: 0.05, duration: 20 },
+  materiel_outillage:   { rate: 0.10, duration: 10 },
+  materiel_transport:   { rate: 0.20, duration: 5  },
+  mobilier_bureau:      { rate: 0.20, duration: 5  },
+  informatique:         { rate: 0.20, duration: 5  },
+  agencements:          { rate: 0.10, duration: 10 },
+  frais_preliminaires:  { rate: 0.20, duration: 5  },
+};
 
 export function AssetSection() {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const { assets, addAsset, updateAsset, deleteAsset, fiscalYear } = useApp();
+
+  const SUBCATEGORIES = Object.entries(SUBCATEGORY_RATES).map(([id, { rate, duration }]) => ({
+    id,
+    label: t(`assets.subcategories.${id}`),
+    rate,
+    duration,
+  }));
   const [modalVisible, setModalVisible] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -34,11 +41,9 @@ export function AssetSection() {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [rate, setRate] = useState(0.20);
-    const [receiptUri, setReceiptUri] = useState<string | undefined>(undefined);
   const resetForm = () => {
     setLabel(""); setSubcategory(""); setAmount(""); setRate(0.20);
     setDate(new Date().toISOString().split("T")[0]);
-    setReceiptUri(undefined);
   };
 
   const handleAdd = () => {
@@ -59,7 +64,7 @@ export function AssetSection() {
   const handleDelete = (id: string, assetLabel: string) => {
     Alert.alert(
       t("delete"),
-      `Supprimer "${assetLabel}" ?`,
+      `"${assetLabel}"`,
       [
         { text: t("cancel"), style: "cancel" },
         { text: t("delete"), style: "destructive", onPress: () => deleteAsset(id) },
@@ -95,13 +100,13 @@ export function AssetSection() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.assetLabel}>{asset.label}</Text>
                 <Text style={styles.assetMeta}>
-                  {SUBCATEGORIES.find(s => s.id === asset.subcategory)?.label || asset.subcategory}
-                  {" · "}{Math.round(asset.amortizationRate * 100)}% · {Math.ceil(1 / asset.amortizationRate)} ans
+                  {t(`assets.subcategories.${asset.subcategory}`) || asset.subcategory}
+                  {" · "}{Math.round(asset.amortizationRate * 100)}% · {Math.ceil(1 / asset.amortizationRate)} {t("assets.years")}
                 </Text>
               </View>
               <View style={styles.assetValues}>
                 <Text style={styles.assetAmount}>{Math.round(asset.acquisitionAmount).toLocaleString("fr-FR")} MAD</Text>
-                <Text style={styles.assetVnc}>VNC: {Math.round(schedule.netBookValue).toLocaleString("fr-FR")}</Text>
+                <Text style={styles.assetVnc}>{t("assets.vnc")}: {Math.round(schedule.netBookValue).toLocaleString("fr-FR")}</Text>
               </View>
             </View>
 
@@ -122,7 +127,7 @@ export function AssetSection() {
                   <Text style={styles.scheduleCol}>{t("assets.year")}</Text>
                   <Text style={styles.scheduleCol}>{t("assets.opening")}</Text>
                   <Text style={styles.scheduleCol}>{t("assets.dotationShort")}</Text>
-                  <Text style={styles.scheduleCol}>VNC</Text>
+                  <Text style={styles.scheduleCol}>{t("assets.vnc")}</Text>
                 </View>
                 {schedule.lines.map((line) => (
                   <View key={line.year} style={[styles.scheduleLine, line.year === fiscalYear && styles.scheduleLineCurrent]}>
@@ -132,7 +137,7 @@ export function AssetSection() {
                     <Text style={styles.scheduleCol}>{Math.round(line.closingValue).toLocaleString("fr-FR")}</Text>
                   </View>
                 ))}
-                <Text style={styles.scheduleNote}>* prorata temporis</Text>
+                <Text style={styles.scheduleNote}>{t("assets.prorata")}</Text>
 
                 <Pressable style={styles.deleteAssetBtn} onPress={() => handleDelete(asset.id, asset.label)}>
                   <Icon name="delete" size={14} color={colors.danger} />
@@ -160,12 +165,12 @@ export function AssetSection() {
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={styles.fieldLabel}>{t("assets.label")}</Text>
-            
+
             <TextInput
               style={styles.input}
               value={label}
               onChangeText={setLabel}
-              placeholder="Ex: Fauteuil dentaire, Ordinateur..."
+              placeholder={t("assets.labelPlaceholder")}
               placeholderTextColor={colors.textTertiary}
             />
 
@@ -180,22 +185,10 @@ export function AssetSection() {
       <Text style={[styles.catBtnText, subcategory === sub.id && styles.catBtnTextActive]}>
         {sub.label}
       </Text>
-      <Text style={styles.catBtnRate}>{Math.round(sub.rate * 100)}% · {sub.duration} ans</Text>
-      {subcategory === sub.id && (
-        <Text style={styles.catExplanation}>{sub.explanation}</Text>
-      )}
+      <Text style={styles.catBtnRate}>{Math.round(sub.rate * 100)}% · {sub.duration} {t("assets.years")}</Text>
     </Pressable>
   ))}
 </View>
-<Text style={styles.fieldLabel}>{t("addTransaction.scanReceipt")}</Text>
-                <ReceiptCapture
-                uri={receiptUri}
-                compact
-                onChange={setReceiptUri}
-                onOcrAmount={(ocrAmount) => setAmount(String(ocrAmount))}
-                onOcrDate={(ocrDate) => setDate(ocrDate)}
-                />
-
             <Text style={styles.fieldLabel}>{t("assets.amount")}</Text>
             <TextInput
               style={styles.input}
@@ -227,23 +220,21 @@ export function AssetSection() {
             )}
 
             {subcategory === "materiel_transport" && (
-              <Text style={styles.ceilingNote}>
-                ⚠️ Amortissement plafonné à 300 000 MAD TTC (Art. 10-II CGI)
-              </Text>
+              <Text style={styles.ceilingNote}>{t("assets.ceilingNote")}</Text>
             )}
                 </ScrollView>
                 <View style={styles.saveBtnWrapper}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                style={[styles.saveBtn, (!label.trim() || !amount || !subcategory) && styles.saveBtnDisabled]}
-                onPress={() => {
-                  if (!label.trim() || !amount || !subcategory) return;
-                  handleAdd();
-                }}
-              >
-                <Text style={styles.saveBtnText}>{t("save")}</Text>
-              </TouchableOpacity>
-            </View>
+                  <Pressable
+                    style={[styles.saveBtn, (!label.trim() || !amount || !subcategory) && styles.saveBtnDisabled]}
+                    onPress={() => {
+                      if (!label.trim() || !amount || !subcategory) return;
+                      handleAdd();
+                    }}
+                    disabled={!label.trim() || !amount || !subcategory}
+                  >
+                    <Text style={styles.saveBtnText}>{t("save")}</Text>
+                  </Pressable>
+                </View>
           </View>
         </Pressable>
       </Modal>
@@ -253,10 +244,10 @@ export function AssetSection() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { backgroundColor: colors.surface, borderRadius: radii.md, padding: spacing.lg, marginBottom: spacing.md, overflow: "hidden", ...shadows.card },
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
+  container: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border, ...shadows.card },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
-  title: { ...typography.micro, color: colors.textSecondary, textTransform: "uppercase" },
+  title: { ...typography.micro, color: colors.brand, textTransform: "uppercase", letterSpacing: 0.6 },
   subtitle: { ...typography.caption, color: colors.textTertiary, marginTop: 2 },
   addBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.brand, paddingVertical: 6, paddingHorizontal: 12, borderRadius: radii.pill },
   addBtnText: { color: colors.textOnDark, fontSize: 12, fontWeight: "600" },
@@ -304,7 +295,7 @@ catExplanation: {
   saveBtnDisabled: { backgroundColor: colors.borderStrong },
   saveBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-modalSheet: { backgroundColor: colors.bg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: spacing.lg, maxHeight: "80%", paddingBottom: 0 },
+modalSheet: { backgroundColor: colors.bg, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.lg, maxHeight: "80%", paddingBottom: 0 },
 saveBtnWrapper: { padding: spacing.lg, paddingBottom: 30, backgroundColor: colors.bg },
 saveBtn: { backgroundColor: colors.brand, paddingVertical: 14, borderRadius: radii.md, alignItems: "center" },
 });

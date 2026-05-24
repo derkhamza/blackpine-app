@@ -1,15 +1,83 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef, useMemo } from "react";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   Category,
   TransactionType,
   Transaction,
   applyCategoryDefaults,
+  getCategoryById,
   Regime,
 } from "blackpine-engine";
+
+// ── Keyword → Category auto-categorization ──────────────────────────────────
+type KwEntry = { keywords: string[]; categoryId: string };
+
+const CHARGE_KEYWORD_MAP: KwEntry[] = [
+  { keywords: ["loyer", "bail", "location cabinet"], categoryId: "loyer_cabinet" },
+  { keywords: ["electricite", "électricité", "eau potable", "redal", "lydec"], categoryId: "electricite_eau" },
+  { keywords: ["internet", "telephone fixe", "téléphone fixe", "adsl", "fibre", "wifi", "imt"], categoryId: "internet_telephone" },
+  { keywords: ["rc pro", "responsabilite civile", "responsabilité civile", "assurance rc"], categoryId: "rc_pro" },
+  { keywords: ["assurance local", "assurance cabinet"], categoryId: "assurance_local" },
+  { keywords: ["salaire", "secretaire", "secrétaire", "infirmier", "infirmière", "personnel"], categoryId: "salaires_personnel" },
+  { keywords: ["cnss", "cotisation sociale", "cotisation cnss"], categoryId: "cotisations_cnss_tns" },
+  { keywords: ["gants", "seringue", "pansement", "consommable"], categoryId: "consommables_medicaux" },
+  { keywords: ["medicament", "médicament", "pharmacie", "produit pharmaceutique"], categoryId: "produits_pharmaceutiques" },
+  { keywords: ["materiel medical", "matériel médical", "stethoscope", "otoscope", "tensiometre", "echographe"], categoryId: "gros_equipement_medical" },
+  { keywords: ["comptable", "expert-comptable", "expertise comptable"], categoryId: "honoraires_comptable" },
+  { keywords: ["avocat"], categoryId: "honoraires_avocat" },
+  { keywords: ["ordre des medecins", "conseil national", "cnom"], categoryId: "ordre_medecins" },
+  { keywords: ["formation", "congres", "congrès", "seminaire", "séminaire", "conference", "conférence"], categoryId: "congres_formation" },
+  { keywords: ["voyage", "billet avion", "hotel", "hôtel"], categoryId: "voyages_congres" },
+  { keywords: ["logiciel", "abonnement logiciel", "maintenance informatique", "logiciel cabinet"], categoryId: "logiciel_informatique" },
+  { keywords: ["fourniture", "papier", "cartouche"], categoryId: "fournitures_bureau" },
+  { keywords: ["nettoyage", "entretien cabinet", "menage", "ménage"], categoryId: "entretien_nettoyage" },
+  { keywords: ["carburant", "essence", "gasoil", "gasoïl", "diesel", "total energie"], categoryId: "carburant" },
+  { keywords: ["entretien vehicule", "reparation vehicule", "garage", "réparation voiture"], categoryId: "entretien_vehicule" },
+  { keywords: ["assurance vehicule", "assurance voiture"], categoryId: "assurance_vehicule" },
+  { keywords: ["taxi"], categoryId: "taxi_visites" },
+  { keywords: ["telephone mobile", "mobile pro", "forfait mobile"], categoryId: "telephone_mobile_pro" },
+  { keywords: ["site web", "hébergement web", "hebergement", "domaine"], categoryId: "site_web" },
+  { keywords: ["publicite", "publicité", "enseigne", "plaque"], categoryId: "publicite_pro" },
+  { keywords: ["frais bancaire", "commission bancaire", "frais banque"], categoryId: "frais_bancaires" },
+  { keywords: ["taxe professionnelle", "patente"], categoryId: "taxe_professionnelle" },
+  { keywords: ["retraite", "cimr"], categoryId: "retraite_cimr" },
+  { keywords: ["revue médicale", "revue medicale", "abonnement revue", "journal medical"], categoryId: "abonnements_medicaux" },
+];
+
+const RECETTE_KEYWORD_MAP: KwEntry[] = [
+  { keywords: ["consultation", "consult", "honoraires consultation"], categoryId: "consultation" },
+  { keywords: ["visite domicile", "visite à domicile", "domicile"], categoryId: "visite_domicile" },
+  { keywords: ["chirurgie", "acte chirurgical", "bloc operatoire", "intervention"], categoryId: "acte_chirurgical" },
+  { keywords: ["soin dentaire", "extraction", "carie", "obturation"], categoryId: "soin_dentaire" },
+  { keywords: ["prothese", "prothèse", "couronne", "bridge", "implant"], categoryId: "prothese_dentaire" },
+  { keywords: ["orthodontie", "bague", "appareil dentaire", "gouttiere"], categoryId: "orthodontie" },
+  { keywords: ["detartrage", "détartrage", "scaling"], categoryId: "detartrage" },
+  { keywords: ["kine", "kiné", "kinesitherapie", "kinésithérapie", "seance kine"], categoryId: "seance_kine" },
+  { keywords: ["reeducation", "rééducation", "rehabilitation", "réhabilitation"], categoryId: "reeducation" },
+  { keywords: ["accouchement", "naissance", "delivrance"], categoryId: "accouchement" },
+  { keywords: ["grossesse", "prenatal", "prénatal", "suivi grossesse", "echographie obstetricale"], categoryId: "suivi_grossesse" },
+  { keywords: ["vacation", "clinique", "vacation clinique", "garde"], categoryId: "vacation_clinique" },
+];
+
+function normalize(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function autoDetectCategory(text: string, type: "CHARGE" | "RECETTE"): string | null {
+  const lower = normalize(text);
+  const map = type === "CHARGE" ? CHARGE_KEYWORD_MAP : RECETTE_KEYWORD_MAP;
+  for (const { keywords, categoryId } of map) {
+    if (keywords.some(kw => lower.includes(normalize(kw)))) {
+      return categoryId;
+    }
+  }
+  return null;
+}
 import { CategoryPicker } from "./CategoryPicker";
-import { colors, radii, shadows, spacing, typography } from "../lib/theme";
-import { formatMAD } from "../lib/format";
+import { Icon } from "../lib/icons";
+import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
+import { formatMAD, langToLocale } from "../lib/format";
 import {
   Modal,
   Platform,
@@ -21,7 +89,6 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { ReceiptCapture } from "./ReceiptCapture";
 import { tapLight, tapSuccess } from "../lib/haptics";
 import { useT } from "../lib/useT";
 import Slider from "@react-native-community/slider";
@@ -47,6 +114,7 @@ export function AddTransactionModal({
   onClose,
   onCreate,
 }: Props) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   const [step, setStep] = useState<Step>("category");
   const [category, setCategory] = useState<Category | null>(null);
   const [amount, setAmount] = useState("");
@@ -54,29 +122,37 @@ export function AddTransactionModal({
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const selectedRef = useRef(false);
-  const [receiptUri, setReceiptUri] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState("");
   const [proRatio, setProRatio] = useState(1);
-  const [ocrAmountAccepted, setOcrAmountAccepted] = useState(false);
-  const [ocrDateAccepted, setOcrDateAccepted] = useState(false);
+  // Auto-suggest: derived synchronously — no useEffect lag, no stale closure
+  const suggestedCat = useMemo<Category | null>(() => {
+    if (category || description.length < 3) return null;
+    const detected = autoDetectCategory(description, type);
+    if (!detected) return null;
+    try {
+      return getCategoryById(fiscalYear, detected) ?? null;
+    } catch {
+      return null;
+    }
+  }, [description, type, category, fiscalYear]);
 
   // Reset whenever the modal opens
-    useEffect(() => {
+  useEffect(() => {
     if (visible) {
-        setStep("category");
-        setCategory(null);
-        setOcrAmountAccepted(false);
-        setOcrDateAccepted(false);
-        setProRatio(1);
-        setDescription("");
-        setAmount("");
-        setDate(new Date().toISOString().split("T")[0]);
-        selectedRef.current = false;
-        setPickerOpen(true);
+      setStep("category");
+      setCategory(null);
+      setProRatio(1);
+      setDescription("");
+      setAmount("");
+      setDate(new Date().toISOString().split("T")[0]);
+      selectedRef.current = false;
+      // CHARGE: description-first; picker opens on demand
+      // RECETTE: fast-path — open picker immediately (few categories)
+      setPickerOpen(type === "RECETTE");
     } else {
-        setPickerOpen(false);
+      setPickerOpen(false);
     }
-    }, [visible]);
+  }, [visible]);
 
 const handleCategorySelected = (cat: Category) => {
   tapLight();
@@ -125,7 +201,6 @@ const handleSave = () => {
       ? (proRatio === 0 ? "NOT_DEDUCTIBLE" : proRatio < 1 ? "PARTIALLY_DEDUCTIBLE" : "FULLY_DEDUCTIBLE")
       : undefined,
     professionalUseRatio: type === "CHARGE" ? proRatio : undefined,
-    receiptUri,
   });
   tapSuccess();
   onClose();
@@ -134,7 +209,7 @@ const handleSave = () => {
     if (Platform.OS !== "ios") setShowDatePicker(false);
     if (selected) setDate(selected.toISOString().split("T")[0]);
   };
-  const { t } = useT();
+  const { t, currentLang } = useT();
   const accent = type === "RECETTE" ? colors.recette : colors.charge;
   const typeLabel = type === "RECETTE" ? t("addTransaction.newRecette") : t("addTransaction.newCharge");
 
@@ -150,7 +225,7 @@ const handleSave = () => {
         <View style={styles.header}>
           <View style={[styles.typeBadge, { backgroundColor: accent }]}>
             <Text style={styles.typeBadgeText}>
-              {type === "RECETTE" ? "RECETTE" : "CHARGE"}
+              {type === "RECETTE" ? t("transactions.recettesFilter") : t("transactions.chargesFilter")}
             </Text>
           </View>
           <Text style={styles.title}>{typeLabel}</Text>
@@ -169,6 +244,53 @@ const handleSave = () => {
         </View>
 
         <ScrollView style={styles.body} contentContainerStyle={{ gap: spacing.lg, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+
+          {/* CHARGE CATEGORY STEP — description-first, auto-suggest inline */}
+          {step === "category" && type === "CHARGE" && !category && !pickerOpen && (
+            <View style={styles.chargeDescSection}>
+              <Text style={styles.label}>{t("addTransaction.describeCharge")}</Text>
+              <TextInput
+                style={styles.chargeDescInput}
+                value={description}
+                onChangeText={setDescription}
+                placeholder={t("addTransaction.chargeDescPlaceholder")}
+                placeholderTextColor={colors.textTertiary}
+                autoFocus
+                returnKeyType="done"
+              />
+
+              {/* Auto-suggestion card */}
+              {suggestedCat ? (
+                <Pressable
+                  style={styles.suggestCard}
+                  onPress={() => { tapLight(); handleCategorySelected(suggestedCat); }}
+                >
+                  <Icon name="zap" size={14} color={colors.brand} />
+                  <View style={styles.suggestCardBody}>
+                    <Text style={styles.suggestCardHint}>{t("addTransaction.suggested")}</Text>
+                    <Text style={styles.suggestCardName}>{suggestedCat.labelFr}</Text>
+                  </View>
+                  <Text style={styles.suggestCardApply}>{t("addTransaction.apply")} →</Text>
+                </Pressable>
+              ) : (
+                description.length >= 3 && (
+                  <View style={styles.noMatchRow}>
+                    <Text style={styles.noMatchText}>{t("categories.noResults")} « {description} »</Text>
+                  </View>
+                )
+              )}
+
+              {/* Browse button — secondary path */}
+              <Pressable
+                style={styles.browseCatBtn}
+                onPress={() => { tapLight(); setPickerOpen(true); }}
+              >
+                <Icon name="filter" size={14} color={colors.brand} />
+                <Text style={styles.browseCatBtnText}>{t("addTransaction.browseCategories")}</Text>
+              </Pressable>
+            </View>
+          )}
+
           {/* CATEGORY STEP */}
           {step === "category" && category && (
             <View style={styles.summaryRow}>
@@ -194,18 +316,6 @@ const handleSave = () => {
 
           {step === "amount" && (
             <View style={styles.amountSection}>
-              {type === "CHARGE" && (
-                <>
-                  <Text style={styles.label}>{t("addTransaction.scanReceipt")}</Text>
-                  <ReceiptCapture
-                    uri={receiptUri}
-                    onChange={setReceiptUri}
-                    onOcrAmount={(ocrAmount) => { setAmount(String(ocrAmount)); setOcrAmountAccepted(true); }}
-                    onOcrDate={(ocrDate) => { setDate(ocrDate); setOcrDateAccepted(true); }}
-                  />
-                  <View style={{ height: 16 }} />
-                </>
-              )}
 
               <Text style={styles.label}>{t("addTransaction.amount")}</Text>    
               <View style={styles.amountInputRow}>
@@ -251,9 +361,9 @@ const handleSave = () => {
                   </View>
                 </View>
               )}
-              {ocrAmountAccepted && ocrDateAccepted && amount && parseFloat(amount) > 0 ? (
+              {amount && parseFloat(amount) > 0 ? (
                 <Pressable
-                  style={[styles.primaryBtn, { backgroundColor: colors.success }]}
+                  style={[styles.primaryBtn, { backgroundColor: colors.success, shadowColor: colors.success }]}
                   onPress={handleSave}
                 >
                   <Text style={styles.primaryBtnText}>{t("save")} ✓</Text>
@@ -262,7 +372,10 @@ const handleSave = () => {
                 <Pressable
                   style={[
                     styles.primaryBtn,
-                    { backgroundColor: amount && parseFloat(amount) > 0 ? accent : colors.borderStrong },
+                    {
+                      backgroundColor: amount && parseFloat(amount) > 0 ? accent : colors.borderStrong,
+                      shadowColor: amount && parseFloat(amount) > 0 ? accent : "transparent",
+                    },
                   ]}
                   onPress={handleAmountConfirm}
                   disabled={!amount || parseFloat(amount) <= 0}
@@ -277,7 +390,7 @@ const handleSave = () => {
           {amount && parseFloat(amount) > 0 && step === "date" && (
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
-                <Text style={styles.label}>Montant</Text>
+                <Text style={styles.label}>{t("addTransaction.amount")}</Text>
                 <Text style={styles.summaryValueSmall}>
                   {formatMAD(parseFloat(amount))}
                 </Text>
@@ -293,7 +406,7 @@ const handleSave = () => {
               <Text style={styles.label}>{t("addTransaction.date")}</Text>
                 <Pressable style={styles.dateBtn} onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.dateBtnText}>
-                    {new Date(date).toLocaleDateString("fr-FR", {
+                    {new Date(date).toLocaleDateString(langToLocale(currentLang), {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
@@ -327,7 +440,7 @@ const handleSave = () => {
                 )}
 
                 <Pressable
-                style={[styles.primaryBtn, { backgroundColor: accent }]}
+                style={[styles.primaryBtn, { backgroundColor: accent, shadowColor: accent }]}
                 onPress={handleSave}
                 >
                 
@@ -358,6 +471,7 @@ const handleSave = () => {
 }
 
 function StepDot({ active, done }: { active: boolean; done: boolean }) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View
       style={[
@@ -370,6 +484,7 @@ function StepDot({ active, done }: { active: boolean; done: boolean }) {
 }
 
 function QuickDate({ label, onPress }: { label: string; onPress: () => void }) {
+  const colors = useColors();const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable style={styles.quickDateBtn} onPress={onPress}>
       <Text style={styles.quickDateText}>{label}</Text>
@@ -377,34 +492,37 @@ function QuickDate({ label, onPress }: { label: string; onPress: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    padding: spacing.lg,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
   },
   typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radii.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.md,
   },
   typeBadgeText: {
     fontSize: 10,
-    fontWeight: "700",
+    fontWeight: "800",
     color: colors.textOnDark,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
   },
   title: {
     ...typography.h2,
     color: colors.textPrimary,
     flex: 1,
+    letterSpacing: -0.3,
   },
   cancel: { color: colors.brand, fontSize: 15, fontWeight: "600" },
 
@@ -412,117 +530,144 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: 10,
     paddingVertical: spacing.lg,
   },
   stepDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: colors.borderStrong,
   },
-  stepDotActive: { backgroundColor: colors.brand, width: 24 },
-  stepDotDone: { backgroundColor: colors.success },
-  stepLine: { width: 12, height: 1, backgroundColor: colors.border },
+  stepDotActive: { backgroundColor: colors.brand, width: 28, borderRadius: 5 },
+  stepDotDone: { backgroundColor: colors.success, width: 10 },
+  stepLine: { width: 24, height: 2, backgroundColor: colors.border, borderRadius: 1 },
 
   body: { flex: 1, padding: spacing.lg },
 
   label: {
     ...typography.micro,
-    color: colors.textSecondary,
+    color: colors.brand,
     textTransform: "uppercase",
+    letterSpacing: 0.5,
     marginBottom: spacing.sm,
   },
 
   summaryCard: {
     backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radii.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.brand + "66",
     ...shadows.card,
   },
   summaryRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   summaryValue: {
     fontSize: 17,
-    fontWeight: "600",
+    fontWeight: "700",
     color: colors.textPrimary,
     flex: 1,
   },
   summaryValueSmall: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
     color: colors.textPrimary,
     flex: 1,
   },
-  changeBtn: { fontSize: 12, color: colors.brand, fontWeight: "600" },
+  changeBtn: { fontSize: 12, color: colors.brand, fontWeight: "700" },
 
   amountSection: { gap: spacing.md },
   amountInputRow: {
     flexDirection: "row",
     alignItems: "baseline",
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    padding: spacing.md,
-    borderWidth: 1,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderWidth: 1.5,
     borderColor: colors.border,
     ...shadows.card,
   },
   amountInput: {
     flex: 1,
-    fontSize: 36,
-    fontWeight: "700",
+    fontSize: 42,
+    fontWeight: "800",
     color: colors.textPrimary,
+    letterSpacing: -1,
   },
   currency: {
-    fontSize: 16,
+    fontSize: 18,
     color: colors.textSecondary,
-    fontWeight: "600",
+    fontWeight: "700",
+    paddingBottom: 4,
   },
 
   dateSection: { gap: spacing.md },
   dateBtn: {
     backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radii.sm,
-    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
     borderColor: colors.border,
     ...shadows.card,
   },
   dateBtnText: {
-    fontSize: 17,
+    fontSize: 19,
     color: colors.textPrimary,
-    fontWeight: "500",
+    fontWeight: "700",
+    letterSpacing: -0.3,
   },
   quickDates: { flexDirection: "row", gap: spacing.sm },
   quickDateBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
     backgroundColor: colors.surface,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  quickDateText: { fontSize: 13, color: colors.textPrimary, fontWeight: "500" },
+  quickDateText: { fontSize: 13, color: colors.brand, fontWeight: "600" },
 
   primaryBtn: {
-    paddingVertical: 14,
+    paddingVertical: 15,
     alignItems: "center",
-    borderRadius: radii.sm,
+    borderRadius: radii.md,
     marginTop: spacing.sm,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  primaryBtnText: { color: colors.textOnDark, fontWeight: "600", fontSize: 15 },
+  primaryBtnText: { color: colors.textOnDark, fontWeight: "700", fontSize: 15, letterSpacing: 0.2 },
 
   descriptionInput: {
     backgroundColor: colors.surface,
-    borderRadius: radii.sm,
-    padding: spacing.md,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 13,
     borderWidth: 1,
     borderColor: colors.border,
     fontSize: 14,
     color: colors.textPrimary,
     marginTop: spacing.sm,
   },
+  suggestionRow: {
+    flexDirection: "row", alignItems: "center", gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  suggestionLabel: { fontSize: 11, color: colors.textTertiary, flexShrink: 0 },
+  suggestionChip: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    backgroundColor: colors.brandSoft, borderRadius: radii.pill,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: colors.brand + "44",
+  },
+  suggestionChipText: { fontSize: 12, fontWeight: "600", color: colors.brand, flex: 1 },
+  suggestionApply: { fontSize: 11, fontWeight: "700", color: colors.success },
   ratioSection: {
   marginTop: spacing.md,
   backgroundColor: colors.surfaceAlt,
@@ -554,5 +699,78 @@ ratioHint: {
   fontSize: 10,
   color: colors.textTertiary,
 },
+
+  // ── Charge description-first category step ───────────────────────────────
+  chargeDescSection: {
+    gap: spacing.md,
+  },
+  chargeDescInput: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 16,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    fontSize: 17,
+    color: colors.textPrimary,
+    ...shadows.card,
+  },
+  suggestCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.brandSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: colors.brand + "44",
+  },
+  suggestCardBody: {
+    flex: 1,
+  },
+  suggestCardHint: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: colors.brand,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  suggestCardName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.textPrimary,
+  },
+  suggestCardApply: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.brand,
+  },
+  noMatchRow: {
+    paddingVertical: spacing.sm,
+  },
+  noMatchText: {
+    fontSize: 12,
+    color: colors.textTertiary,
+    fontStyle: "italic",
+  },
+  browseCatBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    ...shadows.card,
+  },
+  browseCatBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.brand,
+  },
 
 });

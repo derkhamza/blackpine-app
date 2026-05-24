@@ -1,4 +1,24 @@
+# ── npm / lock files ─────────────────────────────────────────────────────────
 node_modules/
-.expo/
+packages/engine/node_modules/
 package-lock.json
 yarn.lock
+
+# ── Expo cache ────────────────────────────────────────────────────────────────
+.expo/
+
+# ── Android native directory — let EAS run expo prebuild fresh ────────────────
+# The local android/ was generated with an older AGP and is incompatible with
+# the current React Native version on EAS servers. Excluding it forces EAS to
+# run `expo prebuild --clean` and generate a correct directory from scratch.
+android/
+
+# ── Local APK outputs ─────────────────────────────────────────────────────────
+debug/
+release/
+
+# ── Web build output ──────────────────────────────────────────────────────────
+dist/
+
+# ── Dev tools ─────────────────────────────────────────────────────────────────
+assets/gen_icons.py

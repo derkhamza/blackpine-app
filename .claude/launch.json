@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Expo Web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web"],
+      "port": 19006
+    },
+    {
+      "name": "Expo Dev Server (Metro)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start"],
+      "port": 8081
+    },
+    {
+      "name": "Engine – Vitest (watch)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "test"],
+      "port": 51204
+    }
+  ]
+}

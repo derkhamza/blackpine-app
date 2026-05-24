@@ -1,6 +1,23 @@
 // Use a non-breaking space as thousand separator (cleaner than regular space)
 const NBSP = "\u00A0";
 
+/**
+ * Format an ISO date as "DD/MM/YYYY".
+ * Used everywhere a short human-readable date is needed.
+ */
+export function formatDateShort(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/**
+ * Format today's date as "DD/MM/YYYY" (for PDF letterheads etc.).
+ */
+export function todayFr(): string {
+  const now = new Date();
+  return `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+}
+
 export function formatMAD(n: number, opts?: { showCurrency?: boolean }): string {
   const showCurrency = opts?.showCurrency ?? true;
   const rounded = Math.round(n);
@@ -22,4 +39,11 @@ export function formatDateFR(iso: string): string {
     month: "long",
     year: "numeric",
   });
+}
+
+/** Map an app language code to a BCP-47 locale for date/number formatting. */
+export function langToLocale(lang: string): string {
+  if (lang === "ar") return "ar-MA";
+  if (lang === "en") return "en-US";
+  return "fr-FR";
 }

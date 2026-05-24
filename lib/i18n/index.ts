@@ -15,7 +15,9 @@ export async function loadSavedLanguage(): Promise<AppLanguage> {
     if (saved === "fr" || saved === "ar" || saved === "en") {
       currentLanguage = saved;
     }
-  } catch {}
+  } catch (e) {
+    if (__DEV__) console.warn("[i18n] Failed to load saved language:", e);
+  }
   return currentLanguage;
 }
 
