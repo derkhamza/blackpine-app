@@ -33,7 +33,7 @@
         "backgroundColor": "#0A4E7E"
       },
       "package": "com.blackpine.cabinet",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -64,7 +64,8 @@
       ],
       "./plugins/withWidget",
       "expo-secure-store",
-      "expo-localization"
+      "expo-localization",
+      "expo-font"
     ],
     "extra": {
       "eas": {
