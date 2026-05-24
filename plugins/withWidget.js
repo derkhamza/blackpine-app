@@ -28,11 +28,6 @@ const WIDGET_NAME = "BlackpineWidget";
 const WIDGET_BUNDLE_ID = "com.blackpine.cabinet.widget";
 const DEPLOYMENT_TARGET = "16.0";
 
-/** iOS source directory (relative to this plugin file) */
-const WIDGET_SRC_DIR = path.join(__dirname, "..", "widgets", "ios");
-
-/** Android source directory */
-const ANDROID_SRC_DIR  = path.join(__dirname, "..", "widgets", "android");
 const ANDROID_PKG_PATH = ["com", "blackpine", "cabinet"];
 
 // ─── Step 1: Add App Group to main app entitlements ──────────────────────────
@@ -57,7 +52,9 @@ function withWidgetFiles(config) {
   return withDangerousMod(config, [
     "ios",
     (mod) => {
+      const projectRoot = mod.modRequest.projectRoot;
       const iosRoot = mod.modRequest.platformProjectRoot; // e.g. /build/ios
+      const widgetSrcDir = path.join(projectRoot, "widgets", "ios");
       const widgetDir = path.join(iosRoot, WIDGET_NAME);
 
       fs.mkdirSync(widgetDir, { recursive: true });
@@ -70,7 +67,7 @@ function withWidgetFiles(config) {
         "BlackpineWidgetBridge.m",
       ];
       for (const file of sources) {
-        const src = path.join(WIDGET_SRC_DIR, file);
+        const src = path.join(widgetSrcDir, file);
         if (fs.existsSync(src)) {
           fs.copyFileSync(src, path.join(widgetDir, file));
         } else {
@@ -257,7 +254,9 @@ function withAndroidWidgetFiles(config) {
   return withDangerousMod(config, [
     "android",
     (mod) => {
+      const projectRoot = mod.modRequest.projectRoot;
       const androidRoot = mod.modRequest.platformProjectRoot; // …/android/
+      const androidSrcDir = path.join(projectRoot, "widgets", "android");
       const javaDir = path.join(
         androidRoot, "app", "src", "main", "java", ...ANDROID_PKG_PATH,
       );
@@ -281,20 +280,20 @@ function withAndroidWidgetFiles(config) {
         "BlackpineWidgetModule.kt",
         "BlackpineWidgetPackage.kt",
       ]) {
-        cp(path.join(ANDROID_SRC_DIR, kt), path.join(javaDir, kt));
+        cp(path.join(androidSrcDir, kt), path.join(javaDir, kt));
       }
 
       // XML resources
       cp(
-        path.join(ANDROID_SRC_DIR, "res", "xml", "blackpine_widget_info.xml"),
+        path.join(androidSrcDir, "res", "xml", "blackpine_widget_info.xml"),
         path.join(resDir, "xml", "blackpine_widget_info.xml"),
       );
       cp(
-        path.join(ANDROID_SRC_DIR, "res", "layout", "blackpine_widget.xml"),
+        path.join(androidSrcDir, "res", "layout", "blackpine_widget.xml"),
         path.join(resDir, "layout", "blackpine_widget.xml"),
       );
       cp(
-        path.join(ANDROID_SRC_DIR, "res", "drawable", "widget_bg.xml"),
+        path.join(androidSrcDir, "res", "drawable", "widget_bg.xml"),
         path.join(resDir, "drawable", "widget_bg.xml"),
       );
 
