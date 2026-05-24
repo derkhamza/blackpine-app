@@ -33,7 +33,7 @@
         "backgroundColor": "#0A4E7E"
       },
       "package": "com.blackpine.cabinet",
-      "versionCode": 6,
+      "versionCode": 8,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
