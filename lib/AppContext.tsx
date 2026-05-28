@@ -93,7 +93,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [screen, setScreen] = useState<AppScreen>("loading");
   const [saving, setSaving] = useState(false);
   const [transactionFilter, setTransactionFilter] = useState<"ALL" | "RECETTE" | "CHARGE">("ALL");
-  const [fiscalYear, setFiscalYear] = useState(new Date().getFullYear());
+  // Fiscal year navigation bounds.
+  // MIN: earliest available engine config.
+  // MAX: current calendar year — no forward projection into future years
+  //      (they show only charges from recurring rules → confusingly negative).
+  //      Also hard-capped at 2030, the last year with a fiscal config.
+  const FISCAL_MIN = 2015;
+  const FISCAL_MAX = Math.min(new Date().getFullYear(), 2030);
+  const [fiscalYear, setFiscalYearRaw] = useState(
+    Math.min(new Date().getFullYear(), FISCAL_MAX)
+  );
+  const setFiscalYear = (y: number) =>
+    setFiscalYearRaw(Math.max(FISCAL_MIN, Math.min(FISCAL_MAX, y)));
   const [assets, setAssets] = useState<FixedAsset[]>([]);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>([]);
@@ -329,10 +340,15 @@ const result = useMemo(() => {
   try {
     return computeTaxFromTransactions(profile, txWithAmort, fiscalYear, `${fiscalYear}-12-31`);
   } catch {
-    // Re-attempt with the same fiscal year — the first failure may be a
-    // transient issue (e.g. a malformed transaction). We never swap the year
-    // because doing so would apply the wrong tax brackets.
-    return computeTaxFromTransactions(profile, [], fiscalYear, `${fiscalYear}-12-31`);
+    // First failure: likely a malformed transaction. Retry with no transactions.
+    // If the year itself has no config (shouldn't happen with clamped fiscalYear)
+    // fall back to the nearest safe year so the UI never freezes.
+    const safeYear = Math.max(2015, Math.min(fiscalYear, 2030));
+    try {
+      return computeTaxFromTransactions(profile, [], safeYear, `${safeYear}-12-31`);
+    } catch {
+      return computeTaxFromTransactions(profile, [], 2030, "2030-12-31");
+    }
   }
 }, [profile, transactions, assets, recurringRules, fiscalYear]);
 

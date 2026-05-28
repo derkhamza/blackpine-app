@@ -27,6 +27,8 @@ export function DashboardScreen({ navigation }: any) {
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const { result, transactions, syncStatus, isAuthenticated, fiscalYear, setFiscalYear, retrySync, eodNotifEnabled } = useApp();
   const { patients, appointments } = useCabinet();
+  const FISCAL_MIN = 2015;
+  const FISCAL_MAX = Math.min(new Date().getFullYear(), 2030);
   const yearTx = transactions.filter((tx) => tx.date.startsWith(String(fiscalYear)));
   const yearAppts = appointments.filter((a) => a.date.startsWith(String(fiscalYear)));
   const monthlyData = getActiveMonths(getMonthlyData(yearTx, fiscalYear));
@@ -105,16 +107,22 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
 
         {/* Year picker */}
         <View style={styles.yearPicker}>
-          <ScalePressable style={styles.yearBtn} onPress={() => { tapLight(); setFiscalYear(fiscalYear - 1); }}>
-            <Icon name="back" size={16} color={colors.brand} />
+          <ScalePressable
+            style={[styles.yearBtn, fiscalYear <= FISCAL_MIN && styles.yearBtnDisabled]}
+            onPress={() => { if (fiscalYear > FISCAL_MIN) { tapLight(); setFiscalYear(fiscalYear - 1); } }}
+          >
+            <Icon name="back" size={16} color={fiscalYear <= FISCAL_MIN ? colors.textTertiary : colors.brand} />
           </ScalePressable>
           <View style={styles.yearCenter}>
             <Text style={styles.yearLabel}>{fiscalYear}</Text>
             <Text style={styles.yearSub}>{t("dashboard.fiscalYear")}</Text>
           </View>
-          <ScalePressable style={styles.yearBtn} onPress={() => { tapLight(); setFiscalYear(fiscalYear + 1); }}>
+          <ScalePressable
+            style={[styles.yearBtn, fiscalYear >= FISCAL_MAX && styles.yearBtnDisabled]}
+            onPress={() => { if (fiscalYear < FISCAL_MAX) { tapLight(); setFiscalYear(fiscalYear + 1); } }}
+          >
             <View style={{ transform: [{ scaleX: -1 }] }}>
-              <Icon name="back" size={16} color={colors.brand} />
+              <Icon name="back" size={16} color={fiscalYear >= FISCAL_MAX ? colors.textTertiary : colors.brand} />
             </View>
           </ScalePressable>
         </View>
@@ -455,6 +463,9 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
     justifyContent: "center",
     borderRadius: radii.pill,
     backgroundColor: colors.brandSoft,
+  },
+  yearBtnDisabled: {
+    opacity: 0.35,
   },
   yearCenter: { alignItems: "center", marginHorizontal: spacing.xl },
   yearLabel: { fontSize: 22, fontWeight: "800", color: colors.textPrimary, letterSpacing: -0.5 },
