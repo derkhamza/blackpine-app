@@ -1,0 +1,46 @@
+name: Android OTA (EAS Update)
+
+# Ships a JavaScript/asset OTA update to the production channel on every push to
+# main. Installed Android apps pick it up on next launch — no Play Store wait.
+# (Native changes — app.json, permissions, icons, new native deps — still need a
+#  full build: see eas-build-android.yml.)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "assets/**"
+      - "app.json"
+      - "package.json"
+      - "packages/**"
+  workflow_dispatch:
+
+concurrency:
+  group: eas-update-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Publish OTA update
+        run: eas update --branch production --message "${{ github.event.head_commit.message || 'manual update' }}" --non-interactive

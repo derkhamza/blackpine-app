@@ -1,0 +1,72 @@
+name: Android Build + Submit (EAS)
+
+# Produces a fresh native Android binary (.aab/.apk). Needed when OTA can't carry
+# the change: app.json/native config, permissions, app icon/splash, or a new
+# native dependency. Runs on changes to native config, or on demand.
+#
+# For the `production` profile it ALSO auto-submits the build to Google Play
+# (--auto-submit) once EAS finishes building — fully hands-off. Requires:
+#   • secret GOOGLE_SERVICE_ACCOUNT_JSON = full contents of the Play service-
+#     account key (Play Console → Setup → API access → service account).
+#   • the app already created in Play Console with ONE manual first upload done
+#     (Google requires the first AAB of a brand-new app to be uploaded by hand).
+# `--no-wait` returns immediately; EAS builds and then submits on its servers.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app.json"
+      - "eas.json"
+      - "plugins/**"
+      - "android/**"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        required: true
+        default: "production"
+        type: choice
+        options: [production, preview]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm install
+
+      # Recreate the Play service-account key file from the secret (never committed).
+      # Only needed for production auto-submit; harmless if the secret is unset.
+      - name: Write Play service-account key
+        env:
+          SA_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$SA_JSON" ]; then
+            printf '%s' "$SA_JSON" > google-service-account.json
+            echo "service-account key written"
+          else
+            echo "GOOGLE_SERVICE_ACCOUNT_JSON not set — skipping (production submit will fail until you add it)"
+          fi
+
+      - name: Build Android (+ auto-submit on production)
+        env:
+          PROFILE: ${{ github.event.inputs.profile || 'production' }}
+        run: |
+          EXTRA=""
+          if [ "$PROFILE" = "production" ]; then EXTRA="--auto-submit"; fi
+          eas build --platform android --profile "$PROFILE" --non-interactive --no-wait $EXTRA
