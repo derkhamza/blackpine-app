@@ -14,6 +14,7 @@ import { SafeScreen } from "../components/SafeScreen";
 import { CityPicker } from "../components/CityPicker";
 import { Icon } from "../lib/icons";
 import { DoctorProfile as CabinetDoctorProfile, ActeCode, DocumentSettings, DEFAULT_DOCUMENT_SETTINGS } from "../lib/cabinetTypes";
+import { ACTE_CATALOG, ActeCatalogItem } from "../lib/acteCatalog";
 import { uuid } from "../lib/utils";
 import { InviteSecretaryModal } from "../components/InviteSecretaryModal";
 import { PRIVACY_POLICY_URL, TERMS_URL } from "../lib/constants";
@@ -380,6 +381,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [acteModalOpen, setActeModalOpen] = useState(false);
+  const [acteCatalogOpen, setActeCatalogOpen] = useState(false);
 
   const acteCodes = doctorProfile.acteCodes ?? [];
   const addActe = (a: ActeCode) => {
@@ -388,6 +390,16 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   };
   const removeActe = (id: string) =>
     updateDoctorProfile({ ...doctorProfile, acteCodes: acteCodes.filter((a) => a.id !== id) });
+
+  const normLabel = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const acteLabels = new Set(acteCodes.map((a) => normLabel(a.label)));
+  const addFromCatalog = (item: { code: string; label: string }) => {
+    if (acteLabels.has(normLabel(item.label))) return;
+    updateDoctorProfile({
+      ...doctorProfile,
+      acteCodes: [...(doctorProfile.acteCodes ?? []), { id: uuid(), code: item.code, label: item.label }],
+    });
+  };
 
   const docSettings = doctorProfile.documentSettings ?? DEFAULT_DOCUMENT_SETTINGS;
   const setDocSetting = (patch: Partial<DocumentSettings>) =>
@@ -629,6 +641,10 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               </View>
             ))
           )}
+          <Pressable style={styles.acteAddBtn} onPress={() => setActeCatalogOpen(true)}>
+            <Icon name="clipboard" size={15} color={colors.brand} />
+            <Text style={styles.acteAddText}>{t("acteCatalog.importBtn")}</Text>
+          </Pressable>
           <Pressable style={styles.acteAddBtn} onPress={() => setActeModalOpen(true)}>
             <Icon name="add" size={15} color={colors.brand} />
             <Text style={styles.acteAddText}>{t("actes.add")}</Text>
@@ -869,6 +885,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         onSave={handleSaveDoctor} onCancel={() => setEditModalOpen(false)} />
       <InviteSecretaryModal visible={inviteModalOpen} onClose={() => setInviteModalOpen(false)} t={t} />
       <ActeCodeModal visible={acteModalOpen} onSave={addActe} onClose={() => setActeModalOpen(false)} t={t} />
+      <ActeCatalogModal visible={acteCatalogOpen} existingLabels={acteLabels} onAdd={addFromCatalog} onClose={() => setActeCatalogOpen(false)} t={t} />
     </SafeScreen>
   );
 }
@@ -924,6 +941,99 @@ function ActeCodeModal({
               <Text style={styles.acteSaveText}>{t("save")}</Text>
             </Pressable>
           </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ── Acts catalog (NGAP) import sheet ──────────────────────────────────────────
+const makeCatalogStyles = (c: ColorPalette) => StyleSheet.create({
+  overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "#00000055" },
+  sheet: { backgroundColor: c.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, paddingTop: spacing.lg, maxHeight: "88%" },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: "center", marginBottom: spacing.md },
+  title: { ...typography.h3, color: c.textPrimary, paddingHorizontal: spacing.lg, marginBottom: 4 },
+  hint: { fontSize: 12, color: c.textSecondary, paddingHorizontal: spacing.lg, marginBottom: spacing.sm, lineHeight: 17 },
+  search: { backgroundColor: c.bg, borderRadius: radii.md, borderWidth: 1, borderColor: c.border, marginHorizontal: spacing.lg, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: 15, color: c.textPrimary, marginBottom: spacing.sm },
+  group: { paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+  groupTitle: { fontSize: 11, fontWeight: "800", color: c.brand, letterSpacing: 0.4, textTransform: "uppercase", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.border, marginBottom: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 7 },
+  code: { minWidth: 40, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radii.sm, backgroundColor: c.brandSoft, alignItems: "center" },
+  codeText: { fontSize: 12, fontWeight: "800", color: c.brand },
+  label: { flex: 1, fontSize: 13.5, color: c.textPrimary },
+  addBtn: { borderWidth: 1, borderColor: c.brand, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 5 },
+  addBtnText: { fontSize: 12, fontWeight: "700", color: c.brand },
+  added: { fontSize: 12, fontWeight: "700", color: c.textTertiary, paddingHorizontal: 6 },
+  empty: { textAlign: "center", color: c.textTertiary, fontStyle: "italic", padding: spacing.xl },
+  doneBtn: { margin: spacing.lg, paddingVertical: 13, borderRadius: radii.lg, backgroundColor: c.brand, alignItems: "center" },
+  doneText: { fontSize: 15, fontWeight: "700", color: c.textOnDark },
+});
+
+function norm(s: string) { return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+
+function ActeCatalogModal({
+  visible, existingLabels, onAdd, onClose, t,
+}: {
+  visible: boolean;
+  existingLabels: Set<string>;
+  onAdd: (item: ActeCatalogItem) => void;
+  onClose: () => void;
+  t: (k: string) => string;
+}) {
+  const colors = useColors();
+  const s = useMemo(() => makeCatalogStyles(colors), [colors]);
+  const [q, setQ] = useState("");
+  useEffect(() => { if (visible) setQ(""); }, [visible]);
+
+  const groups = useMemo(() => {
+    const needle = norm(q.trim());
+    if (!needle) return ACTE_CATALOG;
+    return ACTE_CATALOG
+      .map((g) => ({ ...g, items: g.items.filter((it) => norm(it.label).includes(needle) || norm(it.code).includes(needle)) }))
+      .filter((g) => g.items.length > 0);
+  }, [q]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.overlay}>
+        <View style={s.sheet}>
+          <View style={s.handle} />
+          <Text style={s.title}>{t("acteCatalog.title")}</Text>
+          <Text style={s.hint}>{t("acteCatalog.hint")}</Text>
+          <TextInput
+            style={s.search}
+            value={q}
+            onChangeText={setQ}
+            placeholder={t("acteCatalog.search")}
+            placeholderTextColor={colors.textTertiary}
+          />
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {groups.length === 0 && <Text style={s.empty}>{t("acteCatalog.noMatch")}</Text>}
+            {groups.map((g) => (
+              <View key={g.specialty} style={s.group}>
+                <Text style={s.groupTitle}>{g.specialty}</Text>
+                {g.items.map((it, i) => {
+                  const added = existingLabels.has(norm(it.label));
+                  return (
+                    <View key={`${it.code}-${i}`} style={s.row}>
+                      <View style={s.code}><Text style={s.codeText}>{it.code}</Text></View>
+                      <Text style={s.label} numberOfLines={2}>{it.label}</Text>
+                      {added ? (
+                        <Text style={s.added}>{t("acteCatalog.added")}</Text>
+                      ) : (
+                        <Pressable style={s.addBtn} onPress={() => onAdd(it)}>
+                          <Text style={s.addBtnText}>{t("acteCatalog.add")}</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </ScrollView>
+          <Pressable style={s.doneBtn} onPress={onClose}>
+            <Text style={s.doneText}>{t("acteCatalog.done")}</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
