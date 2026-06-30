@@ -63,7 +63,8 @@ export function buildCertificatHTML(
 ): string {
   const dr = doctorProfile.fullName ? `Dr. ${doctorProfile.fullName}` : "Docteur";
   const specialty = doctorProfile.specialtyLabel || "";
-  const inpe = doctorProfile.inpe ? `N° INPE : ${doctorProfile.inpe}` : "";
+  const ds = doctorProfile.documentSettings ?? {};
+  const inpe = (ds.showInpe !== false && doctorProfile.inpe) ? `N° INPE : ${doctorProfile.inpe}` : "";
   const address = doctorProfile.address || "";
   const phone = doctorProfile.phone || "";
   const dateStr = formatDate(todayIso());
@@ -138,6 +139,7 @@ export function buildCertificatHTML(
       <div class="doctor-name">${dr}</div>
       <div class="doctor-meta">
         ${metaLine ? `${metaLine}<br>` : ""}
+        ${ds.headerNote ? `${ds.headerNote}<br>` : ""}
         ${address ? `${address}<br>` : ""}
         ${phone ? phone : ""}
       </div>
@@ -163,7 +165,7 @@ export function buildCertificatHTML(
     </div>
   </div>
 
-  <div class="footer">Généré par BLACKPINE Cabinet · ${dateStr}</div>
+  <div class="footer">${ds.footerNote ? `${ds.footerNote} · ` : ""}Généré par BLACKPINE Cabinet · ${dateStr}</div>
 </div>
 </body>
 </html>`;

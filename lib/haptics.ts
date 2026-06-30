@@ -1,20 +1,23 @@
+import { Platform } from "react-native";
+
+// Best-effort tactile feedback: no-op on web, never throws, never blocks.
+function safe(run: (H: typeof import("expo-haptics")) => Promise<void>) {
+  if (Platform.OS === "web") return;
+  try { run(require("expo-haptics")).catch(() => {}); } catch { /* unsupported */ }
+}
+
 export function tapLight() {
-  const Haptics = require("expo-haptics");
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  safe((H) => H.impactAsync(H.ImpactFeedbackStyle.Light));
 }
 export function tapMedium() {
-  const Haptics = require("expo-haptics");
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  safe((H) => H.impactAsync(H.ImpactFeedbackStyle.Medium));
 }
 export function tapSuccess() {
-  const Haptics = require("expo-haptics");
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  safe((H) => H.notificationAsync(H.NotificationFeedbackType.Success));
 }
 export function tapError() {
-  const Haptics = require("expo-haptics");
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+  safe((H) => H.notificationAsync(H.NotificationFeedbackType.Error));
 }
 export function tapWarning() {
-  const Haptics = require("expo-haptics");
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+  safe((H) => H.notificationAsync(H.NotificationFeedbackType.Warning));
 }

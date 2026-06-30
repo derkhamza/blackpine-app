@@ -2,6 +2,7 @@
 import {
   Alert,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -21,7 +22,13 @@ import { buildCertificatHTML } from "../components/CertificatModal";
 import { useCabinet } from "../lib/CabinetContext";
 import { useApp } from "../lib/AppContext";
 import { formatMAD } from "../lib/format";
-import { BloodType, CertificatMedical, Ordonnance, Patient } from "../lib/cabinetTypes";
+import { AnimatedNumber } from "../components/AnimatedNumber";
+import {
+  BloodType, CertificatMedical, Ordonnance, Patient,
+  PatientTimelineEvent, ExamResult, ExamType, ExamValue,
+  EXAM_TYPE_LABELS, EXAM_TYPE_COLORS,
+} from "../lib/cabinetTypes";
+import { uuid, todayIso } from "../lib/utils";
 import { VitalsTrendChart } from "../components/VitalsTrendChart";
 import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
@@ -92,6 +99,38 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     setDBloodType(next);
     if (!patient) return;
     updatePatient({ ...patient, bloodType: next as BloodType || undefined });
+  };
+
+  // ── Clinical records: timeline + exams (stored on the patient record) ───────
+  const [timelineModal, setTimelineModal] = useState(false);
+  const [examModal, setExamModal]         = useState(false);
+
+  const timeline = useMemo(
+    () => [...(patient?.timelineEvents ?? [])].sort((a, b) => b.date.localeCompare(a.date)),
+    [patient?.timelineEvents],
+  );
+  const exams = useMemo(
+    () => [...(patient?.examResults ?? [])].sort((a, b) => b.date.localeCompare(a.date)),
+    [patient?.examResults],
+  );
+
+  const addTimelineEvent = (ev: PatientTimelineEvent) => {
+    if (!patient) return;
+    updatePatient({ ...patient, timelineEvents: [...(patient.timelineEvents ?? []), ev] });
+    setTimelineModal(false);
+  };
+  const removeTimelineEvent = (id: string) => {
+    if (!patient) return;
+    updatePatient({ ...patient, timelineEvents: (patient.timelineEvents ?? []).filter((e) => e.id !== id) });
+  };
+  const addExam = (ex: ExamResult) => {
+    if (!patient) return;
+    updatePatient({ ...patient, examResults: [...(patient.examResults ?? []), ex] });
+    setExamModal(false);
+  };
+  const removeExam = (id: string) => {
+    if (!patient) return;
+    updatePatient({ ...patient, examResults: (patient.examResults ?? []).filter((e) => e.id !== id) });
   };
 
   const patientAppointments = useMemo(
@@ -273,7 +312,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         {/* ── Stats row ────────────────────────────────────────────── */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statVal}>{patientAppointments.length}</Text>
+            <AnimatedNumber value={patientAppointments.length} style={styles.statVal} />
             <Text style={styles.statLabel}>{t("patients.appointments")}</Text>
           </View>
           {lastAppointmentDate && (
@@ -332,9 +371,9 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <Icon name="heartPulse" size={13} color={colors.danger} />
-            <Text style={styles.sectionTitle}>Évolution des constantes</Text>
+            <Text style={styles.sectionTitle}>Évolution des constantes & analyses</Text>
           </View>
-          <VitalsTrendChart appointments={patientAppointments} />
+          <VitalsTrendChart appointments={patientAppointments} examResults={patient?.examResults} />
         </View>
 
         {/* ── Documents ────────────────────────────────────────────── */}
@@ -439,6 +478,81 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               />
             </View>
           </View>
+        </View>
+
+        {/* ── Clinical timeline ─────────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleRow}>
+              <Icon name="clipboard" size={13} color={colors.brand} />
+              <Text style={styles.sectionTitle}>{t("clinical.timelineTitle")}</Text>
+            </View>
+            <Pressable style={styles.addInlineBtn} onPress={() => setTimelineModal(true)}>
+              <Icon name="add" size={13} color={colors.brand} />
+              <Text style={styles.addInlineText}>{t("clinical.addEvent")}</Text>
+            </Pressable>
+          </View>
+          {timeline.length === 0 ? (
+            <Text style={styles.emptyHint}>{t("clinical.timelineEmpty")}</Text>
+          ) : (
+            <View style={styles.recentCard}>
+              {timeline.map((ev, i) => (
+                <View key={ev.id} style={[styles.tlRow, i < timeline.length - 1 && styles.recentApptRowBorder]}>
+                  <View style={styles.tlDot} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tlDate}>{formatDateShort(ev.date)}</Text>
+                    <Text style={styles.tlTitle}>{ev.title}</Text>
+                    {!!ev.notes && <Text style={styles.tlNotes}>{ev.notes}</Text>}
+                  </View>
+                  <Pressable hitSlop={8} onPress={() => removeTimelineEvent(ev.id)}>
+                    <Icon name="delete" size={14} color={colors.textTertiary} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* ── Paraclinical exams / lab results ──────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionTitleRow}>
+              <Icon name="clipboard" size={13} color={colors.brand} />
+              <Text style={styles.sectionTitle}>{t("clinical.examsTitle")}</Text>
+            </View>
+            <Pressable style={styles.addInlineBtn} onPress={() => setExamModal(true)}>
+              <Icon name="add" size={13} color={colors.brand} />
+              <Text style={styles.addInlineText}>{t("clinical.addExam")}</Text>
+            </Pressable>
+          </View>
+          {exams.length === 0 ? (
+            <Text style={styles.emptyHint}>{t("clinical.examsEmpty")}</Text>
+          ) : (
+            <View style={styles.recentCard}>
+              {exams.map((ex, i) => (
+                <View key={ex.id} style={[styles.examRow, i < exams.length - 1 && styles.recentApptRowBorder]}>
+                  <View style={[styles.examTag, { backgroundColor: EXAM_TYPE_COLORS[ex.type] + "22" }]}>
+                    <Text style={[styles.examTagText, { color: EXAM_TYPE_COLORS[ex.type] }]}>
+                      {EXAM_TYPE_LABELS[ex.type]}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.tlTitle}>{ex.title}</Text>
+                    <Text style={styles.tlDate}>{formatDateShort(ex.date)}{ex.labName ? ` · ${ex.labName}` : ""}</Text>
+                    {ex.values.slice(0, 4).map((v, vi) => (
+                      <Text key={vi} style={[styles.examVal, v.isAbnormal && { color: colors.danger, fontWeight: "700" }]}>
+                        {v.label}: {v.value}{v.unit ? ` ${v.unit}` : ""}
+                      </Text>
+                    ))}
+                    {ex.values.length > 4 && <Text style={styles.examVal}>+{ex.values.length - 4}…</Text>}
+                  </View>
+                  <Pressable hitSlop={8} onPress={() => removeExam(ex.id)}>
+                    <Icon name="delete" size={14} color={colors.textTertiary} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* ── Recent appointments ───────────────────────────────────── */}
@@ -549,7 +663,184 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         onClose={() => setCertificatVisible(false)}
         t={t}
       />
+      <TimelineEventModal
+        visible={timelineModal}
+        onSave={addTimelineEvent}
+        onClose={() => setTimelineModal(false)}
+        t={t}
+      />
+      <ExamModal
+        visible={examModal}
+        onSave={addExam}
+        onClose={() => setExamModal(false)}
+        t={t}
+      />
     </View>
+  );
+}
+
+// ─── Timeline event modal ──────────────────────────────────────────────────────
+
+function TimelineEventModal({
+  visible, onSave, onClose, t,
+}: {
+  visible: boolean;
+  onSave: (ev: PatientTimelineEvent) => void;
+  onClose: () => void;
+  t: (k: string) => string;
+}) {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [date, setDate]   = useState(todayIso());
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  useEffect(() => { if (visible) { setDate(todayIso()); setTitle(""); setNotes(""); } }, [visible]);
+  const submit = () => {
+    if (!title.trim()) return;
+    onSave({ id: uuid(), date, title: title.trim(), notes: notes.trim() || undefined });
+  };
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.recOverlay}>
+        <View style={styles.recSheet}>
+          <View style={styles.recHandle} />
+          <Text style={styles.recTitle}>{t("clinical.addEvent")}</Text>
+          <Text style={styles.recLabel}>{t("clinical.date")}</Text>
+          <TextInput style={styles.recInput} value={date} onChangeText={setDate}
+            placeholder="YYYY-MM-DD" placeholderTextColor={colors.textTertiary} />
+          <Text style={styles.recLabel}>{t("clinical.eventTitle")}</Text>
+          <TextInput style={styles.recInput} value={title} onChangeText={setTitle}
+            placeholder={t("clinical.eventTitlePlaceholder")} placeholderTextColor={colors.textTertiary} />
+          <Text style={styles.recLabel}>{t("clinical.notesOptional")}</Text>
+          <TextInput style={[styles.recInput, { height: 70 }]} value={notes} onChangeText={setNotes}
+            multiline placeholder="…" placeholderTextColor={colors.textTertiary} />
+          <View style={styles.recBtnRow}>
+            <Pressable style={styles.recCancelBtn} onPress={onClose}>
+              <Text style={styles.recCancelText}>{t("cancel")}</Text>
+            </Pressable>
+            <Pressable style={[styles.recSaveBtn, !title.trim() && { opacity: 0.5 }]} disabled={!title.trim()} onPress={submit}>
+              <Text style={styles.recSaveText}>{t("save")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Exam result modal ─────────────────────────────────────────────────────────
+
+const EXAM_TYPES: ExamType[] = ["biologie", "imagerie", "ecg", "autre"];
+
+function ExamModal({
+  visible, onSave, onClose, t,
+}: {
+  visible: boolean;
+  onSave: (ex: ExamResult) => void;
+  onClose: () => void;
+  t: (k: string) => string;
+}) {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [type, setType]   = useState<ExamType>("biologie");
+  const [date, setDate]   = useState(todayIso());
+  const [title, setTitle] = useState("");
+  const [labName, setLab] = useState("");
+  const [values, setValues] = useState<ExamValue[]>([{ label: "", value: "", unit: "" }]);
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (visible) {
+      setType("biologie"); setDate(todayIso()); setTitle(""); setLab("");
+      setValues([{ label: "", value: "", unit: "" }]); setNotes("");
+    }
+  }, [visible]);
+
+  const setVal = (i: number, patch: Partial<ExamValue>) =>
+    setValues((prev) => prev.map((v, idx) => (idx === i ? { ...v, ...patch } : v)));
+  const addRow = () => setValues((prev) => [...prev, { label: "", value: "", unit: "" }]);
+
+  const submit = () => {
+    if (!title.trim()) return;
+    const cleaned = values.filter((v) => v.label.trim() || v.value.trim());
+    onSave({
+      id: uuid(), type, date, title: title.trim(),
+      labName: labName.trim() || undefined,
+      values: cleaned, notes: notes.trim() || undefined,
+      createdAt: new Date().toISOString(),
+    });
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.recOverlay}>
+        <View style={styles.recSheet}>
+          <View style={styles.recHandle} />
+          <Text style={styles.recTitle}>{t("clinical.addExam")}</Text>
+          <ScrollView style={{ maxHeight: 380 }} keyboardShouldPersistTaps="handled">
+            <Text style={styles.recLabel}>{t("clinical.examType")}</Text>
+            <View style={styles.examTypeRow}>
+              {EXAM_TYPES.map((ty) => (
+                <Pressable key={ty}
+                  style={[styles.examTypeChip, type === ty && { backgroundColor: EXAM_TYPE_COLORS[ty] + "22", borderColor: EXAM_TYPE_COLORS[ty] }]}
+                  onPress={() => setType(ty)}>
+                  <Text style={[styles.examTypeChipText, type === ty && { color: EXAM_TYPE_COLORS[ty], fontWeight: "700" }]}>
+                    {EXAM_TYPE_LABELS[ty]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.recLabel}>{t("clinical.examTitle")}</Text>
+            <TextInput style={styles.recInput} value={title} onChangeText={setTitle}
+              placeholder={t("clinical.examTitlePlaceholder")} placeholderTextColor={colors.textTertiary} />
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.recLabel}>{t("clinical.date")}</Text>
+                <TextInput style={styles.recInput} value={date} onChangeText={setDate}
+                  placeholder="YYYY-MM-DD" placeholderTextColor={colors.textTertiary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.recLabel}>{t("clinical.labName")}</Text>
+                <TextInput style={styles.recInput} value={labName} onChangeText={setLab}
+                  placeholder="…" placeholderTextColor={colors.textTertiary} />
+              </View>
+            </View>
+            <Text style={styles.recLabel}>{t("clinical.values")}</Text>
+            {values.map((v, i) => (
+              <View key={i} style={styles.examValRow}>
+                <TextInput style={[styles.recInput, { flex: 2, marginBottom: 0 }]} value={v.label}
+                  onChangeText={(s) => setVal(i, { label: s })}
+                  placeholder={t("clinical.valLabel")} placeholderTextColor={colors.textTertiary} />
+                <TextInput style={[styles.recInput, { flex: 1, marginBottom: 0 }]} value={v.value}
+                  onChangeText={(s) => setVal(i, { value: s })}
+                  placeholder={t("clinical.valValue")} placeholderTextColor={colors.textTertiary} />
+                <TextInput style={[styles.recInput, { width: 56, marginBottom: 0 }]} value={v.unit ?? ""}
+                  onChangeText={(s) => setVal(i, { unit: s })}
+                  placeholder="u." placeholderTextColor={colors.textTertiary} />
+                <Pressable hitSlop={6} onPress={() => setVal(i, { isAbnormal: !v.isAbnormal })}>
+                  <Icon name="alertTriangle" size={16} color={v.isAbnormal ? colors.danger : colors.textTertiary} />
+                </Pressable>
+              </View>
+            ))}
+            <Pressable style={styles.addInlineBtn} onPress={addRow}>
+              <Icon name="add" size={13} color={colors.brand} />
+              <Text style={styles.addInlineText}>{t("clinical.addValue")}</Text>
+            </Pressable>
+            <Text style={styles.recLabel}>{t("clinical.notesOptional")}</Text>
+            <TextInput style={[styles.recInput, { height: 60 }]} value={notes} onChangeText={setNotes}
+              multiline placeholder="…" placeholderTextColor={colors.textTertiary} />
+          </ScrollView>
+          <View style={styles.recBtnRow}>
+            <Pressable style={styles.recCancelBtn} onPress={onClose}>
+              <Text style={styles.recCancelText}>{t("cancel")}</Text>
+            </Pressable>
+            <Pressable style={[styles.recSaveBtn, !title.trim() && { opacity: 0.5 }]} disabled={!title.trim()} onPress={submit}>
+              <Text style={styles.recSaveText}>{t("save")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -758,4 +1049,36 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
     backgroundColor: colors.brandSoft,
   },
   shareDocText: { fontSize: 11, fontWeight: "600", color: colors.brand },
+
+  // ── Clinical records (timeline + exams) ──
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.sm },
+  addInlineBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: radii.pill, backgroundColor: colors.brandSoft },
+  addInlineText: { fontSize: 12, fontWeight: "600", color: colors.brand },
+  emptyHint: { fontSize: 12, color: colors.textTertiary, fontStyle: "italic", paddingVertical: 4 },
+  tlRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 10 },
+  tlDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.brand, marginTop: 5 },
+  tlDate: { fontSize: 11, color: colors.textSecondary, marginBottom: 1 },
+  tlTitle: { fontSize: 14, fontWeight: "700", color: colors.textPrimary },
+  tlNotes: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  examRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 10 },
+  examTag: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: radii.pill, marginTop: 2 },
+  examTagText: { fontSize: 10, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3 },
+  examVal: { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+
+  // ── Record modals (timeline / exam) ──
+  recOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "#00000055" },
+  recSheet: { backgroundColor: colors.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.lg, paddingBottom: spacing.xxl },
+  recHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: "center", marginBottom: spacing.md },
+  recTitle: { ...typography.h3, color: colors.textPrimary, marginBottom: spacing.md },
+  recLabel: { fontSize: 12, fontWeight: "600", color: colors.textSecondary, marginBottom: 6, marginTop: spacing.sm },
+  recInput: { backgroundColor: colors.bg, borderRadius: radii.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: 15, color: colors.textPrimary, marginBottom: 4 },
+  recBtnRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.lg },
+  recCancelBtn: { flex: 1, paddingVertical: 13, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, alignItems: "center" },
+  recCancelText: { fontSize: 15, fontWeight: "600", color: colors.textSecondary },
+  recSaveBtn: { flex: 1, paddingVertical: 13, borderRadius: radii.lg, backgroundColor: colors.brand, alignItems: "center" },
+  recSaveText: { fontSize: 15, fontWeight: "700", color: colors.textOnDark },
+  examTypeRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: 4 },
+  examTypeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.bg },
+  examTypeChipText: { fontSize: 12, color: colors.textSecondary },
+  examValRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginBottom: 6 },
 });

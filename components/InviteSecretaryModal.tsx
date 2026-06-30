@@ -1,11 +1,12 @@
 ﻿import React, { useState, useMemo } from "react";
 import {
   ActivityIndicator, Alert, Linking, Modal, Pressable,
-  Share, StyleSheet, Text, View,
+  Share, StyleSheet, Switch, Text, View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCabinet } from "../lib/CabinetContext";
 import { useApp } from "../lib/AppContext";
+import { DEFAULT_SECRETARY_PERMISSIONS, SecretaryPermissions } from "../lib/cabinetTypes";
 import { createInviteCode, pushCabinetSnapshot, revokeInvite } from "../lib/inviteApi";
 import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
@@ -21,8 +22,15 @@ export function InviteSecretaryModal({ visible, onClose, t }: Props) {
   const colors = useColors();
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
-  const { doctorProfile, appointments, patients } = useCabinet();
+  const { doctorProfile, appointments, patients, updateDoctorProfile } = useCabinet();
   const { } = useApp();
+
+  const perms = doctorProfile.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
+  const setPerm = (key: keyof SecretaryPermissions, val: boolean) =>
+    updateDoctorProfile({
+      ...doctorProfile,
+      secretaryPermissions: { ...DEFAULT_SECRETARY_PERMISSIONS, ...doctorProfile.secretaryPermissions, [key]: val },
+    });
 
   const [code, setCode]       = useState<string | null>(null);
   const [expiresAt, setExp]   = useState<string | null>(null);
@@ -152,11 +160,37 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               { icon: "✅", label: t("secretary.permAgenda") },
               { icon: "✅", label: t("secretary.permPatients") },
               { icon: "✅", label: t("secretary.permAddAppt") },
+            ].map((p, i) => (
+              <View key={i} style={styles.permRow}>
+                <Text style={styles.permIcon}>{p.icon}</Text>
+                <Text style={styles.permLabel}>{p.label}</Text>
+              </View>
+            ))}
+
+            {/* Desk duties Moroccan secretaries usually handle — doctor toggles them */}
+            <View style={styles.permToggleRow}>
+              <Text style={styles.permToggleLabel}>{t("secretary.permRecordVitals")}</Text>
+              <Switch
+                value={!!perms.recordVitals}
+                onValueChange={(v) => setPerm("recordVitals", v)}
+                trackColor={{ true: colors.brand }}
+              />
+            </View>
+            <View style={styles.permToggleRow}>
+              <Text style={styles.permToggleLabel}>{t("secretary.permHandleBilling")}</Text>
+              <Switch
+                value={!!perms.handleBilling}
+                onValueChange={(v) => setPerm("handleBilling", v)}
+                trackColor={{ true: colors.brand }}
+              />
+            </View>
+
+            {[
               { icon: "❌", label: t("secretary.permNoFinances") },
               { icon: "❌", label: t("secretary.permNoMedical") },
               { icon: "❌", label: t("secretary.permNoPayroll") },
             ].map((p, i) => (
-              <View key={i} style={styles.permRow}>
+              <View key={`x${i}`} style={styles.permRow}>
                 <Text style={styles.permIcon}>{p.icon}</Text>
                 <Text style={styles.permLabel}>{p.label}</Text>
               </View>
@@ -248,6 +282,11 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   permRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 3 },
   permIcon: { fontSize: 13 },
   permLabel: { fontSize: 13, color: colors.textPrimary },
+  permToggleRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingVertical: 4, gap: spacing.sm,
+  },
+  permToggleLabel: { fontSize: 13, color: colors.textPrimary, flex: 1 },
 
   codeCard: {
     backgroundColor: colors.surfaceDark, borderRadius: radii.lg,

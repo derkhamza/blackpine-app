@@ -47,3 +47,19 @@ export function langToLocale(lang: string): string {
   if (lang === "en") return "en-US";
   return "fr-FR";
 }
+
+// ── IMC / BMI WHO classification incl. obesity stages I/II/III ────────────────
+export interface BmiClass {
+  label: string;   // French label
+  stage: string;   // short chip code
+  color: string;   // hex
+}
+export function bmiClassify(bmi: number): BmiClass {
+  if (bmi < 16.5) return { label: "Dénutrition",            stage: "—",            color: "#8E44AD" };
+  if (bmi < 18.5) return { label: "Insuffisance pondérale", stage: "Maigreur",     color: "#2980B9" };
+  if (bmi < 25)   return { label: "Corpulence normale",     stage: "Normal",       color: "#15A876" };
+  if (bmi < 30)   return { label: "Surpoids",               stage: "Surpoids",     color: "#D4962A" };
+  if (bmi < 35)   return { label: "Obésité modérée",        stage: "Obésité I",    color: "#E67E22" };
+  if (bmi < 40)   return { label: "Obésité sévère",         stage: "Obésité II",   color: "#E85B5B" };
+  return                 { label: "Obésité morbide",        stage: "Obésité III",  color: "#C0392B" };
+}

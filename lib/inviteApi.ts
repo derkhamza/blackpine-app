@@ -194,3 +194,20 @@ export async function pushSecretaryPatients(
     throw new Error(data.error || `HTTP ${res.status}`);
   }
 }
+
+/**
+ * Secretary posts a batch of behavioural event names (best-effort).
+ * Attributed server-side to the owner doctor as platform "mobile-secretary".
+ */
+export async function postSecretaryEvents(
+  secretaryToken: string,
+  names: string[],
+): Promise<void> {
+  if (!names.length) return;
+  try {
+    await requestWithSecretary("/events/secretary", secretaryToken, {
+      method: "POST",
+      body: JSON.stringify({ events: names.map((name) => ({ name })) }),
+    });
+  } catch { /* analytics must never surface an error */ }
+}

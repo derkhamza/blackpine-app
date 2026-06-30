@@ -1,4 +1,4 @@
-import { FiscalYearConfig } from "../types";
+import type { FiscalYearConfig } from "../types";
 import config2015 from "./fiscal_year_2015.json";
 import config2016 from "./fiscal_year_2016.json";
 import config2017 from "./fiscal_year_2017.json";

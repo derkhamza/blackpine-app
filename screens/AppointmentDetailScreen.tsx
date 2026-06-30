@@ -10,6 +10,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -34,9 +35,9 @@ import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
 import { useT } from "../lib/useT";
-import { formatDateShort as formatDateLong } from "../lib/format";
+import { formatDateShort as formatDateLong, bmiClassify } from "../lib/format";
 import { generateAndShareInvoice } from "../lib/invoicePdf";
-import { uuid } from "../lib/utils";
+import { uuid, todayIso } from "../lib/utils";
 import { tapLight, tapSuccess } from "../lib/haptics";
 import { ScalePressable } from "../components/ScalePressable";
 
@@ -61,6 +62,15 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const topInset = useTopInset();
 
   const appt = appointments.find((a) => a.id === appointmentId);
+
+  // Most recent prior prescription for this patient → "Repeat last" in the modal.
+  const lastOrdonnanceLines = useMemo(() => {
+    if (!appt?.patientId) return undefined;
+    const prior = ordonnances
+      .filter((o) => o.patientId === appt.patientId && o.appointmentId !== appt.id && o.lines?.length)
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    return prior[0]?.lines;
+  }, [ordonnances, appt?.patientId, appt?.id]);
 
   // Modals
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -1020,17 +1030,18 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                   <Text style={styles.vitalsUnit}>{t("agenda.vsHeightUnit")}</Text>
                 </View>
               </View>
-              {bmiValue !== null && (
-                <View style={[styles.vitalsField, styles.vitalsBmiField]}>
-                  <Text style={styles.vitalsFieldLabel}>{t("agenda.vsBmi")}</Text>
-                  <Text style={[
-                    styles.vitalsBmiValue,
-                    { color: bmiValue < 18.5 || bmiValue > 30 ? colors.danger : bmiValue > 25 ? colors.gold : colors.success },
-                  ]}>
-                    {bmiValue.toFixed(1)}
-                  </Text>
-                </View>
-              )}
+              {bmiValue !== null && (() => {
+                const bc = bmiClassify(bmiValue);
+                return (
+                  <View style={[styles.vitalsField, styles.vitalsBmiField]}>
+                    <Text style={styles.vitalsFieldLabel}>{t("agenda.vsBmi")}</Text>
+                    <Text style={[styles.vitalsBmiValue, { color: bc.color }]}>{bmiValue.toFixed(1)}</Text>
+                    <View style={[styles.bmiStageChip, { backgroundColor: bc.color + "22" }]}>
+                      <Text style={[styles.bmiStageText, { color: bc.color }]}>{bc.stage}</Text>
+                    </View>
+                  </View>
+                );
+              })()}
             </View>
           </View>
         </View>
@@ -1427,6 +1438,21 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                     />
                   </View>
                 )}
+
+                {/* Mutuelle paperwork (feuille de soins) */}
+                <View style={styles.mutuelleRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rmbAmountLabel}>Papiers mutuelle remplis</Text>
+                    {appt.mutuellePapersFilled && appt.mutuellePapersDate && (
+                      <Text style={styles.mutuelleDate}>Rempli le {formatDateLong(appt.mutuellePapersDate)}</Text>
+                    )}
+                  </View>
+                  <Switch
+                    value={!!appt.mutuellePapersFilled}
+                    onValueChange={(v) => { tapLight(); updateAppointment({ ...appt, mutuellePapersFilled: v, mutuellePapersDate: v ? todayIso() : undefined }); }}
+                    trackColor={{ true: "#6b46c1" }}
+                  />
+                </View>
               </View>
             </View>
           )}
@@ -1664,6 +1690,8 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         patientId={appt.patientId}
         appointmentId={appt.id}
         doctorProfile={doctorProfile}
+        allergies={linkedPatient?.allergies}
+        lastLines={lastOrdonnanceLines}
         onSave={addOrdonnance}
         onClose={() => setOrdonnanceVisible(false)}
         t={t}
@@ -1928,6 +1956,8 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   vitalsUnit: { fontSize: 10, color: colors.textTertiary, fontWeight: "600", marginTop: 2 },
   vitalsBmiValue: { fontSize: 22, fontWeight: "800", textAlign: "center" },
+  bmiStageChip: { marginTop: 3, paddingHorizontal: 7, paddingVertical: 1, borderRadius: 8, alignSelf: "center" },
+  bmiStageText: { fontSize: 9, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.3 },
 
   // ── Clinical notes editable card ───────────────────────────────────────
   clinicalCard: {
@@ -2484,6 +2514,17 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
     fontWeight: "600",
     color: "#6b46c1",
   },
+  mutuelleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    gap: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: "#e9e0fa",
+  },
+  mutuelleDate: { fontSize: 11, color: "#8b7bb8", marginTop: 2 },
   rmbAmountInput: {
     borderWidth: 1.5,
     borderColor: "#c7b8ed",

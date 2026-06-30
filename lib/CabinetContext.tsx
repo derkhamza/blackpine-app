@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient } from "./cabinetTypes";
+import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient, StockItem, Supplier, TeleSession, InternalNote, PurchaseOrder, WaTemplate } from "./cabinetTypes";
 import {
   loadAppointments, saveAppointments,
   loadPatients, savePatients,
@@ -10,6 +10,12 @@ import {
   loadApptPhotos, saveApptPhotos,
   loadApptPhotoLabels, saveApptPhotoLabels,
   loadInvoices, saveInvoices,
+  loadStockItems, saveStockItems,
+  loadSuppliers, saveSuppliers,
+  loadTeleSessions, saveTeleSessions,
+  loadNotes, saveNotes,
+  loadPurchaseOrders, savePurchaseOrders,
+  loadWaTemplates, saveWaTemplates,
 } from "./cabinetStorage";
 import { getStoredUser } from "./api";
 import { useApp } from "./AppContext";
@@ -78,6 +84,36 @@ interface CabinetContextValue {
   invoices: InvoiceRecord[];
   addInvoice: (inv: InvoiceRecord) => void;
 
+  stockItems: StockItem[];
+  addStockItem: (s: StockItem) => void;
+  updateStockItem: (s: StockItem) => void;
+  deleteStockItem: (id: string) => void;
+
+  suppliers: Supplier[];
+  addSupplier: (s: Supplier) => void;
+  updateSupplier: (s: Supplier) => void;
+  deleteSupplier: (id: string) => void;
+
+  teleSessions: TeleSession[];
+  addTeleSession: (s: TeleSession) => void;
+  updateTeleSession: (s: TeleSession) => void;
+  deleteTeleSession: (id: string) => void;
+
+  notes: InternalNote[];
+  addNote: (n: InternalNote) => void;
+  updateNote: (n: InternalNote) => void;
+  deleteNote: (id: string) => void;
+
+  purchaseOrders: PurchaseOrder[];
+  addPurchaseOrder: (p: PurchaseOrder) => void;
+  updatePurchaseOrder: (p: PurchaseOrder) => void;
+  deletePurchaseOrder: (id: string) => void;
+
+  waTemplates: WaTemplate[];
+  addWaTemplate: (w: WaTemplate) => void;
+  updateWaTemplate: (w: WaTemplate) => void;
+  deleteWaTemplate: (id: string) => void;
+
   /** The resolved user id for the current session (scopes per-user storage). */
   userId: string | null;
 
@@ -99,6 +135,12 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
   const [apptPhotos, setApptPhotos] = useState<Record<string, string[]>>({});
   const [apptPhotoLabels, setApptPhotoLabels] = useState<Record<string, Record<string, string>>>({});
   const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [teleSessions, setTeleSessions] = useState<TeleSession[]>([]);
+  const [notes, setNotes] = useState<InternalNote[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [waTemplates, setWaTemplates] = useState<WaTemplate[]>([]);
 
   // ── Resolve user ID when the app screen becomes active ──────────────────────
   // When the user logs out (screen → "auth"), clear all in-memory cabinet data
@@ -118,6 +160,12 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
       setDoctorProfile(DEFAULT_DOCTOR);
       setEmployees([]);
       setApptPhotos({});
+      setStockItems([]);
+      setSuppliers([]);
+      setTeleSessions([]);
+      setNotes([]);
+      setPurchaseOrders([]);
+      setWaTemplates([]);
       clearWidget();
     }
   }, [screen]);
@@ -137,6 +185,12 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
     loadApptPhotos(userId).then(setApptPhotos);
     loadApptPhotoLabels(userId).then(setApptPhotoLabels);
     loadInvoices(userId).then(setInvoices);
+    loadStockItems(userId).then(setStockItems);
+    loadSuppliers(userId).then(setSuppliers);
+    loadTeleSessions(userId).then(setTeleSessions);
+    loadNotes(userId).then(setNotes);
+    loadPurchaseOrders(userId).then(setPurchaseOrders);
+    loadWaTemplates(userId).then(setWaTemplates);
   }, [userId]);
 
   // ── Mutations ────────────────────────────────────────────────────────────────
@@ -260,6 +314,84 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
     saveDoctorProfile(d, userId);
   }, [userId]);
 
+  const addStockItem = useCallback((s: StockItem) => {
+    if (!userId) return;
+    setStockItems(prev => { const next = [...prev, s]; saveStockItems(next, userId); return next; });
+  }, [userId]);
+  const updateStockItem = useCallback((s: StockItem) => {
+    if (!userId) return;
+    setStockItems(prev => { const next = prev.map(x => x.id === s.id ? s : x); saveStockItems(next, userId); return next; });
+  }, [userId]);
+  const deleteStockItem = useCallback((id: string) => {
+    if (!userId) return;
+    setStockItems(prev => { const next = prev.filter(x => x.id !== id); saveStockItems(next, userId); return next; });
+  }, [userId]);
+
+  const addSupplier = useCallback((s: Supplier) => {
+    if (!userId) return;
+    setSuppliers(prev => { const next = [...prev, s]; saveSuppliers(next, userId); return next; });
+  }, [userId]);
+  const updateSupplier = useCallback((s: Supplier) => {
+    if (!userId) return;
+    setSuppliers(prev => { const next = prev.map(x => x.id === s.id ? s : x); saveSuppliers(next, userId); return next; });
+  }, [userId]);
+  const deleteSupplier = useCallback((id: string) => {
+    if (!userId) return;
+    setSuppliers(prev => { const next = prev.filter(x => x.id !== id); saveSuppliers(next, userId); return next; });
+  }, [userId]);
+
+  const addTeleSession = useCallback((s: TeleSession) => {
+    if (!userId) return;
+    setTeleSessions(prev => { const next = [...prev, s]; saveTeleSessions(next, userId); return next; });
+  }, [userId]);
+  const updateTeleSession = useCallback((s: TeleSession) => {
+    if (!userId) return;
+    setTeleSessions(prev => { const next = prev.map(x => x.id === s.id ? s : x); saveTeleSessions(next, userId); return next; });
+  }, [userId]);
+  const deleteTeleSession = useCallback((id: string) => {
+    if (!userId) return;
+    setTeleSessions(prev => { const next = prev.filter(x => x.id !== id); saveTeleSessions(next, userId); return next; });
+  }, [userId]);
+
+  const addNote = useCallback((n: InternalNote) => {
+    if (!userId) return;
+    setNotes(prev => { const next = [...prev, n]; saveNotes(next, userId); return next; });
+  }, [userId]);
+  const updateNote = useCallback((n: InternalNote) => {
+    if (!userId) return;
+    setNotes(prev => { const next = prev.map(x => x.id === n.id ? n : x); saveNotes(next, userId); return next; });
+  }, [userId]);
+  const deleteNote = useCallback((id: string) => {
+    if (!userId) return;
+    setNotes(prev => { const next = prev.filter(x => x.id !== id); saveNotes(next, userId); return next; });
+  }, [userId]);
+
+  const addPurchaseOrder = useCallback((p: PurchaseOrder) => {
+    if (!userId) return;
+    setPurchaseOrders(prev => { const next = [...prev, p]; savePurchaseOrders(next, userId); return next; });
+  }, [userId]);
+  const updatePurchaseOrder = useCallback((p: PurchaseOrder) => {
+    if (!userId) return;
+    setPurchaseOrders(prev => { const next = prev.map(x => x.id === p.id ? p : x); savePurchaseOrders(next, userId); return next; });
+  }, [userId]);
+  const deletePurchaseOrder = useCallback((id: string) => {
+    if (!userId) return;
+    setPurchaseOrders(prev => { const next = prev.filter(x => x.id !== id); savePurchaseOrders(next, userId); return next; });
+  }, [userId]);
+
+  const addWaTemplate = useCallback((w: WaTemplate) => {
+    if (!userId) return;
+    setWaTemplates(prev => { const next = [...prev, w]; saveWaTemplates(next, userId); return next; });
+  }, [userId]);
+  const updateWaTemplate = useCallback((w: WaTemplate) => {
+    if (!userId) return;
+    setWaTemplates(prev => { const next = prev.map(x => x.id === w.id ? w : x); saveWaTemplates(next, userId); return next; });
+  }, [userId]);
+  const deleteWaTemplate = useCallback((id: string) => {
+    if (!userId) return;
+    setWaTemplates(prev => { const next = prev.filter(x => x.id !== id); saveWaTemplates(next, userId); return next; });
+  }, [userId]);
+
   const addEmployee = useCallback((e: Employee) => {
     if (!userId) return;
     setEmployees(prev => {
@@ -334,7 +466,7 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
   // ── Reload all data from storage (for pull-to-refresh) ──────────────────────
   const reload = useCallback(async () => {
     if (!userId) return;
-    const [appts, pats, ords, certs, prof, emps, photos, photoLabels, invs] = await Promise.all([
+    const [appts, pats, ords, certs, prof, emps, photos, photoLabels, invs, stock, sups, tele, notesL, poL, wtplsL] = await Promise.all([
       loadAppointments(userId),
       loadPatients(userId),
       loadOrdonnances(userId),
@@ -344,6 +476,12 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
       loadApptPhotos(userId),
       loadApptPhotoLabels(userId),
       loadInvoices(userId),
+      loadStockItems(userId),
+      loadSuppliers(userId),
+      loadTeleSessions(userId),
+      loadNotes(userId),
+      loadPurchaseOrders(userId),
+      loadWaTemplates(userId),
     ]);
     setAppointments(appts);
     updateWidget(buildWidgetPayload(appts));
@@ -355,6 +493,12 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
     setApptPhotos(photos);
     setApptPhotoLabels(photoLabels);
     setInvoices(invs);
+    setStockItems(stock);
+    setSuppliers(sups);
+    setTeleSessions(tele);
+    setNotes(notesL);
+    setPurchaseOrders(poL);
+    setWaTemplates(wtplsL);
   }, [userId]);
 
   return (
@@ -369,6 +513,12 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
       apptPhotos, addApptPhoto, removeApptPhoto,
       apptPhotoLabels, setApptPhotoLabel,
       invoices, addInvoice,
+      stockItems, addStockItem, updateStockItem, deleteStockItem,
+      suppliers, addSupplier, updateSupplier, deleteSupplier,
+      teleSessions, addTeleSession, updateTeleSession, deleteTeleSession,
+      notes, addNote, updateNote, deleteNote,
+      purchaseOrders, addPurchaseOrder, updatePurchaseOrder, deletePurchaseOrder,
+      waTemplates, addWaTemplate, updateWaTemplate, deleteWaTemplate,
       userId,
       reload,
     }}>

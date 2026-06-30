@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
 import { createBottomTabNavigator, BottomTabBar } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
@@ -8,6 +8,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { AppProvider, useApp } from "./lib/AppContext";
 import { CabinetProvider, useCabinet } from "./lib/CabinetContext";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { BlackpineLogo } from "./components/BlackpineLogo";
 import { SubscriptionModal } from "./components/SubscriptionModal";
 import { WebNavBar } from "./components/WebNavBar";
 import { WebAppShell } from "./components/WebAppShell";
@@ -31,13 +32,20 @@ import { applyRTL } from "./lib/rtl";
 import {
   requestNotificationPermissions,
   scheduleAcompteNotifications,
+  scheduleAppointmentReminders,
+  registerForPushNotifications,
 } from "./lib/notifications";
 import { radii, spacing } from "./lib/theme";
 import { ThemeProvider, useColors, useTheme } from "./lib/ThemeContext";
 import { DarkTheme, DefaultTheme } from "@react-navigation/native";
 import { PaywallScreen } from "./screens/PaywallScreen";
 import { StatsScreen } from "./screens/StatsScreen";
+import { StockScreen } from "./screens/StockScreen";
+import { TeleconsultScreen } from "./screens/TeleconsultScreen";
+import { NotesScreen } from "./screens/NotesScreen";
+import { WaTemplatesScreen } from "./screens/WaTemplatesScreen";
 import { WEB_BREAKPOINT } from "./lib/webConstants";
+import { trackScreen } from "./lib/analytics";
 
 const Tab = createBottomTabNavigator();
 const AgendaStack = createNativeStackNavigator();
@@ -69,6 +77,10 @@ function ProfileStackScreen() {
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="Payroll" component={PayrollScreen} />
       <ProfileStack.Screen name="Stats" component={StatsScreen} />
+      <ProfileStack.Screen name="Stock" component={StockScreen} />
+      <ProfileStack.Screen name="Teleconsult" component={TeleconsultScreen} />
+      <ProfileStack.Screen name="Notes" component={NotesScreen} />
+      <ProfileStack.Screen name="WaTemplates" component={WaTemplatesScreen} />
     </ProfileStack.Navigator>
   );
 }
@@ -126,6 +138,13 @@ function RootRouter() {
   const [isLocked, setIsLocked] = useState(false);
   const backgroundedAt = useRef<number>(0);
 
+  // Behavioural analytics — track which screen the doctor is on.
+  const navRef = useNavigationContainerRef();
+  const trackCurrentScreen = () => {
+    const name = (navRef.getCurrentRoute() as { name?: string } | undefined)?.name;
+    if (name) trackScreen(name);
+  };
+
   useEffect(() => {
     if (Platform.OS === "web") return;
     const sub = AppState.addEventListener("change", (nextState) => {
@@ -178,6 +197,22 @@ function RootRouter() {
     [cabinetAppts],
   );
 
+  // Same-day appointment reminders — reschedule whenever the agenda changes.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (screen !== "app" || !isActive) return;
+    requestNotificationPermissions().then((granted) => {
+      if (granted) scheduleAppointmentReminders(cabinetAppts);
+    });
+  }, [screen, isActive, cabinetAppts]);
+
+  // Register this device for server-sent push (e.g. new online bookings), once per session.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (screen !== "app" || !isActive) return;
+    registerForPushNotifications();
+  }, [screen, isActive]);
+
   useEffect(() => {
     loadSavedLanguage().then(() => {
       applyRTL();
@@ -210,7 +245,7 @@ function RootRouter() {
     return (
       <View style={loadingStyles.container}>
         <View style={loadingStyles.logoMark}>
-          <Icon name="stethoscope" size={28} color={colors.textOnDark} />
+          <BlackpineLogo size={44} color={colors.textOnDark} />
         </View>
         <Text style={loadingStyles.brand}>BLACKPINE</Text>
         <Text style={loadingStyles.brandSub}>CABINET</Text>
@@ -233,7 +268,7 @@ function RootRouter() {
     : { ...DefaultTheme, colors: { ...DefaultTheme.colors, background: colors.bg, card: colors.surface, border: colors.border, text: colors.textPrimary } };
 
   const navigator = (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} ref={navRef} onReady={trackCurrentScreen} onStateChange={trackCurrentScreen}>
       <Tab.Navigator
         screenOptions={screenOptions}
         tabBar={(props) => (

@@ -20,7 +20,7 @@ import Svg, {
   Polyline,
   Text as SvgText,
 } from "react-native-svg";
-import { Appointment } from "../lib/cabinetTypes";
+import { Appointment, ExamResult } from "../lib/cabinetTypes";
 import { ColorPalette, radii, spacing } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
 
@@ -302,9 +302,13 @@ function BpChart({
 
 interface Props {
   appointments: Appointment[];
+  examResults?: ExamResult[];
 }
 
-export function VitalsTrendChart({ appointments }: Props) {
+// Distinct colors cycled across lab-trend charts.
+const LAB_COLORS = ["#1890C5", "#9B72D0", "#15A876", "#E8622A", "#0FB5C4", "#D4962A"];
+
+export function VitalsTrendChart({ appointments, examResults }: Props) {
   const colors = useColors();
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const { width: screenW } = useWindowDimensions();
@@ -391,12 +395,39 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     [appts],
   );
 
+  // ── Lab-value trends: group numeric exam values by label across dates ────────
+  const labSeries = useMemo(() => {
+    const byLabel: Record<string, { label: string; unit: string; pts: Pt[] }> = {};
+    const exams = [...(examResults ?? [])].sort((a, b) => a.date.localeCompare(b.date));
+    for (const e of exams) {
+      for (const v of e.values) {
+        const num = parseFloat(String(v.value ?? "").replace(",", ".").replace(/[^\d.\-]/g, ""));
+        if (!isFinite(num) || !v.label?.trim()) continue;
+        const key = v.label.trim().toLowerCase();
+        const bad = v.isAbnormal === true
+          || (v.refMin != null && num < v.refMin)
+          || (v.refMax != null && num > v.refMax);
+        const s = (byLabel[key] ??= { label: v.label.trim(), unit: v.unit ?? "", pts: [] });
+        if (v.unit) s.unit = v.unit;
+        s.pts.push({ date: e.date, lbl: dateLbl(e.date), val: num, bad });
+      }
+    }
+    return Object.values(byLabel)
+      .filter((s) => s.pts.length >= 2)
+      .map((s) => {
+        const mx = Math.max(...s.pts.map((p) => Math.abs(p.val)));
+        return { ...s, decimals: mx < 10 ? 2 : mx < 100 ? 1 : 0 };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [examResults]);
+
   const hasAny =
     bpPts.length > 0 ||
     hrPts.length > 0 ||
     tempPts.length > 0 ||
     spo2Pts.length > 0 ||
-    weightPts.length > 0;
+    weightPts.length > 0 ||
+    labSeries.length > 0;
 
   if (!hasAny) {
     return (
@@ -457,6 +488,24 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
           colors={colors}
         />
       )}
+
+      {labSeries.length > 0 && (
+        <>
+          <Text style={styles.groupLabel}>Analyses biologiques</Text>
+          {labSeries.map((s, i) => (
+            <MetricChart
+              key={s.label}
+              title={s.label}
+              unit={s.unit}
+              color={LAB_COLORS[i % LAB_COLORS.length]}
+              points={s.pts}
+              decimals={s.decimals}
+              svgWidth={svgWidth}
+              colors={colors}
+            />
+          ))}
+        </>
+      )}
     </View>
   );
 }
@@ -467,6 +516,15 @@ const makeStyles = (colors: ColorPalette) =>
   StyleSheet.create({
     container: {
       gap: spacing.md,
+    },
+
+    groupLabel: {
+      fontSize: 11,
+      fontWeight: "800",
+      letterSpacing: 0.4,
+      textTransform: "uppercase",
+      color: colors.textTertiary,
+      marginTop: spacing.xs,
     },
 
     section: {

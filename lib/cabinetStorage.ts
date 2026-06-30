@@ -1,4 +1,4 @@
-import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient } from "./cabinetTypes";
+import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient, StockItem, Supplier, TeleSession, InternalNote, PurchaseOrder, WaTemplate, DEFAULT_WA_TEMPLATES } from "./cabinetTypes";
 
 function getAS() {
   return require("@react-native-async-storage/async-storage").default;
@@ -14,6 +14,12 @@ const K = {
   employees:    (uid: string) => `blackpine.cab.employees.v1.${uid}`,
   apptPhotos:   (uid: string) => `blackpine.cab.appt-photos.v1.${uid}`,
   invoices:     (uid: string) => `blackpine.cab.invoices.v1.${uid}`,
+  stockItems:   (uid: string) => `blackpine.cab.stock.v1.${uid}`,
+  suppliers:    (uid: string) => `blackpine.cab.suppliers.v1.${uid}`,
+  teleSessions: (uid: string) => `blackpine.cab.tele.v1.${uid}`,
+  notes:        (uid: string) => `blackpine.cab.notes.v1.${uid}`,
+  purchaseOrders: (uid: string) => `blackpine.cab.po.v1.${uid}`,
+  waTemplates:  (uid: string) => `blackpine.cab.watpl.v1.${uid}`,
 };
 
 export async function loadAppointments(userId: string): Promise<Appointment[]> {
@@ -76,6 +82,66 @@ export async function saveEmployees(data: Employee[], userId: string): Promise<v
   await getAS().setItem(K.employees(userId), JSON.stringify(data));
 }
 
+export async function loadStockItems(userId: string): Promise<StockItem[]> {
+  try {
+    const raw = await getAS().getItem(K.stockItems(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function saveStockItems(data: StockItem[], userId: string): Promise<void> {
+  await getAS().setItem(K.stockItems(userId), JSON.stringify(data));
+}
+
+export async function loadSuppliers(userId: string): Promise<Supplier[]> {
+  try {
+    const raw = await getAS().getItem(K.suppliers(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function saveSuppliers(data: Supplier[], userId: string): Promise<void> {
+  await getAS().setItem(K.suppliers(userId), JSON.stringify(data));
+}
+
+export async function loadTeleSessions(userId: string): Promise<TeleSession[]> {
+  try {
+    const raw = await getAS().getItem(K.teleSessions(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function saveTeleSessions(data: TeleSession[], userId: string): Promise<void> {
+  await getAS().setItem(K.teleSessions(userId), JSON.stringify(data));
+}
+
+export async function loadNotes(userId: string): Promise<InternalNote[]> {
+  try {
+    const raw = await getAS().getItem(K.notes(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function saveNotes(data: InternalNote[], userId: string): Promise<void> {
+  await getAS().setItem(K.notes(userId), JSON.stringify(data));
+}
+
+export async function loadPurchaseOrders(userId: string): Promise<PurchaseOrder[]> {
+  try {
+    const raw = await getAS().getItem(K.purchaseOrders(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function savePurchaseOrders(data: PurchaseOrder[], userId: string): Promise<void> {
+  await getAS().setItem(K.purchaseOrders(userId), JSON.stringify(data));
+}
+
+export async function loadWaTemplates(userId: string): Promise<WaTemplate[]> {
+  try {
+    const raw = await getAS().getItem(K.waTemplates(userId));
+    return raw ? JSON.parse(raw) : DEFAULT_WA_TEMPLATES;
+  } catch { return DEFAULT_WA_TEMPLATES; }
+}
+export async function saveWaTemplates(data: WaTemplate[], userId: string): Promise<void> {
+  await getAS().setItem(K.waTemplates(userId), JSON.stringify(data));
+}
+
 // ── Full cabinet wipe ─────────────────────────────────────────────────────────
 
 /**
@@ -94,6 +160,12 @@ export async function clearCabinetData(userId: string): Promise<void> {
       K.employees(userId),
       K.apptPhotos(userId),
       K.invoices(userId),
+      K.stockItems(userId),
+      K.suppliers(userId),
+      K.teleSessions(userId),
+      K.notes(userId),
+      K.purchaseOrders(userId),
+      K.waTemplates(userId),
     ]);
   } catch {
     // Best-effort: storage errors should not block the logout flow

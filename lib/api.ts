@@ -34,6 +34,19 @@ async function request(path: string, opts: RequestInit = {}): Promise<Response> 
   }
 }
 
+/** Register this device's Expo push token with the backend (best-effort). */
+export async function registerPushToken(token: string): Promise<void> {
+  try { await request("/push/register", { method: "POST", body: JSON.stringify({ token }) }); }
+  catch { /* best-effort — never block the app */ }
+}
+
+/** Send a batch of behavioural event names (best-effort; never blocks the app). */
+export async function postEvents(names: string[]): Promise<void> {
+  if (!names.length) return;
+  try { await request("/events", { method: "POST", body: JSON.stringify({ events: names.map((name) => ({ name })), platform: "mobile" }) }); }
+  catch { /* best-effort — analytics must never surface an error */ }
+}
+
 export async function signup(email: string, password: string): Promise<AuthUser> {
   const res = await request("/auth/signup", {
     method: "POST",

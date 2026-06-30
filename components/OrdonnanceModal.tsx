@@ -16,6 +16,8 @@ import * as Sharing from "expo-sharing";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DoctorProfile, Ordonnance, OrdonnanceLine } from "../lib/cabinetTypes";
 import { Icon } from "../lib/icons";
+import { track } from "../lib/analytics";
+import { tapSuccess } from "../lib/haptics";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
 import { MedicationAutocomplete } from "./MedicationAutocomplete";
@@ -41,6 +43,29 @@ const EMPTY_LINE: Omit<OrdonnanceLine, "id"> = {
   duration: "",
 };
 
+// ── Allergy safety helpers (mirror of web OrdonnanceModal) ──────────────────────
+const NONE_ALLERGY = new Set(["aucune", "aucun", "ras", "neant", "non", "rien", "none", "no", "-", "0", "nil"]);
+
+// RN/Hermes-safe accent folding (avoids String.prototype.normalize availability questions).
+function normalizeTxt(s: string): string {
+  return s.toLowerCase()
+    .replace(/[àâä]/g, "a").replace(/[éèêë]/g, "e").replace(/[îï]/g, "i")
+    .replace(/[ôö]/g, "o").replace(/[ûüù]/g, "u").replace(/ç/g, "c");
+}
+
+function parseAllergyTerms(allergies?: string): string[] {
+  if (!allergies) return [];
+  const norm = normalizeTxt(allergies).trim();
+  if (!norm || NONE_ALLERGY.has(norm)) return [];
+  return norm.split(/[,;/\n·]+/).map((x) => x.trim()).filter((x) => x.length >= 3 && !NONE_ALLERGY.has(x));
+}
+
+function drugConflicts(med: string, terms: string[]): boolean {
+  if (!med.trim() || terms.length === 0) return false;
+  const d = normalizeTxt(med);
+  return terms.some((term) => d.includes(term));
+}
+
 interface Props {
   visible: boolean;
   patientName: string;
@@ -48,6 +73,10 @@ interface Props {
   /** Set when the modal is opened from AppointmentDetailScreen. */
   appointmentId?: string;
   doctorProfile: DoctorProfile;
+  /** Patient's recorded allergies (free text) — drives the safety banner. */
+  allergies?: string;
+  /** This patient's most recent prior prescription lines — for "Repeat last". */
+  lastLines?: OrdonnanceLine[];
   onClose: () => void;
   onSave?: (o: Ordonnance) => void;
   t: (k: string) => string;
@@ -63,7 +92,8 @@ export function buildOrdonnanceHTML(
 ): string {
   const dr = doctorProfile.fullName ? `Dr. ${doctorProfile.fullName}` : "Docteur";
   const specialty = doctorProfile.specialtyLabel || "";
-  const inpe = doctorProfile.inpe ? `N° INPE : ${doctorProfile.inpe}` : "";
+  const ds = doctorProfile.documentSettings ?? {};
+  const inpe = (ds.showInpe !== false && doctorProfile.inpe) ? `N° INPE : ${doctorProfile.inpe}` : "";
   const address = doctorProfile.address || "";
   const phone = doctorProfile.phone || "";
   const dateStr = todayFr();
@@ -144,6 +174,7 @@ export function buildOrdonnanceHTML(
       <div class="doctor-name">${dr}</div>
       <div class="doctor-meta">
         ${metaLine ? `${metaLine}<br>` : ""}
+        ${ds.headerNote ? `${ds.headerNote}<br>` : ""}
         ${address ? `${address}<br>` : ""}
         ${phone ? phone : ""}
       </div>
@@ -175,7 +206,7 @@ export function buildOrdonnanceHTML(
     </div>
   </div>
 
-  <div class="footer">Généré par BLACKPINE Cabinet · ${dateStr}</div>
+  <div class="footer">${ds.footerNote ? `${ds.footerNote} · ` : ""}Généré par BLACKPINE Cabinet · ${dateStr}</div>
 </div>
 </body>
 </html>`;
@@ -183,7 +214,7 @@ export function buildOrdonnanceHTML(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function OrdonnanceModal({ visible, patientName, patientId, appointmentId, doctorProfile, onClose, onSave, t }: Props) {
+export function OrdonnanceModal({ visible, patientName, patientId, appointmentId, doctorProfile, allergies, lastLines, onClose, onSave, t }: Props) {
   const colors = useColors();
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const sharedModalStyles = makeSharedStyles(colors);
@@ -293,6 +324,8 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     setLoading(true);
     try {
       persistOrdonnance();
+      track("action:print_ordonnance");
+      tapSuccess();
       const html = buildOrdonnanceHTML(patientName, lines, notes, doctorProfile);
       const { uri } = await Print.printToFileAsync({ html, base64: false });
       await Sharing.shareAsync(uri, {
@@ -332,6 +365,27 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const hasLines = lines.some((l) => l.medication.trim().length > 0);
 
+  // ── Allergy safety ──────────────────────────────────────────────────────────
+  const allergyRaw      = (allergies ?? "").trim();
+  const showAllergyInfo = allergyRaw !== "" && !NONE_ALLERGY.has(normalizeTxt(allergyRaw));
+  const allergyTerms    = parseAllergyTerms(allergyRaw);
+  const conflictMeds    = [...new Set(
+    lines.filter((l) => drugConflicts(l.medication, allergyTerms)).map((l) => l.medication.trim()),
+  )];
+
+  const repeatLast = () => {
+    if (!lastLines || lastLines.length === 0) return;
+    const apply = () => setLines(lastLines.map((l) => ({ ...l, id: uuid() })));
+    if (hasLines) {
+      Alert.alert(t("ordonnance.repeatLast"), t("ordonnance.repeatLastConfirm"), [
+        { text: t("cancel"), style: "cancel" },
+        { text: t("ordonnance.repeatLast"), onPress: apply },
+      ]);
+    } else {
+      apply();
+    }
+  };
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={sharedModalStyles.overlay}>
@@ -356,6 +410,23 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
             <Text style={styles.dateBadge}>{todayFr()}</Text>
           </View>
 
+          {/* Allergy safety banner */}
+          {showAllergyInfo && (
+            <View style={[styles.allergyBanner, conflictMeds.length > 0 && styles.allergyBannerConflict]}>
+              <Icon name="warning" size={14} color={conflictMeds.length > 0 ? colors.danger : colors.warning} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.allergyText, conflictMeds.length > 0 && { color: colors.danger }]}>
+                  {t("ordonnance.allergyKnown")}: {allergyRaw}
+                </Text>
+                {conflictMeds.length > 0 && (
+                  <Text style={styles.allergyConflictText}>
+                    ⚠️ {t("ordonnance.allergyConflict")}: {conflictMeds.join(", ")}
+                  </Text>
+                )}
+              </View>
+            </View>
+          )}
+
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {/* Lines */}
             {lines.length === 0 ? (
@@ -365,7 +436,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               </View>
             ) : (
               lines.map((line, idx) => (
-                <View key={line.id} style={styles.lineCard}>
+                <View key={line.id} style={[styles.lineCard, drugConflicts(line.medication, allergyTerms) && styles.lineCardConflict]}>
                   <View style={styles.lineNumRow}>
                     <View style={styles.lineNum}>
                       <Text style={styles.lineNumText}>{idx + 1}</Text>
@@ -442,6 +513,14 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               numberOfLines={3}
               textAlignVertical="top"
             />
+
+            {/* ── Repeat last prescription ────────────────────────── */}
+            {lastLines && lastLines.length > 0 && (
+              <Pressable style={styles.repeatBtn} onPress={repeatLast}>
+                <Icon name="refresh" size={15} color={colors.brand} />
+                <Text style={styles.repeatBtnText}>{t("ordonnance.repeatLast")}</Text>
+              </Pressable>
+            )}
 
             {/* ── Templates panel ─────────────────────────────────── */}
             <Pressable style={styles.templatesToggle} onPress={() => setShowTemplates((v) => !v)}>
@@ -552,6 +631,25 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1, borderColor: colors.border,
     padding: spacing.md, marginBottom: spacing.md, ...shadows.card,
   },
+  lineCardConflict: { borderColor: colors.danger, borderWidth: 1.5 },
+  allergyBanner: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    backgroundColor: colors.warningSoft ?? "#FBF0DD",
+    borderWidth: 1, borderColor: colors.warning,
+    borderRadius: radii.md, padding: spacing.sm + 2, marginBottom: spacing.md,
+  },
+  allergyBannerConflict: {
+    backgroundColor: colors.dangerSoft ?? "#FDEAEA", borderColor: colors.danger,
+  },
+  allergyText: { flex: 1, fontSize: 12.5, fontWeight: "700", color: "#9a6e00", lineHeight: 17 },
+  allergyConflictText: { fontSize: 12, fontWeight: "700", color: colors.danger, marginTop: 3 },
+  repeatBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7,
+    backgroundColor: colors.brandSoft ?? colors.bg,
+    borderWidth: 1, borderColor: colors.brand,
+    borderRadius: radii.md, paddingVertical: spacing.sm + 1, marginBottom: spacing.sm,
+  },
+  repeatBtnText: { fontSize: 13.5, fontWeight: "700", color: colors.brand },
   lineNumRow: {
     flexDirection: "row", justifyContent: "space-between",
     alignItems: "center", marginBottom: spacing.sm,

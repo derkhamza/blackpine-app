@@ -17,6 +17,7 @@ import { useCabinet } from "../lib/CabinetContext";
 import { useApp } from "../lib/AppContext";
 import { Employee, EmployeeRole } from "../lib/cabinetTypes";
 import { computePayroll, currentMonthLabel, fmtMAD } from "../lib/payrollCalc";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
@@ -292,7 +293,7 @@ function EmployeeCard({
       <View style={styles.payrollSummary}>
         <View style={styles.summaryItem}>
           <Text style={styles.summaryLabel}>Net à payer</Text>
-          <Text style={styles.summaryNet}>{fmtMAD(p.netSalary)}</Text>
+          <AnimatedNumber value={p.netSalary} format={fmtMAD} style={styles.summaryNet} />
         </View>
         <View style={styles.summaryDivider} />
         <View style={styles.summaryItem}>
@@ -443,12 +444,12 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <View style={styles.summaryBanner}>
           <View style={styles.bannerItem}>
             <Text style={styles.bannerLabel}>Net / mois</Text>
-            <Text style={styles.bannerValue}>{fmtMAD(totalNetSalary)}</Text>
+            <AnimatedNumber value={totalNetSalary} format={fmtMAD} style={styles.bannerValue} />
           </View>
           <View style={styles.bannerDivider} />
           <View style={styles.bannerItem}>
             <Text style={styles.bannerLabel}>Coût employeur</Text>
-            <Text style={[styles.bannerValue, { color: colors.warning }]}>{fmtMAD(totalCost)}</Text>
+            <AnimatedNumber value={totalCost} format={fmtMAD} style={[styles.bannerValue, { color: colors.warning }]} />
           </View>
           <View style={styles.bannerDivider} />
           <View style={styles.bannerItem}>

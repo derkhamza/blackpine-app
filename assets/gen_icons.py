@@ -77,6 +77,50 @@ def draw_circle_outline(draw, cx, cy, radius, color, width):
         outline=color, width=width
     )
 
+def _disc(draw, cx, cy, r, fill):
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=fill)
+
+def draw_stethoscope(draw, cx, cy, r, tube_w, tube_color, accent):
+    """
+    Stethoscope rendered as the ring around the pine tree:
+      • the binaural tubing forms the circle (a gap at the top),
+      • two angled ear-tubes splay up-and-out to rounded ear tips,
+      • a round chest-piece (diaphragm) sits at the bottom of the ring.
+    PIL angles: 0 deg = 3 o'clock, increasing clockwise; 270=top, 90=bottom.
+    """
+    bbox = [cx - r, cy - r, cx + r, cy + r]
+    gap  = 22  # half-width (deg) of the open gap at the very top
+
+    # main tube — full ring minus the top gap
+    draw.arc(bbox, start=270 + gap, end=270 - gap + 360, fill=tube_color, width=tube_w)
+
+    # gap end-points on the circle (where the ear-tubes leave the ring)
+    aR = math.radians(270 + gap)
+    aL = math.radians(270 - gap)
+    rxR, ryR = cx + r * math.cos(aR), cy + r * math.sin(aR)
+    rxL, ryL = cx + r * math.cos(aL), cy + r * math.sin(aL)
+    # round caps so the tube ends are smooth
+    _disc(draw, rxR, ryR, tube_w / 2, tube_color)
+    _disc(draw, rxL, ryL, tube_w / 2, tube_color)
+
+    # ear-tubes splay up and outward to the ear tips
+    tipR = (cx + r * 0.66, cy - r * 1.20)
+    tipL = (cx - r * 0.66, cy - r * 1.20)
+    draw.line([(rxR, ryR), tipR], fill=tube_color, width=tube_w)
+    draw.line([(rxL, ryL), tipL], fill=tube_color, width=tube_w)
+    # ear tips (small rounded knobs, accent-coloured)
+    ear = tube_w * 0.95
+    _disc(draw, tipR[0], tipR[1], ear, accent)
+    _disc(draw, tipL[0], tipL[1], ear, accent)
+
+    # chest-piece at the bottom of the ring — a stem then a diaphragm disc
+    stem_top = (cx, cy + r)
+    cp_cy    = cy + r + r * 0.30
+    cp_r     = r * 0.20
+    draw.line([stem_top, (cx, cp_cy - cp_r * 0.4)], fill=tube_color, width=tube_w)
+    _disc(draw, cx, cp_cy, cp_r, tube_color)             # outer ring of the bell
+    _disc(draw, cx, cp_cy, cp_r - tube_w * 0.9, accent)  # diaphragm face
+
 def try_font(size, bold=False):
     candidates = [
         "C:/Windows/Fonts/arialbd.ttf" if bold else "C:/Windows/Fonts/arial.ttf",
@@ -112,12 +156,9 @@ def make_icon(out_path, size=1024):
     stroke_w  = max(6, int(size * 0.018))
     scale     = size / 1024.0
 
-    # white circle
-    draw.ellipse(
-        [cx - r_circle, cy_circle - r_circle,
-         cx + r_circle, cy_circle + r_circle],
-        outline=WHITE, width=stroke_w
-    )
+    # white stethoscope ring (tube + ear tips + chest-piece) around the tree
+    tube_w = max(8, int(size * 0.026))
+    draw_stethoscope(draw, cx, cy_circle, r_circle, tube_w, WHITE, GOLD)
 
     # white pine tree
     tree_cy = cy_circle + int(10 * scale)
@@ -149,15 +190,18 @@ def make_adaptive_icon(out_path, size=1024):
          cx + r_circle, cy_circle + r_circle],
         fill=DARK + (255,)
     )
-    # white circle ring
-    draw.ellipse(
-        [cx - r_circle, cy_circle - r_circle,
-         cx + r_circle, cy_circle + r_circle],
-        outline=WHITE + (255,), width=stroke_w
-    )
 
-    tree_cy = cy_circle + int(10 * scale)
-    tiers, trunk = pine_tree_points(cx, tree_cy, scale * 0.88)
+    # white stethoscope ring inside the disc (kept in the safe zone so the
+    # ear tips / chest-piece are never clipped by Android's adaptive mask)
+    r_steth = int(size * 0.185)
+    tube_w  = max(6, int(size * 0.022))
+    draw_stethoscope(draw, cx, cy_circle, r_steth, tube_w,
+                     WHITE + (255,), GOLD + (255,))
+
+    # tree fills ~66 % of the ring, vertically centred inside it
+    tree_scale = (r_steth / 230.0) * 0.66
+    tree_cy = cy_circle - int(18 * scale)
+    tiers, trunk = pine_tree_points(cx, tree_cy, tree_scale)
     for tier in tiers:
         draw.polygon(tier, fill=WHITE + (255,))
     draw.rectangle(trunk, fill=WHITE + (255,))
@@ -176,16 +220,12 @@ def make_splash(out_path, size=512):
     # place circle in the upper-middle third so the wordmark fits below
     cy_circle = int(size * 0.33)
     r_circle  = int(size * 0.25)
-    stroke_w  = max(3, int(size * 0.015))
+    stroke_w  = max(4, int(size * 0.018))
     # tree scale fitted to the circle (keeps trunk slightly inside)
     tree_scale = r_circle / 290.0
 
-    # brand blue circle outline
-    draw.ellipse(
-        [cx - r_circle, cy_circle - r_circle,
-         cx + r_circle, cy_circle + r_circle],
-        outline=DARK, width=stroke_w
-    )
+    # dark stethoscope ring around the tree
+    draw_stethoscope(draw, cx, cy_circle, r_circle, stroke_w, DARK, GOLD)
 
     # dark pine tree inside
     tree_cy = cy_circle + int(6 * tree_scale * 4)
@@ -194,8 +234,8 @@ def make_splash(out_path, size=512):
         draw.polygon(tier, fill=DARK)
     draw.rectangle(trunk, fill=DARK)
 
-    # wordmark — well below the circle
-    y_text = cy_circle + r_circle + int(size * 0.07)
+    # wordmark — below the circle and its chest-piece
+    y_text = cy_circle + r_circle + int(size * 0.13)
     font_b = try_font(int(size * 0.13), bold=True)
     font_s = try_font(int(size * 0.07))
     draw.text((cx, y_text),                  "BLACKPINE", font=font_b,

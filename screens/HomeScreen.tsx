@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ScalePressable } from "../components/ScalePressable";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { tapLight } from "../lib/haptics";
 import { useCabinet } from "../lib/CabinetContext";
 import { useApp } from "../lib/AppContext";
@@ -180,17 +181,22 @@ function StatCard({
   value,
   sub,
   accent,
+  format,
 }: {
   label: string;
-  value: string;
+  value: string | number;
   sub?: string;
   accent?: string;
+  format?: (n: number) => string;
 }) {
   const styles = makeStyles(useColors());
+  const valStyle = [styles.statValue, accent ? { color: accent } : null];
   return (
     <View style={styles.statCard}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, accent ? { color: accent } : null]}>{value}</Text>
+      {typeof value === "number"
+        ? <AnimatedNumber value={value} format={format} style={valStyle} />
+        : <Text style={valStyle}>{value}</Text>}
       {sub ? <Text style={styles.statSub}>{sub}</Text> : null}
     </View>
   );
@@ -342,6 +348,24 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     [transactions, today],
   );
 
+  // ── Caisse du jour (end-of-day till) — mirrors the web Dashboard caisse ──────
+  const caisse = useMemo(() => {
+    const billedToday = appointments.filter(a => a.billedAt && a.billedAt.slice(0, 10) === today);
+    const collected   = billedToday.reduce((s, a) => s + (a.billedAmount ?? 0), 0);
+    const seen        = appointments.filter(a => a.date === today && a.status === "completed");
+    const unpaidCount = seen.filter(a => !a.billedAt).length;
+    // Mobile has no per-type pricing UI; estimate from the inferred average fee.
+    const unpaidEstimate = avgConsultationFee != null ? avgConsultationFee * unpaidCount : 0;
+    return {
+      collected,
+      billedCount:    billedToday.length,
+      seenCount:      seen.length,
+      unpaidCount,
+      unpaidEstimate,
+      avgTicket:      billedToday.length ? Math.round(collected / billedToday.length) : 0,
+    };
+  }, [appointments, avgConsultationFee, today]);
+
   const lastWeekPeriod = useMemo(() => lastWeekSamePeriodRange(), []);
   const lastWeekRevenue = useMemo(() =>
     transactions
@@ -431,6 +455,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   // Appointment type labels
   const typeLabels: Record<string, string> = {
     consultation: t("agenda.types.consultation"),
+    controle: t("agenda.types.controle"),
     suivi: t("agenda.types.suivi"),
     procedure: t("agenda.types.procedure"),
     urgence: t("agenda.types.urgence"),
@@ -535,6 +560,39 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               {(doctorProfile.fullName || "D").charAt(0).toUpperCase()}
             </Text>
           </ScalePressable>
+        </View>
+
+        {/* ── Caisse du jour — end-of-day till (the daily hook) ── */}
+        <View style={styles.caisse}>
+          <View style={styles.caisseMain}>
+            <View style={styles.caisseLabelRow}>
+              <Icon name="receipt" size={12} color={colors.textOnDarkMuted} />
+              <Text style={styles.caisseLabel}>{t("home.caisseTitle")}</Text>
+            </View>
+            <AnimatedNumber value={caisse.collected} format={formatMAD} style={styles.caisseAmount} />
+            <Text style={styles.caisseSub}>
+              {caisse.seenCount > 0 || caisse.collected > 0
+                ? `${caisse.seenCount} ${t("home.caissePatientsSeen")}` +
+                  (caisse.billedCount > 0 ? ` · ${t("home.caisseAvg")} ${formatMAD(caisse.avgTicket)}` : "")
+                : t("home.caisseNothing")}
+            </Text>
+          </View>
+          {caisse.unpaidCount > 0 && (
+            <ScalePressable
+              scaleTo={0.95}
+              style={styles.caisseUnpaid}
+              onPress={() => { tapLight(); handleOpenAgenda(); }}
+            >
+              <Text style={styles.caisseUnpaidCount}>{caisse.unpaidCount}</Text>
+              <View>
+                <Text style={styles.caisseUnpaidLbl}>{t("home.caisseToCollect")}</Text>
+                {caisse.unpaidEstimate > 0 && (
+                  <Text style={styles.caisseUnpaidEst}>≈ {formatMAD(caisse.unpaidEstimate)}</Text>
+                )}
+              </View>
+              <Text style={styles.caisseUnpaidChevron}>›</Text>
+            </ScalePressable>
+          )}
         </View>
 
         {/* ── Revenue Pulse ── */}
@@ -927,13 +985,14 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <View style={styles.statsRow}>
           <StatCard
             label={t("home.income")}
-            value={formatMAD(monthlyRevenue)}
+            value={monthlyRevenue}
+            format={formatMAD}
             sub={monthlyRevenue > 0 ? `${t("home.projected")} ${formatMAD(projectedRevenue)}` : undefined}
             accent={colors.recette}
           />
           <StatCard
             label={t("home.patientsSeen")}
-            value={String(monthlyPatientsSeen)}
+            value={monthlyPatientsSeen}
             sub={completionRate > 0 ? `${completionRate}% ${t("home.completionRate")}` : `${monthlyAppts} ${t("home.appointments")}`}
           />
         </View>
@@ -942,12 +1001,12 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <View style={styles.statsRow}>
           <StatCard
             label={t("home.totalPatients")}
-            value={String(totalPatients)}
+            value={totalPatients}
             accent={colors.brand}
           />
           <StatCard
             label={t("home.cabinetStats")}
-            value={`${monthlyAppts}`}
+            value={monthlyAppts}
             sub={t("home.appointments")}
           />
         </View>
@@ -1114,6 +1173,36 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
 
   // Revenue Pulse strip
+  caisse: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    backgroundColor: "#0A4E7E",
+    borderRadius: radii.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md + 2,
+    marginBottom: spacing.md,
+    ...shadows.hero,
+  },
+  caisseMain: { flexShrink: 1 },
+  caisseLabelRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 2 },
+  caisseLabel: {
+    fontSize: 10, fontWeight: "700", color: colors.textOnDarkMuted,
+    textTransform: "uppercase", letterSpacing: 0.5,
+  },
+  caisseAmount: { fontSize: 28, fontWeight: "900", color: colors.textOnDark, letterSpacing: -0.5 },
+  caisseSub: { fontSize: 12, color: colors.textOnDarkMuted, marginTop: 3 },
+  caisseUnpaid: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "rgba(255,255,255,0.13)",
+    borderRadius: radii.md, paddingVertical: 7, paddingHorizontal: 11,
+  },
+  caisseUnpaidCount: { fontSize: 20, fontWeight: "900", color: colors.textOnDark },
+  caisseUnpaidLbl: { fontSize: 11, fontWeight: "600", color: colors.textOnDark },
+  caisseUnpaidEst: { fontSize: 11, fontWeight: "800", color: colors.gold },
+  caisseUnpaidChevron: { fontSize: 18, color: colors.textOnDarkMuted, fontWeight: "700" },
   revenuePulse: {
     backgroundColor: colors.recette + "0D",
     borderRadius: radii.lg,

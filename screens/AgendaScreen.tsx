@@ -19,6 +19,7 @@ import { AppointmentModal, TYPE_COLORS, STATUS_COLORS } from "../components/Appo
 import { GlobalSearchModal, HistoryTab } from "../components/GlobalSearchModal";
 import { PatientHistoryModal } from "../components/PatientHistoryModal";
 import { useCabinet } from "../lib/CabinetContext";
+import { track } from "../lib/analytics";
 import { useBilling } from "../lib/useBilling";
 import { Appointment, Patient } from "../lib/cabinetTypes";
 import { Icon } from "../lib/icons";
@@ -26,6 +27,7 @@ import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme"
 import { useColors } from "../lib/ThemeContext";
 import { useT } from "../lib/useT";
 import { tapLight, tapSuccess } from "../lib/haptics";
+import { FadeInView } from "../components/FadeInView";
 import { todayIso, nowHHMM, addDays } from "../lib/utils";
 import { formatDateShort } from "../lib/format";
 import { scheduleFollowUpNotification, cancelFollowUpNotification } from "../lib/notifications";
@@ -879,7 +881,8 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const openAdd = () => { setEditingAppt(null); setModalVisible(true); };
 
   const handleSave = (appt: Appointment) => {
-    editingAppt ? updateAppointment(appt) : addAppointment(appt);
+    tapSuccess();
+    if (editingAppt) { updateAppointment(appt); } else { addAppointment(appt); track("action:create_rdv"); }
     // Sync follow-up notification
     if (appt.followUpDate) {
       scheduleFollowUpNotification(
@@ -1145,28 +1148,30 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               keyExtractor={(a) => a.id}
               contentContainerStyle={styles.list}
               keyboardDismissMode="on-drag"
-              renderItem={({ item }) => (
-                <ApptCard
-                  appt={item}
-                  isActive={isInProgress(item)}
-                  visitNum={visitNumberMap.get(item.id)}
-                  isBirthday={isBirthday(item)}
-                  onPress={() => navigation.navigate("AppointmentDetail", { appointmentId: item.id })}
-                  onToggleDone={() => {
-                    tapLight();
-                    updateAppointment({
-                      ...item,
-                      status: item.status === "completed" ? "scheduled" : "completed",
-                    });
-                  }}
-                  onBill={() => setBillingAppt(item)}
-                  onRemind={
-                    item.status === "scheduled" && item.patientId && patientPhoneMap[item.patientId]
-                      ? () => handleRemind(item)
-                      : undefined
-                  }
-                  t={t}
-                />
+              renderItem={({ item, index }) => (
+                <FadeInView index={index}>
+                  <ApptCard
+                    appt={item}
+                    isActive={isInProgress(item)}
+                    visitNum={visitNumberMap.get(item.id)}
+                    isBirthday={isBirthday(item)}
+                    onPress={() => navigation.navigate("AppointmentDetail", { appointmentId: item.id })}
+                    onToggleDone={() => {
+                      tapLight();
+                      updateAppointment({
+                        ...item,
+                        status: item.status === "completed" ? "scheduled" : "completed",
+                      });
+                    }}
+                    onBill={() => setBillingAppt(item)}
+                    onRemind={
+                      item.status === "scheduled" && item.patientId && patientPhoneMap[item.patientId]
+                        ? () => handleRemind(item)
+                        : undefined
+                    }
+                    t={t}
+                  />
+                </FadeInView>
               )}
               showsVerticalScrollIndicator={false}
             />
@@ -1205,28 +1210,30 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
             keyExtractor={(a) => a.id}
             contentContainerStyle={styles.list}
             keyboardDismissMode="on-drag"
-            renderItem={({ item }) => (
-              <ApptCard
-                appt={item}
-                isActive={isInProgress(item)}
-                visitNum={visitNumberMap.get(item.id)}
-                isBirthday={isBirthday(item)}
-                onPress={() => navigation.navigate("AppointmentDetail", { appointmentId: item.id })}
-                onToggleDone={() => {
-                  tapLight();
-                  updateAppointment({
-                    ...item,
-                    status: item.status === "completed" ? "scheduled" : "completed",
-                  });
-                }}
-                onBill={() => setBillingAppt(item)}
-                onRemind={
-                  item.status === "scheduled" && item.patientId && patientPhoneMap[item.patientId]
-                    ? () => handleRemind(item)
-                    : undefined
-                }
-                t={t}
-              />
+            renderItem={({ item, index }) => (
+              <FadeInView index={index}>
+                <ApptCard
+                  appt={item}
+                  isActive={isInProgress(item)}
+                  visitNum={visitNumberMap.get(item.id)}
+                  isBirthday={isBirthday(item)}
+                  onPress={() => navigation.navigate("AppointmentDetail", { appointmentId: item.id })}
+                  onToggleDone={() => {
+                    tapLight();
+                    updateAppointment({
+                      ...item,
+                      status: item.status === "completed" ? "scheduled" : "completed",
+                    });
+                  }}
+                  onBill={() => setBillingAppt(item)}
+                  onRemind={
+                    item.status === "scheduled" && item.patientId && patientPhoneMap[item.patientId]
+                      ? () => handleRemind(item)
+                      : undefined
+                  }
+                  t={t}
+                />
+              </FadeInView>
             )}
             showsVerticalScrollIndicator={false}
           />

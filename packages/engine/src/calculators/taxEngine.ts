@@ -1,7 +1,7 @@
 import { calculateResultatFiscal } from "./resultatFiscalCalculator";
 import { calculateTax } from "./taxOrchestrator";
 import { loadFiscalYearConfig } from "../config/configLoader";
-import {
+import type {
   DoctorProfile,
   Transaction,
   TaxResult,

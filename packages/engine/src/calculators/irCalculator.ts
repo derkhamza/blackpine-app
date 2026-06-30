@@ -1,4 +1,4 @@
-import { IRBracket, IRResult, FiscalYearConfig, TraceEvent } from "../types";
+import type { IRBracket, IRResult, FiscalYearConfig, TraceEvent } from "../types";
 
 export function calculateIR(
   resultatFiscal: number,

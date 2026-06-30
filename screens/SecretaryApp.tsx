@@ -31,7 +31,13 @@ import { useApp } from "../lib/AppContext";
 import { radii, shadows, spacing, typography, colors, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
 import { Icon } from "../lib/icons";
-import { Appointment, Patient } from "../lib/cabinetTypes";
+import {
+  Appointment,
+  Patient,
+  DoctorProfile,
+  VitalSigns,
+  DEFAULT_SECRETARY_PERMISSIONS,
+} from "../lib/cabinetTypes";
 import { AppointmentModal, TYPE_COLORS, STATUS_COLORS } from "../components/AppointmentModal";
 import {
   pullCabinetSnapshot,
@@ -39,6 +45,9 @@ import {
   pushSecretaryPatients,
 } from "../lib/inviteApi";
 import { uuid, todayIso } from "../lib/utils";
+import { setSecretaryToken, trackSecretary } from "../lib/analytics";
+import { tapLight, tapSuccess } from "../lib/haptics";
+import { FadeInView } from "../components/FadeInView";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,16 +152,22 @@ function ApptRow({
   appt,
   onToggleDone,
   onEdit,
+  onVitals,
+  onBill,
 }: {
   appt: Appointment;
   onToggleDone: () => void;
   onEdit: () => void;
+  onVitals?: () => void;   // shown when the secretary may record measurements
+  onBill?: () => void;     // shown when the secretary may handle billing
 }) {
   const colors = useColors();
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const typeColor   = TYPE_COLORS[appt.type];
   const statusColor = STATUS_COLORS[appt.status];
   const isDone      = appt.status === "completed";
+  const hasVitals   = !!appt.vitalSigns && Object.values(appt.vitalSigns).some((v) => v != null);
+  const isBilled    = !!appt.billedAt;
 
   return (
     <Pressable
@@ -167,22 +182,48 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <Text style={[styles.apptName, isDone && { color: colors.textTertiary }]} numberOfLines={1}>
           {appt.patientName}
         </Text>
-        <View style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}>
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {appt.status === "scheduled" ? "Prévu"
-              : appt.status === "completed" ? "Vu"
-              : appt.status === "cancelled" ? "Annulé"
-              : "Absent"}
-          </Text>
+        <View style={styles.apptTagRow}>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor + "20" }]}>
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {appt.status === "scheduled" ? "Prévu"
+                : appt.status === "completed" ? "Vu"
+                : appt.status === "cancelled" ? "Annulé"
+                : "Absent"}
+            </Text>
+          </View>
+          {hasVitals && (
+            <View style={[styles.statusBadge, { backgroundColor: colors.brandSoft }]}>
+              <Text style={[styles.statusText, { color: colors.brand }]}>Mesures ✓</Text>
+            </View>
+          )}
+          {isBilled && (
+            <View style={[styles.statusBadge, { backgroundColor: colors.success + "20" }]}>
+              <Text style={[styles.statusText, { color: colors.success }]}>
+                Facturé{appt.billedAmount ? ` · ${appt.billedAmount}` : ""}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
-      <Pressable
-        style={[styles.checkBtn, isDone && { backgroundColor: colors.success }]}
-        onPress={onToggleDone}
-        hitSlop={10}
-      >
-        <Icon name="check" size={14} color={isDone ? colors.textOnDark : colors.textTertiary} />
-      </Pressable>
+      <View style={styles.apptActions}>
+        {onVitals && (
+          <Pressable style={styles.actionBtn} onPress={onVitals} hitSlop={8}>
+            <Icon name="heartPulse" size={15} color={hasVitals ? colors.brand : colors.textTertiary} />
+          </Pressable>
+        )}
+        {onBill && !isBilled && (
+          <Pressable style={styles.actionBtn} onPress={onBill} hitSlop={8}>
+            <Icon name="receipt" size={15} color={colors.textTertiary} />
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.checkBtn, isDone && { backgroundColor: colors.success }]}
+          onPress={onToggleDone}
+          hitSlop={10}
+        >
+          <Icon name="check" size={14} color={isDone ? colors.textOnDark : colors.textTertiary} />
+        </Pressable>
+      </View>
     </Pressable>
   );
 }
@@ -225,6 +266,13 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const [editingAppt, setEditingAppt] = useState<Appointment | null>(null);
   const [patModal, setPatModal]     = useState(false);
   const [searchPat, setSearchPat]   = useState("");
+  const [doctorProfile, setDoctorProfile] = useState<DoctorProfile | null>(null);
+  const [vitalsAppt, setVitalsAppt] = useState<Appointment | null>(null);
+  const [billAppt, setBillAppt]     = useState<Appointment | null>(null);
+
+  // In Morocco the secretary takes measurements and bills at the desk, so both
+  // default ON; the doctor can turn either off and it syncs via the snapshot.
+  const perms = doctorProfile?.secretaryPermissions ?? DEFAULT_SECRETARY_PERMISSIONS;
 
   const token      = secretarySession?.secretaryToken ?? "";
   const ownerName  = secretarySession?.ownerName ?? "Cabinet médical";
@@ -238,6 +286,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
       const snap = await pullCabinetSnapshot(token);
       setAppts(snap.appointments ?? []);
       setPatients(snap.patients ?? []);
+      if (snap.doctorProfile) setDoctorProfile(snap.doctorProfile);
     } catch (err: any) {
       if (err.message?.includes("401") || err.message?.includes("revoked")) {
         Alert.alert(
@@ -254,6 +303,16 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  // Behavioural analytics — bind the secretary token, then track the active tab.
+  useEffect(() => {
+    setSecretaryToken(token);
+    return () => setSecretaryToken("");
+  }, [token]);
+
+  useEffect(() => {
+    if (token) trackSecretary("page:/sec/" + tab);
+  }, [tab, token]);
+
   // ── Appointments split by date ────────────────────────────────────────────
   const todayAppts = useMemo(
     () => appointments.filter((a) => a.date === todayStr).sort((a, b) => a.startTime.localeCompare(b.startTime)),
@@ -269,6 +328,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const saveAppt = useCallback(async (appt: Appointment) => {
     setAppts((prev) => {
       const idx = prev.findIndex((a) => a.id === appt.id);
+      if (idx < 0) { trackSecretary("action:sec_create_rdv"); tapSuccess(); }
       const next = idx >= 0 ? prev.map((a) => (a.id === appt.id ? appt : a)) : [...prev, appt];
       pushSecretaryAppointments(token, next).catch(() => {});
       return next;
@@ -278,6 +338,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   }, [token]);
 
   const toggleDone = useCallback((appt: Appointment) => {
+    tapLight();
     const updated: Appointment = {
       ...appt,
       status: appt.status === "completed" ? "scheduled" : "completed",
@@ -285,8 +346,28 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     saveAppt(updated);
   }, [saveAppt]);
 
+  // Secretary records the measurements; the backend whitelist persists vitalSigns.
+  const saveVitals = useCallback((appt: Appointment, vitals: VitalSigns) => {
+    trackSecretary("action:sec_record_vitals");
+    tapSuccess();
+    saveAppt({ ...appt, vitalSigns: vitals });
+    setVitalsAppt(null);
+  }, [saveAppt]);
+
+  // Secretary bills at the desk: stamp the appointment only. Unlike the doctor,
+  // this does NOT write the cabinet's accounting ledger (secretaries never sync
+  // the doctor's finances) — the doctor reconciles revenue separately.
+  const billAtDesk = useCallback((appt: Appointment, amount: number) => {
+    trackSecretary("action:sec_bill");
+    tapSuccess();
+    saveAppt({ ...appt, billedAt: new Date().toISOString(), billedAmount: amount });
+    setBillAppt(null);
+  }, [saveAppt]);
+
   // ── Patient mutations ─────────────────────────────────────────────────────
   const savePatient = useCallback(async (patient: Patient) => {
+    trackSecretary("action:sec_create_patient");
+    tapSuccess();
     setPatients((prev) => {
       const next = [...prev, patient];
       pushSecretaryPatients(token, next).catch(() => {});
@@ -388,13 +469,16 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
             </View>
           ) : (
             <View style={styles.apptList}>
-              {todayAppts.map((appt) => (
-                <ApptRow
-                  key={appt.id}
-                  appt={appt}
-                  onToggleDone={() => toggleDone(appt)}
-                  onEdit={() => { setEditingAppt(appt); setApptModal(true); }}
-                />
+              {todayAppts.map((appt, i) => (
+                <FadeInView key={appt.id} index={i}>
+                  <ApptRow
+                    appt={appt}
+                    onToggleDone={() => toggleDone(appt)}
+                    onEdit={() => { setEditingAppt(appt); setApptModal(true); }}
+                    onVitals={perms.recordVitals ? () => setVitalsAppt(appt) : undefined}
+                    onBill={perms.handleBilling ? () => setBillAppt(appt) : undefined}
+                  />
+                </FadeInView>
               ))}
             </View>
           )}
@@ -406,13 +490,16 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                 À venir
               </Text>
               <View style={styles.apptList}>
-                {upcomingAppts.slice(0, 20).map((appt) => (
-                  <ApptRow
-                    key={appt.id}
-                    appt={appt}
-                    onToggleDone={() => toggleDone(appt)}
-                    onEdit={() => { setEditingAppt(appt); setApptModal(true); }}
-                  />
+                {upcomingAppts.slice(0, 20).map((appt, i) => (
+                  <FadeInView key={appt.id} index={i}>
+                    <ApptRow
+                      appt={appt}
+                      onToggleDone={() => toggleDone(appt)}
+                      onEdit={() => { setEditingAppt(appt); setApptModal(true); }}
+                      onVitals={perms.recordVitals ? () => setVitalsAppt(appt) : undefined}
+                      onBill={perms.handleBilling ? () => setBillAppt(appt) : undefined}
+                    />
+                  </FadeInView>
                 ))}
               </View>
             </>
@@ -456,7 +543,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                 </Text>
               </View>
             }
-            renderItem={({ item }) => <PatientRow patient={item} />}
+            renderItem={({ item, index }) => <FadeInView index={index}><PatientRow patient={item} /></FadeInView>}
           />
         </View>
       )}
@@ -502,7 +589,155 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         onSave={savePatient}
         onCancel={() => setPatModal(false)}
       />
+
+      {/* ── Vitals (measurements) sheet ── */}
+      <VitalsSheet
+        appt={vitalsAppt}
+        onSave={saveVitals}
+        onClose={() => setVitalsAppt(null)}
+      />
+
+      {/* ── Billing sheet ── */}
+      <BillSheet
+        appt={billAppt}
+        onConfirm={billAtDesk}
+        onClose={() => setBillAppt(null)}
+      />
     </SafeAreaView>
+  );
+}
+
+// ─── Vitals entry sheet (secretary records the measurements) ───────────────────
+
+function VitalsSheet({
+  appt,
+  onSave,
+  onClose,
+}: {
+  appt: Appointment | null;
+  onSave: (appt: Appointment, vitals: VitalSigns) => void;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const v = appt?.vitalSigns;
+  const [bpSys, setBpSys]   = useState("");
+  const [bpDia, setBpDia]   = useState("");
+  const [hr, setHr]         = useState("");
+  const [temp, setTemp]     = useState("");
+  const [spo2, setSpo2]     = useState("");
+  const [weight, setWeight] = useState("");
+  const [height, setHeight] = useState("");
+
+  useEffect(() => {
+    setBpSys(v?.bpSys != null ? String(v.bpSys) : "");
+    setBpDia(v?.bpDia != null ? String(v.bpDia) : "");
+    setHr(v?.hr != null ? String(v.hr) : "");
+    setTemp(v?.temp != null ? String(v.temp) : "");
+    setSpo2(v?.spo2 != null ? String(v.spo2) : "");
+    setWeight(v?.weight != null ? String(v.weight) : "");
+    setHeight(v?.height != null ? String(v.height) : "");
+  }, [appt?.id]);
+
+  if (!appt) return null;
+  const num = (s: string): number | undefined => {
+    const n = parseFloat(s.replace(",", "."));
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const submit = () => {
+    onSave(appt, {
+      bpSys: num(bpSys), bpDia: num(bpDia), hr: num(hr), temp: num(temp),
+      spo2: num(spo2), weight: num(weight), height: num(height),
+    });
+  };
+
+  const field = (label: string, val: string, set: (s: string) => void, kbd: "numeric" | "decimal-pad" = "numeric") => (
+    <View style={{ flex: 1 }}>
+      <Text style={pm.label}>{label}</Text>
+      <TextInput style={pm.input} value={val} onChangeText={set} keyboardType={kbd}
+        placeholder="—" placeholderTextColor={colors.textTertiary} />
+    </View>
+  );
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={pm.overlay}>
+        <View style={pm.sheet}>
+          <View style={pm.handle} />
+          <View style={pm.header}>
+            <Text style={pm.title}>Mesures · {appt.patientName}</Text>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Icon name="close" size={22} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.md }}>
+              {field("TA systolique (mmHg)", bpSys, setBpSys)}
+              {field("TA diastolique", bpDia, setBpDia)}
+            </View>
+            <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.md }}>
+              {field("FC (bpm)", hr, setHr)}
+              {field("T° (°C)", temp, setTemp, "decimal-pad")}
+            </View>
+            <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.md }}>
+              {field("SpO₂ (%)", spo2, setSpo2)}
+              {field("Poids (kg)", weight, setWeight, "decimal-pad")}
+            </View>
+            <View style={{ flexDirection: "row", gap: spacing.md, marginBottom: spacing.md }}>
+              {field("Taille (cm)", height, setHeight)}
+              <View style={{ flex: 1 }} />
+            </View>
+          </ScrollView>
+          <Pressable style={pm.saveBtn} onPress={submit}>
+            <Text style={pm.saveBtnText}>Enregistrer les mesures</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Billing sheet (secretary bills at the desk) ───────────────────────────────
+
+function BillSheet({
+  appt,
+  onConfirm,
+  onClose,
+}: {
+  appt: Appointment | null;
+  onConfirm: (appt: Appointment, amount: number) => void;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const [amount, setAmount] = useState("");
+  useEffect(() => { setAmount(appt?.billedAmount != null ? String(appt.billedAmount) : "200"); }, [appt?.id]);
+  if (!appt) return null;
+  const n = parseFloat(amount.replace(",", "."));
+  const valid = Number.isFinite(n) && n > 0;
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={pm.overlay}>
+        <View style={pm.sheet}>
+          <View style={pm.handle} />
+          <View style={pm.header}>
+            <Text style={pm.title}>Facturer · {appt.patientName}</Text>
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Icon name="close" size={22} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+          <Text style={pm.label}>Montant (MAD)</Text>
+          <TextInput style={pm.input} value={amount} onChangeText={setAmount}
+            keyboardType="numeric" placeholder="200" placeholderTextColor={colors.textTertiary} autoFocus />
+          <Pressable
+            style={[pm.saveBtn, { backgroundColor: colors.success }, !valid && { opacity: 0.5 }]}
+            disabled={!valid}
+            onPress={() => onConfirm(appt, n)}
+          >
+            <Text style={pm.saveBtnText}>Marquer comme facturé</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -585,8 +820,15 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   apptBody: { flex: 1, paddingHorizontal: spacing.md, paddingVertical: 12 },
   apptTime: { fontSize: 11, fontWeight: "600", color: colors.textSecondary, marginBottom: 2 },
   apptName: { fontSize: 14, fontWeight: "700", color: colors.textPrimary, marginBottom: 4 },
+  apptTagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, alignSelf: "flex-start" },
   statusBadge: { borderRadius: radii.pill, paddingHorizontal: 8, paddingVertical: 2, alignSelf: "flex-start" },
   statusText: { fontSize: 10, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3 },
+  apptActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginRight: spacing.sm },
+  actionBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,
+    alignItems: "center", justifyContent: "center",
+  },
   checkBtn: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,

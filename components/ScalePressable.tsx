@@ -13,25 +13,46 @@ import React, { useRef } from "react";
 import {
   Animated,
   GestureResponderEvent,
+  Platform,
   Pressable,
   PressableProps,
   StyleProp,
   ViewStyle,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 
 // Animated Pressable so the transform is driven directly on the native thread.
 const AnimPress = Animated.createAnimatedComponent(Pressable);
+
+export type HapticKind = "none" | "selection" | "light" | "medium";
+
+/** Fire a tactile tick on press (no-op on web / if unavailable). */
+function fireHaptic(kind: HapticKind) {
+  if (kind === "none" || Platform.OS === "web") return;
+  try {
+    if (kind === "selection") Haptics.selectionAsync();
+    else if (kind === "light") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    else if (kind === "medium") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  } catch { /* haptics are best-effort — never block a tap */ }
+}
 
 interface Props extends Omit<PressableProps, "style"> {
   style?: StyleProp<ViewStyle>;
   /** Scale target on press-in. Default 0.96. */
   scaleTo?: number;
+  /**
+   * Built-in tactile feedback on press-in. Default "none" — most call sites in
+   * this app already fire haptics manually via lib/haptics in their onPress, so
+   * the default stays off to avoid a double-buzz. Opt in where there's no manual call.
+   */
+  haptic?: HapticKind;
   children?: React.ReactNode;
 }
 
 export function ScalePressable({
   style,
   scaleTo = 0.96,
+  haptic = "none",
   children,
   onPressIn,
   onPressOut,
@@ -40,6 +61,7 @@ export function ScalePressable({
   const scale = useRef(new Animated.Value(1)).current;
 
   const handleIn = (e: GestureResponderEvent) => {
+    fireHaptic(haptic);
     Animated.spring(scale, {
       toValue: scaleTo,
       useNativeDriver: true,

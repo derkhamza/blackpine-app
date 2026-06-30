@@ -14,13 +14,15 @@ import { PatientModal } from "../components/PatientModal";
 import { PatientHistoryModal } from "../components/PatientHistoryModal";
 import { GlobalSearchModal, HistoryTab } from "../components/GlobalSearchModal";
 import { useCabinet } from "../lib/CabinetContext";
+import { track } from "../lib/analytics";
 import { Patient } from "../lib/cabinetTypes";
 import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
 import { useT } from "../lib/useT";
 import { calcAge, initials, avatarColor } from "../lib/patientHelpers";
-import { tapLight } from "../lib/haptics";
+import { tapLight, tapSuccess } from "../lib/haptics";
+import { FadeInView } from "../components/FadeInView";
 import { ScalePressable } from "../components/ScalePressable";
 import { PatientStatsCard } from "../components/PatientStatsCard";
 
@@ -151,7 +153,8 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const openAdd = () => { setEditingPatient(null); setModalVisible(true); };
 
   const handleSave = (p: Patient) => {
-    editingPatient ? updatePatient(p) : addPatient(p);
+    tapSuccess();
+    if (editingPatient) { updatePatient(p); } else { addPatient(p); track("action:create_patient"); }
   };
 
   const handleCall = (phone: string) => {
@@ -226,14 +229,16 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               <Text style={styles.sectionHeaderText}>{title}</Text>
             </View>
           )}
-          renderItem={({ item }) => (
-            <PatientRow
-              patient={item}
-              appointmentCount={apptCountMap[item.id] ?? 0}
-              onPress={() => navigation.navigate("PatientDetail", { patientId: item.id })}
-              onCall={item.phone ? () => handleCall(item.phone!) : undefined}
-              t={t}
-            />
+          renderItem={({ item, index }) => (
+            <FadeInView index={index}>
+              <PatientRow
+                patient={item}
+                appointmentCount={apptCountMap[item.id] ?? 0}
+                onPress={() => navigation.navigate("PatientDetail", { patientId: item.id })}
+                onCall={item.phone ? () => handleCall(item.phone!) : undefined}
+                t={t}
+              />
+            </FadeInView>
           )}
           showsVerticalScrollIndicator={false}
           stickySectionHeadersEnabled={false}

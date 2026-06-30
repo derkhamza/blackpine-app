@@ -58,6 +58,10 @@ function buildHtml(
   const address     = h(doctor.address);
   const phone       = h(doctor.phone);
   const inpe        = h(doctor.inpe);
+  const ds          = doctor.documentSettings ?? {};
+  const showInpe    = ds.showInpe !== false;
+  const headerNote  = h(ds.headerNote);
+  const footerNote  = h(ds.footerNote);
 
   // Reimbursement calculations
   const hasInsurance = !!(cnopsNumber && taux && taux > 0);
@@ -222,7 +226,8 @@ function buildHtml(
       ${specialty ? `<p>${specialty}</p>` : ""}
       ${address   ? `<p>${address}</p>`   : ""}
       ${phone     ? `<p>Tél. : ${phone}</p>` : ""}
-      ${inpe      ? `<p>N° INPE : ${inpe}</p>` : ""}
+      ${showInpe && inpe ? `<p>N° INPE : ${inpe}</p>` : ""}
+      ${headerNote ? `<p>${headerNote}</p>` : ""}
     </div>
     <div class="invoice-meta">
       <div class="inv-num">${invoiceNumber}</div>
@@ -272,7 +277,7 @@ function buildHtml(
   </div>
 
   <div class="footer">
-    Document généré par Blackpine Cabinet &nbsp;·&nbsp; ${issueDate}
+    ${footerNote ? `${footerNote}<br/>` : ""}Document généré par Blackpine Cabinet &nbsp;·&nbsp; ${issueDate}
   </div>
 </body>
 </html>`;

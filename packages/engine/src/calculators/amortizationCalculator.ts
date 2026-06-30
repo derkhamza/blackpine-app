@@ -1,4 +1,4 @@
-import { FixedAsset, AmortizationLine, AmortizationSchedule } from "../types";
+import type { FixedAsset, AmortizationLine, AmortizationSchedule } from "../types";
 
 /**
  * Calculate linear amortization schedule for a fixed asset.

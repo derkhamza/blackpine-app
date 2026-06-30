@@ -1,6 +1,6 @@
 import { calculateIR } from "./irCalculator";
 import { calculateCM } from "./cmCalculator";
-import {
+import type {
   DoctorProfile,
   FiscalYearConfig,
   TaxResult,

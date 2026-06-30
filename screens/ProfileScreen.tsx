@@ -13,7 +13,8 @@ import { AppLanguage } from "../lib/i18n";
 import { SafeScreen } from "../components/SafeScreen";
 import { CityPicker } from "../components/CityPicker";
 import { Icon } from "../lib/icons";
-import { DoctorProfile as CabinetDoctorProfile } from "../lib/cabinetTypes";
+import { DoctorProfile as CabinetDoctorProfile, ActeCode, DocumentSettings, DEFAULT_DOCUMENT_SETTINGS } from "../lib/cabinetTypes";
+import { uuid } from "../lib/utils";
 import { InviteSecretaryModal } from "../components/InviteSecretaryModal";
 import { PRIVACY_POLICY_URL, TERMS_URL } from "../lib/constants";
 import { isBiometricAvailable } from "../lib/biometric";
@@ -232,6 +233,29 @@ const makeStyles = (c: ColorPalette) => StyleSheet.create({
   navRowTitle: { fontSize: 14, fontWeight: "700", color: c.textPrimary, letterSpacing: -0.1 },
   navRowSub: { fontSize: 11, color: c.textSecondary, marginTop: 2 },
   navDivider: { height: 1, backgroundColor: c.border, marginVertical: spacing.xs },
+
+  // ── Acte codes ──
+  acteHint: { fontSize: 12, color: c.textSecondary, marginBottom: spacing.sm },
+  docToggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, paddingVertical: 4 },
+  docToggleLabel: { fontSize: 13, color: c.textPrimary, flex: 1 },
+  acteEmpty: { fontSize: 12, color: c.textTertiary, fontStyle: "italic", marginBottom: spacing.sm },
+  acteRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
+  acteCodeBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.sm, backgroundColor: c.brandSoft, minWidth: 36, alignItems: "center" },
+  acteCodeText: { fontSize: 12, fontWeight: "800", color: c.brand },
+  acteLabel: { flex: 1, fontSize: 13, color: c.textPrimary },
+  actePrice: { fontSize: 12, fontWeight: "700", color: c.textSecondary },
+  acteAddBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, marginTop: spacing.sm, borderRadius: radii.md, borderWidth: 1, borderColor: c.brand + "44", backgroundColor: c.brandSoft },
+  acteAddText: { fontSize: 13, fontWeight: "700", color: c.brand },
+  acteOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "#00000055" },
+  acteSheet: { backgroundColor: c.surface, borderTopLeftRadius: radii.xl, borderTopRightRadius: radii.xl, padding: spacing.lg, paddingBottom: spacing.xxl },
+  acteHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: "center", marginBottom: spacing.md },
+  acteModalTitle: { ...typography.h3, color: c.textPrimary, marginBottom: spacing.md },
+  acteModalLabel: { fontSize: 12, fontWeight: "600", color: c.textSecondary, marginBottom: 6, marginTop: spacing.sm },
+  acteInput: { backgroundColor: c.bg, borderRadius: radii.sm, borderWidth: 1, borderColor: c.border, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: 15, color: c.textPrimary },
+  acteCancelBtn: { flex: 1, paddingVertical: 13, borderRadius: radii.lg, borderWidth: 1, borderColor: c.border, alignItems: "center" },
+  acteCancelText: { fontSize: 15, fontWeight: "600", color: c.textSecondary },
+  acteSaveBtn: { flex: 1, paddingVertical: 13, borderRadius: radii.lg, backgroundColor: c.brand, alignItems: "center" },
+  acteSaveText: { fontSize: 15, fontWeight: "700", color: c.textOnDark },
 });
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -355,6 +379,19 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const [cityPickerOpen, setCityPickerOpen] = useState(false);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [acteModalOpen, setActeModalOpen] = useState(false);
+
+  const acteCodes = doctorProfile.acteCodes ?? [];
+  const addActe = (a: ActeCode) => {
+    updateDoctorProfile({ ...doctorProfile, acteCodes: [...acteCodes, a] });
+    setActeModalOpen(false);
+  };
+  const removeActe = (id: string) =>
+    updateDoctorProfile({ ...doctorProfile, acteCodes: acteCodes.filter((a) => a.id !== id) });
+
+  const docSettings = doctorProfile.documentSettings ?? DEFAULT_DOCUMENT_SETTINGS;
+  const setDocSetting = (patch: Partial<DocumentSettings>) =>
+    updateDoctorProfile({ ...doctorProfile, documentSettings: { ...DEFAULT_DOCUMENT_SETTINGS, ...doctorProfile.documentSettings, ...patch } });
   const { t, currentLang, changeLanguage } = useT();
 
   useEffect(() => {
@@ -575,6 +612,58 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
             onClose={() => setCityPickerOpen(false)} />
         </Section>
 
+        {/* 2b. Codes actes (medical act codes for billing) */}
+        <Section title={t("actes.title")}>
+          <Text style={styles.acteHint}>{t("actes.hint")}</Text>
+          {acteCodes.length === 0 ? (
+            <Text style={styles.acteEmpty}>{t("actes.empty")}</Text>
+          ) : (
+            acteCodes.map((a) => (
+              <View key={a.id} style={styles.acteRow}>
+                <View style={styles.acteCodeBadge}><Text style={styles.acteCodeText}>{a.code}</Text></View>
+                <Text style={styles.acteLabel} numberOfLines={1}>{a.label}</Text>
+                {a.price != null && <Text style={styles.actePrice}>{a.price} MAD</Text>}
+                <Pressable hitSlop={8} onPress={() => removeActe(a.id)}>
+                  <Icon name="delete" size={15} color={colors.textTertiary} />
+                </Pressable>
+              </View>
+            ))
+          )}
+          <Pressable style={styles.acteAddBtn} onPress={() => setActeModalOpen(true)}>
+            <Icon name="add" size={15} color={colors.brand} />
+            <Text style={styles.acteAddText}>{t("actes.add")}</Text>
+          </Pressable>
+        </Section>
+
+        {/* 2c. Format des documents (facture / ordonnance / certificat) */}
+        <Section title={t("docSettings.title")}>
+          <Text style={styles.acteHint}>{t("docSettings.hint")}</Text>
+          <View style={styles.docToggleRow}>
+            <Text style={styles.docToggleLabel}>{t("docSettings.showInpe")}</Text>
+            <Switch
+              value={docSettings.showInpe !== false}
+              onValueChange={(v) => setDocSetting({ showInpe: v })}
+              trackColor={{ true: colors.brand }}
+            />
+          </View>
+          <Text style={styles.acteModalLabel}>{t("docSettings.headerNote")}</Text>
+          <TextInput
+            style={styles.acteInput}
+            value={docSettings.headerNote ?? ""}
+            onChangeText={(v) => setDocSetting({ headerNote: v.trim() || undefined })}
+            placeholder={t("docSettings.headerNotePlaceholder")}
+            placeholderTextColor={colors.textTertiary}
+          />
+          <Text style={styles.acteModalLabel}>{t("docSettings.footerNote")}</Text>
+          <TextInput
+            style={styles.acteInput}
+            value={docSettings.footerNote ?? ""}
+            onChangeText={(v) => setDocSetting({ footerNote: v.trim() || undefined })}
+            placeholder={t("docSettings.footerNotePlaceholder")}
+            placeholderTextColor={colors.textTertiary}
+          />
+        </Section>
+
         {/* 3. Langue */}
         <Section title={t("profile.language")}>
           <View style={styles.chipRow}>
@@ -638,6 +727,58 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                   ? `${employees.length} employé${employees.length > 1 ? "s" : ""} · ${t("payroll.subtitle")}`
                   : t("payroll.noEmployees")}
               </Text>
+            </View>
+            <View style={{ transform: [{ scaleX: -1 }] }}>
+              <Icon name="back" size={16} color={colors.textTertiary} />
+            </View>
+          </Pressable>
+          <View style={styles.navDivider} />
+          <Pressable style={styles.navRow} onPress={() => navigation?.navigate("Stock")}>
+            <View style={[styles.navRowIcon, { backgroundColor: colors.brandSoft }]}>
+              <Icon name="pill" size={18} color={colors.brand} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navRowTitle}>{t("stock.title")}</Text>
+              <Text style={styles.navRowSub}>{t("stock.navSub")}</Text>
+            </View>
+            <View style={{ transform: [{ scaleX: -1 }] }}>
+              <Icon name="back" size={16} color={colors.textTertiary} />
+            </View>
+          </Pressable>
+          <View style={styles.navDivider} />
+          <Pressable style={styles.navRow} onPress={() => navigation?.navigate("Teleconsult")}>
+            <View style={[styles.navRowIcon, { backgroundColor: colors.brandSoft }]}>
+              <Icon name="monitor" size={18} color={colors.brand} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navRowTitle}>{t("tele.title")}</Text>
+              <Text style={styles.navRowSub}>{t("tele.navSub")}</Text>
+            </View>
+            <View style={{ transform: [{ scaleX: -1 }] }}>
+              <Icon name="back" size={16} color={colors.textTertiary} />
+            </View>
+          </Pressable>
+          <View style={styles.navDivider} />
+          <Pressable style={styles.navRow} onPress={() => navigation?.navigate("Notes")}>
+            <View style={[styles.navRowIcon, { backgroundColor: colors.brandSoft }]}>
+              <Icon name="clipboard" size={18} color={colors.brand} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navRowTitle}>{t("notes.title")}</Text>
+              <Text style={styles.navRowSub}>{t("notes.navSub")}</Text>
+            </View>
+            <View style={{ transform: [{ scaleX: -1 }] }}>
+              <Icon name="back" size={16} color={colors.textTertiary} />
+            </View>
+          </Pressable>
+          <View style={styles.navDivider} />
+          <Pressable style={styles.navRow} onPress={() => navigation?.navigate("WaTemplates")}>
+            <View style={[styles.navRowIcon, { backgroundColor: colors.successSoft }]}>
+              <Icon name="messageCircle" size={18} color={colors.success} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.navRowTitle}>{t("waTpl.title")}</Text>
+              <Text style={styles.navRowSub}>{t("waTpl.navSub")}</Text>
             </View>
             <View style={{ transform: [{ scaleX: -1 }] }}>
               <Icon name="back" size={16} color={colors.textTertiary} />
@@ -727,6 +868,64 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
       <DoctorEditModal visible={editModalOpen} initial={doctorProfile}
         onSave={handleSaveDoctor} onCancel={() => setEditModalOpen(false)} />
       <InviteSecretaryModal visible={inviteModalOpen} onClose={() => setInviteModalOpen(false)} t={t} />
+      <ActeCodeModal visible={acteModalOpen} onSave={addActe} onClose={() => setActeModalOpen(false)} t={t} />
     </SafeScreen>
+  );
+}
+
+// ─── Acte code modal ───────────────────────────────────────────────────────────
+
+function ActeCodeModal({
+  visible, onSave, onClose, t,
+}: {
+  visible: boolean;
+  onSave: (a: ActeCode) => void;
+  onClose: () => void;
+  t: (k: string) => string;
+}) {
+  const colors = useColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const [code, setCode]   = useState("");
+  const [label, setLabel] = useState("");
+  const [price, setPrice] = useState("");
+  useEffect(() => { if (visible) { setCode(""); setLabel(""); setPrice(""); } }, [visible]);
+  const valid = code.trim() && label.trim();
+  const submit = () => {
+    if (!valid) return;
+    const p = parseFloat(price.replace(",", "."));
+    onSave({ id: uuid(), code: code.trim(), label: label.trim(), price: Number.isFinite(p) ? p : undefined });
+  };
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.acteOverlay}>
+        <View style={styles.acteSheet}>
+          <View style={styles.acteHandle} />
+          <Text style={styles.acteModalTitle}>{t("actes.add")}</Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.acteModalLabel}>{t("actes.code")}</Text>
+              <TextInput style={styles.acteInput} value={code} onChangeText={setCode}
+                placeholder="C, CS, K50…" placeholderTextColor={colors.textTertiary} autoCapitalize="characters" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.acteModalLabel}>{t("actes.price")}</Text>
+              <TextInput style={styles.acteInput} value={price} onChangeText={setPrice}
+                keyboardType="numeric" placeholder="MAD" placeholderTextColor={colors.textTertiary} />
+            </View>
+          </View>
+          <Text style={styles.acteModalLabel}>{t("actes.label")}</Text>
+          <TextInput style={styles.acteInput} value={label} onChangeText={setLabel}
+            placeholder={t("actes.labelPlaceholder")} placeholderTextColor={colors.textTertiary} />
+          <View style={{ flexDirection: "row", gap: spacing.md, marginTop: spacing.lg }}>
+            <Pressable style={styles.acteCancelBtn} onPress={onClose}>
+              <Text style={styles.acteCancelText}>{t("cancel")}</Text>
+            </Pressable>
+            <Pressable style={[styles.acteSaveBtn, !valid && { opacity: 0.5 }]} disabled={!valid} onPress={submit}>
+              <Text style={styles.acteSaveText}>{t("save")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }

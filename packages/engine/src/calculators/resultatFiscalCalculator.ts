@@ -1,4 +1,4 @@
-import { Transaction, ResultatFiscalBreakdown, TraceEvent } from "../types";
+import type { Transaction, ResultatFiscalBreakdown, TraceEvent } from "../types";
 
 export function calculateResultatFiscal(
   transactions: Transaction[]

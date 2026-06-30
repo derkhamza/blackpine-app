@@ -54,6 +54,31 @@ function ensureHandler(N: any) {
   } catch { /* native module absent — silently skip */ }
 }
 
+// ─── Remote push registration ─────────────────────────────────────────────────
+// Fetch this device's Expo push token and register it with the backend so the
+// server can notify the doctor (e.g. a new online booking). Best-effort; deduped.
+
+const PUSH_TOKEN_KEY = "bpc_expo_push_token_v1";
+const EXPO_PROJECT_ID = "c9495e3a-4c26-4de5-9a9b-41cadcd6e354";
+
+export async function registerForPushNotifications(): Promise<void> {
+  if (Platform.OS === "web") return;
+  const N = getN();
+  if (!N) return;
+  const granted = await requestNotificationPermissions();
+  if (!granted) return;
+  try {
+    const resp = await N.getExpoPushTokenAsync({ projectId: EXPO_PROJECT_ID });
+    const token: string | undefined = resp?.data;
+    if (!token) return;
+    const last = await AsyncStorage.getItem(PUSH_TOKEN_KEY);
+    if (last === token) return; // already registered this token
+    const { registerPushToken } = require("./api");
+    await registerPushToken(token);
+    await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
+  } catch { /* native module absent / not a dev build / network — ignore */ }
+}
+
 // ─── Permissions ──────────────────────────────────────────────────────────────
 
 export async function requestNotificationPermissions(): Promise<boolean> {
@@ -319,6 +344,77 @@ export async function cancelFollowUpNotification(
 
   delete map[appointmentId];
   await saveFollowUpMap(map);
+}
+
+// ─── Same-day appointment reminders ───────────────────────────────────────────
+// A local heads-up a fixed lead time before each upcoming appointment, so the
+// doctor never gets caught out. Reschedules whenever the agenda changes (cheap:
+// hash-deduped). Capped well under the iOS ~64 pending-notification limit.
+
+const APPT_REMINDER_IDS_KEY  = "bpc_appt_reminder_ids_v1";
+const APPT_REMINDER_HASH_KEY = "bpc_appt_reminder_hash_v1";
+const APPT_LEAD_MINUTES  = 30;
+const APPT_MAX_REMINDERS = 30;
+
+interface ApptLike {
+  id: string; patientName: string; date: string; startTime: string; status: string;
+}
+
+export async function scheduleAppointmentReminders(appts: ApptLike[]): Promise<void> {
+  if (Platform.OS === "web") return;
+  const N = getN();
+  if (!N) return;
+  ensureHandler(N);
+
+  const now = new Date();
+  const upcoming = appts
+    .filter((a) => a.status === "scheduled" || a.status === "arrived")
+    .map((a) => ({ a, when: new Date(`${a.date}T${a.startTime}:00`) }))
+    .filter((x) => x.when.getTime() - APPT_LEAD_MINUTES * 60000 > now.getTime())
+    .sort((x, y) => x.when.getTime() - y.when.getTime())
+    .slice(0, APPT_MAX_REMINDERS);
+
+  const hash = upcoming.map((x) => `${x.a.id}@${x.a.date}T${x.a.startTime}`).join("|");
+  try {
+    if ((await AsyncStorage.getItem(APPT_REMINDER_HASH_KEY)) === hash) return;
+  } catch { /* proceed */ }
+
+  await cancelAppointmentReminders();
+
+  const ids: string[] = [];
+  for (const { a, when } of upcoming) {
+    const trigger = new Date(when.getTime() - APPT_LEAD_MINUTES * 60000);
+    if (trigger <= now) continue;
+    try {
+      const id = await N.scheduleNotificationAsync({
+        content: {
+          title: `⏰ Rendez-vous à ${a.startTime}`,
+          body: `${a.patientName} · dans ${APPT_LEAD_MINUTES} min`,
+          sound: true,
+          data: { type: "appointment_reminder", appointmentId: a.id },
+        },
+        trigger: { type: N.SchedulableTriggerInputTypes.DATE, date: trigger },
+      });
+      ids.push(id);
+    } catch { /* swallow — don't abort the batch */ }
+  }
+
+  try {
+    await AsyncStorage.setItem(APPT_REMINDER_IDS_KEY, JSON.stringify(ids));
+    await AsyncStorage.setItem(APPT_REMINDER_HASH_KEY, hash);
+  } catch { /* best-effort */ }
+}
+
+export async function cancelAppointmentReminders(): Promise<void> {
+  if (Platform.OS === "web") return;
+  const N = getN();
+  try {
+    const raw = await AsyncStorage.getItem(APPT_REMINDER_IDS_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (N) for (const id of ids) { try { await N.cancelScheduledNotificationAsync(id); } catch { /* */ } }
+    await AsyncStorage.removeItem(APPT_REMINDER_IDS_KEY);
+    await AsyncStorage.removeItem(APPT_REMINDER_HASH_KEY);
+  } catch { /* best-effort */ }
 }
 
 // ─── End-of-day summary ───────────────────────────────────────────────────────

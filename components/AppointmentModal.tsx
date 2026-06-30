@@ -37,6 +37,7 @@ import { scheduleFollowUpNotification, cancelFollowUpNotification, requestNotifi
 
 export const TYPE_COLORS: Record<AppointmentType, string> = {
   consultation: colors.brand,
+  controle: "#0FB5C4",
   suivi: colors.success,
   procedure: colors.gold,
   urgence: colors.danger,
@@ -421,7 +422,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
             {/* Type */}
             <Text style={sharedModalStyles.formLabel}>{t("agenda.type")}</Text>
             <View style={styles.chipRow}>
-              {(["consultation", "suivi", "procedure", "urgence", "autre"] as AppointmentType[]).map(
+              {(["consultation", "controle", "suivi", "procedure", "urgence", "autre"] as AppointmentType[]).map(
                 (tp) => (
                   <Pressable
                     key={tp}

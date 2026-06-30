@@ -1,4 +1,4 @@
-import { CMResult, FiscalYearConfig, TraceEvent } from "../types";
+import type { CMResult, FiscalYearConfig, TraceEvent } from "../types";
 
 export function calculateCM(
   chiffreAffaires: number,

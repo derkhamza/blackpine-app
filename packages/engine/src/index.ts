@@ -6,10 +6,8 @@ export { calculateIR } from "./calculators/irCalculator";
 export { calculateCM } from "./calculators/cmCalculator";
 export { calculateTax } from "./calculators/taxOrchestrator";
 export { calculateResultatFiscal } from "./calculators/resultatFiscalCalculator";
-export {
-  computeTaxFromTransactions,
-  FullTaxComputation,
-} from "./calculators/taxEngine";
+export { computeTaxFromTransactions } from "./calculators/taxEngine";
+export type { FullTaxComputation } from "./calculators/taxEngine";
 export { loadFiscalYearConfig, getAvailableFiscalYears } from "./config/configLoader";
 
 export {

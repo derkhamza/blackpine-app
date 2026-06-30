@@ -28,6 +28,7 @@ import { ScalePressable } from "../components/ScalePressable";
 import { Icon } from "../lib/icons";
 import { useT } from "../lib/useT";
 import { formatMAD, langToLocale } from "../lib/format";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { SafeScreen } from "../components/SafeScreen";
 
 
@@ -133,16 +134,12 @@ useEffect(() => {
       <View style={styles.summaryRow}>
         <View style={[styles.summaryCard, { borderLeftWidth: 4, borderLeftColor: colors.recette }]}>
           <Text style={[styles.summaryLabel, { color: colors.recette }]}>{t("transactions.filteredRecettes")}</Text>
-          <Text style={[styles.summaryValue, { color: colors.recette }]}>
-            {formatMAD(totalRecettes)}
-          </Text>
+          <AnimatedNumber value={totalRecettes} format={formatMAD} style={[styles.summaryValue, { color: colors.recette }]} />
           <Text style={styles.summaryCount}>{recettes.length} {t("transactions.operations")}</Text>
         </View>
         <View style={[styles.summaryCard, { borderLeftWidth: 4, borderLeftColor: colors.charge }]}>
           <Text style={[styles.summaryLabel, { color: colors.charge }]}>{t("transactions.filteredCharges")}</Text>
-          <Text style={[styles.summaryValue, { color: colors.charge }]}>
-            {formatMAD(totalCharges)}
-          </Text>
+          <AnimatedNumber value={totalCharges} format={formatMAD} style={[styles.summaryValue, { color: colors.charge }]} />
           <Text style={styles.summaryCount}>{charges.length} {t("transactions.operations")}</Text>
         </View>
       </View>

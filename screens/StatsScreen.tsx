@@ -7,6 +7,7 @@ import { useApp } from "../lib/AppContext";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
 import { formatMAD } from "../lib/format";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { Icon } from "../lib/icons";
 import { useT } from "../lib/useT";
 
@@ -15,6 +16,7 @@ import { useT } from "../lib/useT";
 const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
 const TYPE_LABELS: Record<string, string> = {
   consultation: "Consultation",
+  controle:     "Contrôle",
   suivi:        "Suivi",
   procedure:    "Procédure",
   urgence:      "Urgence",
@@ -30,6 +32,12 @@ function fmtDateLong(iso: string): string {
   return new Date(iso + "T12:00:00").toLocaleDateString("fr-FR", {
     day: "numeric", month: "long", year: "numeric",
   });
+}
+
+// Count-up when there's data, "—" when empty.
+function StatNum({ value, format, style }: { value: number; format?: (n: number) => string; style?: any }) {
+  if (value <= 0) return <Text style={style}>—</Text>;
+  return <AnimatedNumber value={value} format={format} style={style} />;
 }
 
 // ── Screen ───────────────────────────────────────────────────────────────────
@@ -186,9 +194,11 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <View style={styles.hero}>
           <View style={styles.heroHighlight} pointerEvents="none" />
           <Text style={styles.heroLabel}>Consultations réalisées</Text>
-          <Text style={styles.heroNumber}>
-            {totalConsultations.toLocaleString("fr-FR")}
-          </Text>
+          <AnimatedNumber
+            value={totalConsultations}
+            format={(n) => Math.round(n).toLocaleString("fr-FR")}
+            style={styles.heroNumber}
+          />
           {firstDate ? (
             <Text style={styles.heroSub}>
               depuis le {fmtDateLong(firstDate)}
@@ -202,23 +212,17 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <SectionCard title={`Cette année · ${thisYear}`} colors={colors}>
           <View style={styles.kpiRow}>
             <View style={styles.kpi}>
-              <Text style={[styles.kpiValue, { color: colors.recette }]}>
-                {thisYearRevenue > 0 ? formatMAD(thisYearRevenue) : "—"}
-              </Text>
+              <StatNum value={thisYearRevenue} format={formatMAD} style={[styles.kpiValue, { color: colors.recette }]} />
               <Text style={styles.kpiLabel}>Recettes</Text>
             </View>
             <View style={styles.kpiDivider} />
             <View style={styles.kpi}>
-              <Text style={[styles.kpiValue, { color: colors.brand }]}>
-                {thisYearAppts.length > 0 ? String(thisYearAppts.length) : "—"}
-              </Text>
+              <StatNum value={thisYearAppts.length} style={[styles.kpiValue, { color: colors.brand }]} />
               <Text style={styles.kpiLabel}>Consultations</Text>
             </View>
             <View style={styles.kpiDivider} />
             <View style={styles.kpi}>
-              <Text style={styles.kpiValue}>
-                {thisYearUniqPatients > 0 ? String(thisYearUniqPatients) : "—"}
-              </Text>
+              <StatNum value={thisYearUniqPatients} style={styles.kpiValue} />
               <Text style={styles.kpiLabel}>Patients vus</Text>
             </View>
           </View>
@@ -305,23 +309,17 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         <SectionCard title="Portefeuille patients" colors={colors}>
           <View style={styles.kpiRow}>
             <View style={styles.kpi}>
-              <Text style={[styles.kpiValue, { color: colors.brand }]}>
-                {totalPatients > 0 ? String(totalPatients) : "—"}
-              </Text>
+              <StatNum value={totalPatients} style={[styles.kpiValue, { color: colors.brand }]} />
               <Text style={styles.kpiLabel}>Enregistrés</Text>
             </View>
             <View style={styles.kpiDivider} />
             <View style={styles.kpi}>
-              <Text style={[styles.kpiValue, newThisMonth > 0 && { color: colors.success }]}>
-                {newThisMonth > 0 ? `+${newThisMonth}` : "—"}
-              </Text>
+              <StatNum value={newThisMonth} format={(n) => "+" + Math.round(n).toLocaleString("fr-FR")} style={[styles.kpiValue, newThisMonth > 0 && { color: colors.success }]} />
               <Text style={styles.kpiLabel}>Ce mois</Text>
             </View>
             <View style={styles.kpiDivider} />
             <View style={styles.kpi}>
-              <Text style={[styles.kpiValue, cnopsPatients > 0 && { color: "#6b46c1" }]}>
-                {cnopsPatients > 0 ? String(cnopsPatients) : "—"}
-              </Text>
+              <StatNum value={cnopsPatients} style={[styles.kpiValue, cnopsPatients > 0 && { color: "#6b46c1" }]} />
               <Text style={styles.kpiLabel}>AMO/CNOPS</Text>
             </View>
           </View>
