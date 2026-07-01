@@ -887,6 +887,11 @@ and: "et la",
     deferred: "Différé",
     collect: "Encaisser",
   },
+  orphan: {
+    createPatient: "Créer la fiche patient",
+    created: "Fiche créée",
+    linkedN: "{n} rendez-vous rattaché(s)",
+  },
   clinical: {
     timelineTitle: "Parcours clinique",
     addEvent: "Ajouter",

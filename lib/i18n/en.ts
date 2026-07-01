@@ -834,6 +834,11 @@ and: "and the",
     deferred: "Deferred",
     collect: "Collect",
   },
+  orphan: {
+    createPatient: "Create patient record",
+    created: "Record created",
+    linkedN: "{n} appointment(s) attached",
+  },
   clinical: {
     timelineTitle: "Clinical timeline",
     addEvent: "Add",

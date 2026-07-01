@@ -1,5 +1,6 @@
 ﻿import React, { useMemo, useState, useCallback } from "react";
 import {
+  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -16,6 +17,7 @@ import { GlobalSearchModal, HistoryTab } from "../components/GlobalSearchModal";
 import { useCabinet } from "../lib/CabinetContext";
 import { track } from "../lib/analytics";
 import { Patient } from "../lib/cabinetTypes";
+import { findOrphanAppts } from "../lib/orphanAppts";
 import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
@@ -84,7 +86,7 @@ export function PatientsScreen({ navigation }: any) {
   const colors = useColors();
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
-  const { patients, appointments, ordonnances, certificats, addPatient, updatePatient, deletePatient, reload } =
+  const { patients, appointments, ordonnances, certificats, addPatient, updatePatient, deletePatient, updateAppointment, reload } =
     useCabinet();
 
   const [search, setSearch] = useState("");
@@ -154,7 +156,19 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const handleSave = (p: Patient) => {
     tapSuccess();
-    if (editingPatient) { updatePatient(p); } else { addPatient(p); track("action:create_patient"); }
+    if (editingPatient) {
+      updatePatient(p);
+    } else {
+      addPatient(p);
+      track("action:create_patient");
+      // Attach appointments booked under this name before the record existed.
+      const fullName = `${p.firstName} ${p.lastName}`.trim();
+      const orphans = findOrphanAppts(appointments, fullName);
+      orphans.forEach((a) => updateAppointment({ ...a, patientId: p.id }));
+      if (orphans.length > 0) {
+        Alert.alert(t("patients.addPatient"), t("orphan.linkedN").replace("{n}", String(orphans.length)));
+      }
+    }
   };
 
   const handleCall = (phone: string) => {

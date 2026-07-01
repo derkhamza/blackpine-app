@@ -30,8 +30,9 @@ import { CertificatModal } from "../components/CertificatModal";
 import { PatientHistoryModal } from "../components/PatientHistoryModal";
 import { useCabinet } from "../lib/CabinetContext";
 import { useBilling } from "../lib/useBilling";
-import { Appointment, AppointmentStatus, InvoiceRecord, VitalSigns, BillingLine, PaymentMethod } from "../lib/cabinetTypes";
+import { Appointment, AppointmentStatus, InvoiceRecord, VitalSigns, BillingLine, PaymentMethod, Patient } from "../lib/cabinetTypes";
 import { paymentSummary } from "../lib/billing";
+import { findOrphanAppts } from "../lib/orphanAppts";
 import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
@@ -51,7 +52,7 @@ export function AppointmentDetailScreen({ route, navigation }: any) {
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
   const {
-    appointments, patients, updateAppointment, deleteAppointment, deleteAppointmentSeries, addAppointment, doctorProfile, addInvoice, invoices,
+    appointments, patients, updateAppointment, deleteAppointment, deleteAppointmentSeries, addAppointment, addPatient, doctorProfile, addInvoice, invoices,
     addOrdonnance, addCertificat,
     ordonnances, certificats,
     apptPhotos, addApptPhoto, removeApptPhoto,
@@ -339,6 +340,24 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     if (status === "completed" && !appt.billedAt) {
       openBillSheet();
     }
+  };
+
+  // ── Create patient record from an appointment booked under just a name ─────
+  const handleCreatePatientFromAppt = () => {
+    if (!appt) return;
+    const parts = appt.patientName.trim().split(/\s+/);
+    const newPatient: Patient = {
+      id: uuid(),
+      createdAt: new Date().toISOString(),
+      firstName: parts[0] ?? appt.patientName.trim(),
+      lastName: parts.slice(1).join(" ") || parts[0] || "",
+      phone: appt.bookingPhone || undefined,
+    };
+    addPatient(newPatient);
+    const orphans = findOrphanAppts(appointments, appt.patientName);
+    orphans.forEach((a) => updateAppointment({ ...a, patientId: newPatient.id }));
+    tapSuccess();
+    Alert.alert(t("orphan.created"), t("orphan.linkedN").replace("{n}", String(orphans.length)));
   };
 
   // ── Itemized billing helpers ──────────────────────────────────────────────
@@ -801,6 +820,14 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
             </Text>
           </ScalePressable>
         </View>
+
+        {/* ── No linked patient → offer to create the record ─────────── */}
+        {!appt.patientId && (
+          <ScalePressable scaleTo={0.97} style={styles.billCta} onPress={handleCreatePatientFromAppt}>
+            <Icon name="add" size={16} color={colors.textOnDark} />
+            <Text style={styles.billCtaText}>{t("orphan.createPatient")}</Text>
+          </ScalePressable>
+        )}
 
         {/* ── Patient medical context ────────────────────────────────── */}
         {linkedPatient && (

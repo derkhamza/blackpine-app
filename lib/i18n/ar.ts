@@ -848,6 +848,11 @@ and: "و",
     deferred: "مؤجّل",
     collect: "تحصيل",
   },
+  orphan: {
+    createPatient: "إنشاء ملف المريض",
+    created: "تم إنشاء الملف",
+    linkedN: "تم ربط {n} موعد",
+  },
   clinical: {
     timelineTitle: "المسار السريري",
     addEvent: "إضافة",
