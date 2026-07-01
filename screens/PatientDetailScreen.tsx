@@ -24,10 +24,11 @@ import { useApp } from "../lib/AppContext";
 import { formatMAD } from "../lib/format";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import {
-  BloodType, CertificatMedical, Ordonnance, Patient,
+  BloodType, CertificatMedical, Ordonnance, Patient, ExamRequest,
   PatientTimelineEvent, ExamResult, ExamType, ExamValue,
   EXAM_TYPE_LABELS, EXAM_TYPE_COLORS,
 } from "../lib/cabinetTypes";
+import { shareExamRequest } from "../lib/examRequestPdf";
 import { uuid, todayIso } from "../lib/utils";
 import { VitalsTrendChart } from "../components/VitalsTrendChart";
 import { Icon } from "../lib/icons";
@@ -46,7 +47,7 @@ export function PatientDetailScreen({ route, navigation }: any) {
   const colors = useColors();
 const styles = useMemo(() => makeStyles(colors), [colors]);
   const { t } = useT();
-  const { patients, appointments, ordonnances, certificats, updatePatient, deletePatient, doctorProfile, addOrdonnance, addCertificat } = useCabinet();
+  const { patients, appointments, ordonnances, certificats, examRequests, updatePatient, deletePatient, doctorProfile, addOrdonnance, addCertificat } = useCabinet();
   const { transactions } = useApp();
   const insets = useSafeAreaInsets();
   const topInset = useTopInset();
@@ -162,6 +163,13 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     [certificats, patientId, patient],
   );
 
+  const patientExamReqs = useMemo(
+    () => [...examRequests.filter((e) => e.patientId === patientId || e.patientName === `${patient?.firstName} ${patient?.lastName}`)]
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 5),
+    [examRequests, patientId, patient],
+  );
+
   const patientFullName = patient ? `${patient.firstName} ${patient.lastName}` : "";
 
   // Revenue derived from consultation transactions whose description matches this patient
@@ -198,6 +206,17 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         dialogTitle: `Ordonnance – ${ord.patientName}`,
         UTI: "com.adobe.pdf",
       });
+    } catch {
+      // cancelled
+    } finally {
+      setSharingDocId(null);
+    }
+  };
+
+  const shareExamReq = async (er: ExamRequest) => {
+    setSharingDocId(er.id);
+    try {
+      await shareExamRequest(er.patientName, er.lines, er.indication, er.date, doctorProfile);
     } catch {
       // cancelled
     } finally {
@@ -575,7 +594,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         )}
 
         {/* ── Recent documents ─────────────────────────────────────── */}
-        {(patientOrdonnances.length > 0 || patientCertificats.length > 0) && (
+        {(patientOrdonnances.length > 0 || patientCertificats.length > 0 || patientExamReqs.length > 0) && (
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
               <Icon name="clipboard" size={13} color={colors.brand} />
@@ -623,6 +642,25 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                   >
                     <Icon name="share" size={13} color={colors.gold} />
                     <Text style={[styles.shareDocText, { color: colors.gold }]}>{sharingDocId === cert.id ? "…" : t("patients.shareDoc")}</Text>
+                  </Pressable>
+                </View>
+              ))}
+              {patientExamReqs.map((er, i) => (
+                <View key={er.id} style={[styles.docRow, i < patientExamReqs.length - 1 && styles.docRowBorder]}>
+                  <View style={[styles.docIcon, { backgroundColor: colors.brandSoft }]}>
+                    <Icon name="clipboard" size={13} color={colors.brand} />
+                  </View>
+                  <View style={styles.docInfo}>
+                    <Text style={styles.docTitle}>{t("examReq.titleShort")} · {formatDateShort(er.date)}</Text>
+                    <Text style={styles.docSub} numberOfLines={1}>{er.lines.map((l) => l.label).slice(0, 2).join(" · ")}{er.lines.length > 2 ? " · +" + (er.lines.length - 2) : ""}</Text>
+                  </View>
+                  <Pressable
+                    style={[styles.shareDocBtn, sharingDocId === er.id && { opacity: 0.5 }]}
+                    onPress={() => shareExamReq(er)}
+                    disabled={sharingDocId !== null}
+                  >
+                    <Icon name="share" size={13} color={colors.brand} />
+                    <Text style={styles.shareDocText}>{sharingDocId === er.id ? "…" : t("patients.shareDoc")}</Text>
                   </Pressable>
                 </View>
               ))}

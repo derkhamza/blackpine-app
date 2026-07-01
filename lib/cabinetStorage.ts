@@ -1,4 +1,4 @@
-import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient, StockItem, Supplier, TeleSession, InternalNote, PurchaseOrder, WaTemplate, DEFAULT_WA_TEMPLATES } from "./cabinetTypes";
+import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient, StockItem, Supplier, TeleSession, InternalNote, PurchaseOrder, WaTemplate, ExamRequest, DEFAULT_WA_TEMPLATES } from "./cabinetTypes";
 
 function getAS() {
   return require("@react-native-async-storage/async-storage").default;
@@ -20,6 +20,7 @@ const K = {
   notes:        (uid: string) => `blackpine.cab.notes.v1.${uid}`,
   purchaseOrders: (uid: string) => `blackpine.cab.po.v1.${uid}`,
   waTemplates:  (uid: string) => `blackpine.cab.watpl.v1.${uid}`,
+  examRequests: (uid: string) => `blackpine.cab.examreq.v1.${uid}`,
 };
 
 export async function loadAppointments(userId: string): Promise<Appointment[]> {
@@ -50,6 +51,16 @@ export async function loadOrdonnances(userId: string): Promise<Ordonnance[]> {
 }
 export async function saveOrdonnances(data: Ordonnance[], userId: string): Promise<void> {
   await getAS().setItem(K.ordonnances(userId), JSON.stringify(data));
+}
+
+export async function loadExamRequests(userId: string): Promise<ExamRequest[]> {
+  try {
+    const raw = await getAS().getItem(K.examRequests(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+export async function saveExamRequests(data: ExamRequest[], userId: string): Promise<void> {
+  await getAS().setItem(K.examRequests(userId), JSON.stringify(data));
 }
 
 export async function loadCertificats(userId: string): Promise<CertificatMedical[]> {
@@ -166,6 +177,7 @@ export async function clearCabinetData(userId: string): Promise<void> {
       K.notes(userId),
       K.purchaseOrders(userId),
       K.waTemplates(userId),
+      K.examRequests(userId),
     ]);
   } catch {
     // Best-effort: storage errors should not block the logout flow

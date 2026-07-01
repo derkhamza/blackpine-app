@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppointmentModal, TYPE_COLORS, STATUS_COLORS } from "../components/AppointmentModal";
 import { useTopInset } from "../components/SafeScreen";
 import { OrdonnanceModal } from "../components/OrdonnanceModal";
+import { ExamRequestModal } from "../components/ExamRequestModal";
 import { Icd10Picker } from "../components/Icd10Picker";
 import { Icd10Entry } from "../lib/icd10";
 import { NoteTemplateSheet } from "../components/NoteTemplateSheet";
@@ -30,7 +31,7 @@ import { CertificatModal } from "../components/CertificatModal";
 import { PatientHistoryModal } from "../components/PatientHistoryModal";
 import { useCabinet } from "../lib/CabinetContext";
 import { useBilling } from "../lib/useBilling";
-import { Appointment, AppointmentStatus, InvoiceRecord, VitalSigns, BillingLine, PaymentMethod, Patient } from "../lib/cabinetTypes";
+import { Appointment, AppointmentStatus, InvoiceRecord, VitalSigns, BillingLine, PaymentMethod, Patient, ExamRequest } from "../lib/cabinetTypes";
 import { paymentSummary } from "../lib/billing";
 import { findOrphanAppts } from "../lib/orphanAppts";
 import { Icon } from "../lib/icons";
@@ -55,6 +56,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     appointments, patients, updateAppointment, deleteAppointment, deleteAppointmentSeries, addAppointment, addPatient, doctorProfile, addInvoice, invoices,
     addOrdonnance, addCertificat,
     ordonnances, certificats,
+    examRequests, addExamRequest, updateExamRequest,
     apptPhotos, addApptPhoto, removeApptPhoto,
     apptPhotoLabels, setApptPhotoLabel,
     userId,
@@ -78,6 +80,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [ordonnanceVisible, setOrdonnanceVisible] = useState(false);
   const [certificatVisible, setCertificatVisible] = useState(false);
+  const [examReqVisible, setExamReqVisible] = useState(false);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [icd10Visible, setIcd10Visible] = useState(false);
   const [templateSheetVisible, setTemplateSheetVisible] = useState(false);
@@ -1200,6 +1203,10 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
               <Text style={[styles.docBtnText, { color: colors.brand }]}>{t("agenda.newCertificat")}</Text>
             </ScalePressable>
           </View>
+          <ScalePressable scaleTo={0.96} style={[styles.docBtn, styles.docBtnAlt, { marginTop: spacing.sm }]} onPress={() => { tapLight(); setExamReqVisible(true); }}>
+            <Icon name="clipboard" size={17} color={colors.brand} />
+            <Text style={[styles.docBtnText, { color: colors.brand }]}>{t("examReq.btn")}</Text>
+          </ScalePressable>
 
           {/* ── Documents issued at this appointment ── */}
           {(() => {
@@ -1890,6 +1897,23 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
         doctorProfile={doctorProfile}
         onSave={addCertificat}
         onClose={() => setCertificatVisible(false)}
+        t={t}
+      />
+
+      {/* ── Exam-request modal ───────────────────────────────────────── */}
+      <ExamRequestModal
+        visible={examReqVisible}
+        patientName={appt.patientName}
+        patientId={appt.patientId}
+        date={appt.date}
+        doctorProfile={doctorProfile}
+        initial={examRequests.find((e) => e.appointmentId === appt.id)}
+        onSave={(e: ExamRequest) => {
+          const existing = examRequests.find((x) => x.appointmentId === appt.id);
+          if (existing) updateExamRequest({ ...e, id: existing.id, appointmentId: appt.id, source: "appointment" });
+          else addExamRequest({ ...e, appointmentId: appt.id, source: "appointment" });
+        }}
+        onClose={() => setExamReqVisible(false)}
         t={t}
       />
 

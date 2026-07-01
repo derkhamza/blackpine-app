@@ -1,9 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient, StockItem, Supplier, TeleSession, InternalNote, PurchaseOrder, WaTemplate } from "./cabinetTypes";
+import { Appointment, CertificatMedical, DoctorProfile, Employee, InvoiceRecord, Ordonnance, Patient, StockItem, Supplier, TeleSession, InternalNote, PurchaseOrder, WaTemplate, ExamRequest } from "./cabinetTypes";
 import {
   loadAppointments, saveAppointments,
   loadPatients, savePatients,
   loadOrdonnances, saveOrdonnances,
+  loadExamRequests, saveExamRequests,
   loadCertificats, saveCertificats,
   loadDoctorProfile, saveDoctorProfile,
   loadEmployees, saveEmployees,
@@ -47,6 +48,7 @@ interface CabinetContextValue {
   appointments: Appointment[];
   patients: Patient[];
   ordonnances: Ordonnance[];
+  examRequests: ExamRequest[];
   certificats: CertificatMedical[];
   doctorProfile: DoctorProfile;
   employees: Employee[];
@@ -63,6 +65,9 @@ interface CabinetContextValue {
 
   addOrdonnance: (o: Ordonnance) => void;
   deleteOrdonnance: (id: string) => void;
+  addExamRequest: (e: ExamRequest) => void;
+  updateExamRequest: (e: ExamRequest) => void;
+  deleteExamRequest: (id: string) => void;
 
   addCertificat: (c: CertificatMedical) => void;
   deleteCertificat: (id: string) => void;
@@ -129,6 +134,7 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [ordonnances, setOrdonnances] = useState<Ordonnance[]>([]);
+  const [examRequests, setExamRequests] = useState<ExamRequest[]>([]);
   const [certificats, setCertificats] = useState<CertificatMedical[]>([]);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfile>(DEFAULT_DOCTOR);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -156,6 +162,7 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
       setAppointments([]);
       setPatients([]);
       setOrdonnances([]);
+      setExamRequests([]);
       setCertificats([]);
       setDoctorProfile(DEFAULT_DOCTOR);
       setEmployees([]);
@@ -179,6 +186,7 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
     });
     loadPatients(userId).then(setPatients);
     loadOrdonnances(userId).then(setOrdonnances);
+    loadExamRequests(userId).then(setExamRequests);
     loadCertificats(userId).then(setCertificats);
     loadDoctorProfile(userId).then((d) => { if (d) setDoctorProfile(d); });
     loadEmployees(userId).then(setEmployees);
@@ -288,6 +296,19 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
       saveOrdonnances(next, userId);
       return next;
     });
+  }, [userId]);
+
+  const addExamRequest = useCallback((e: ExamRequest) => {
+    if (!userId) return;
+    setExamRequests(prev => { const next = [...prev, e]; saveExamRequests(next, userId); return next; });
+  }, [userId]);
+  const updateExamRequest = useCallback((e: ExamRequest) => {
+    if (!userId) return;
+    setExamRequests(prev => { const next = prev.map(x => x.id === e.id ? e : x); saveExamRequests(next, userId); return next; });
+  }, [userId]);
+  const deleteExamRequest = useCallback((id: string) => {
+    if (!userId) return;
+    setExamRequests(prev => { const next = prev.filter(x => x.id !== id); saveExamRequests(next, userId); return next; });
   }, [userId]);
 
   const addCertificat = useCallback((c: CertificatMedical) => {
@@ -466,10 +487,11 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
   // ── Reload all data from storage (for pull-to-refresh) ──────────────────────
   const reload = useCallback(async () => {
     if (!userId) return;
-    const [appts, pats, ords, certs, prof, emps, photos, photoLabels, invs, stock, sups, tele, notesL, poL, wtplsL] = await Promise.all([
+    const [appts, pats, ords, exreqs, certs, prof, emps, photos, photoLabels, invs, stock, sups, tele, notesL, poL, wtplsL] = await Promise.all([
       loadAppointments(userId),
       loadPatients(userId),
       loadOrdonnances(userId),
+      loadExamRequests(userId),
       loadCertificats(userId),
       loadDoctorProfile(userId),
       loadEmployees(userId),
@@ -487,6 +509,7 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
     updateWidget(buildWidgetPayload(appts));
     setPatients(pats);
     setOrdonnances(ords);
+    setExamRequests(exreqs);
     setCertificats(certs);
     if (prof) setDoctorProfile(prof);
     setEmployees(emps);
@@ -503,10 +526,11 @@ export function CabinetProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CabinetContext.Provider value={{
-      appointments, patients, ordonnances, certificats, doctorProfile, employees,
+      appointments, patients, ordonnances, examRequests, certificats, doctorProfile, employees,
       addAppointment, updateAppointment, deleteAppointment, deleteAppointmentSeries,
       addPatient, updatePatient, deletePatient,
       addOrdonnance, deleteOrdonnance,
+      addExamRequest, updateExamRequest, deleteExamRequest,
       addCertificat, deleteCertificat,
       updateDoctorProfile,
       addEmployee, updateEmployee, deleteEmployee,

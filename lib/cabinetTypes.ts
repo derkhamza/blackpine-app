@@ -110,6 +110,28 @@ export interface ExamValue {
   isAbnormal?: boolean;
 }
 
+// ── Exam request (demande d'examens) ──────────────────────────────────────────
+export type ExamRequestCategory =
+  | "biologie" | "radiologie" | "echographie" | "scanner" | "irm" | "autre";
+
+export interface ExamRequestLine {
+  category: ExamRequestCategory;
+  label:    string;    // "NFS", "IRM cérébrale"…
+  detail?:  string;    // parameters: "à jeun", "face + profil"…
+}
+
+export interface ExamRequest {
+  id:            string;
+  patientId?:    string;
+  patientName:   string;
+  date:          string;          // YYYY-MM-DD
+  lines:         ExamRequestLine[];
+  indication?:   string;          // renseignements cliniques
+  source:        "standalone" | "appointment";
+  appointmentId?: string;
+  createdAt:     string;          // ISO
+}
+
 export interface ExamResult {
   id:           string;
   type:         ExamType;
