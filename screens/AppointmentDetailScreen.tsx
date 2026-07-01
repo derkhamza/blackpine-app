@@ -30,7 +30,8 @@ import { CertificatModal } from "../components/CertificatModal";
 import { PatientHistoryModal } from "../components/PatientHistoryModal";
 import { useCabinet } from "../lib/CabinetContext";
 import { useBilling } from "../lib/useBilling";
-import { Appointment, AppointmentStatus, InvoiceRecord, VitalSigns } from "../lib/cabinetTypes";
+import { Appointment, AppointmentStatus, InvoiceRecord, VitalSigns, BillingLine, PaymentMethod } from "../lib/cabinetTypes";
+import { paymentSummary } from "../lib/billing";
 import { Icon } from "../lib/icons";
 import { radii, shadows, spacing, typography, ColorPalette } from "../lib/theme";
 import { useColors } from "../lib/ThemeContext";
@@ -57,7 +58,7 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     apptPhotoLabels, setApptPhotoLabel,
     userId,
   } = useCabinet();
-  const { billAppointment } = useBilling();
+  const { billAppointmentItemized, recordPayment, lastBilledAmount } = useBilling();
   const insets = useSafeAreaInsets();
   const topInset = useTopInset();
 
@@ -84,9 +85,13 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
   const [labelingUri, setLabelingUri] = useState<string | null>(null);
 
-  // Payment sheet
+  // Payment sheet — itemized billing (base + acts − reduction) with deferred/partial collection
   const [showPayment, setShowPayment] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [payMode, setPayMode]         = useState<"bill" | "topup">("bill");
+  const [billItems, setBillItems]     = useState<BillingLine[]>([]);
+  const [billReduction, setBillReduction] = useState("");
+  const [billCollected, setBillCollected] = useState("");
+  const [payMethod, setPayMethod]     = useState<PaymentMethod>("cash");
 
   // Reimbursement section
   const [rmbAmount, setRmbAmount] = useState("");
@@ -331,19 +336,68 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
       setTimerSecs(0);
       setTab("consultation");
     }
-    if (status === "completed") {
-      setPaymentAmount("");
-      setShowPayment(true);
+    if (status === "completed" && !appt.billedAt) {
+      openBillSheet();
     }
   };
 
+  // ── Itemized billing helpers ──────────────────────────────────────────────
+  const openBillSheet = () => {
+    if (!appt) return;
+    if (appt.billedItems && appt.billedItems.length) {
+      setBillItems(appt.billedItems.map((l) => ({ ...l })));
+      setBillReduction(appt.billedReduction ? String(appt.billedReduction) : "");
+      const tot = appt.billedItems.reduce((s, l) => s + l.qty * l.unitPrice, 0) - (appt.billedReduction ?? 0);
+      setBillCollected(String(Math.max(0, tot)));
+    } else {
+      const base = Number(lastBilledAmount(appt.patientId, appt.patientName)) || 0;
+      setBillItems([{ label: t(`agenda.types.${appt.type}`), qty: 1, unitPrice: base }]);
+      setBillReduction("");
+      setBillCollected(String(base));
+    }
+    setPayMethod("cash");
+    setPayMode("bill");
+    setShowPayment(true);
+  };
+
+  const openTopupSheet = () => {
+    if (!appt) return;
+    setBillCollected(String(paymentSummary(appt).balance));
+    setPayMethod("cash");
+    setPayMode("topup");
+    setShowPayment(true);
+  };
+
+  const addBillAct = (label: string, price: number) =>
+    setBillItems((prev) => [...prev, { label, qty: 1, unitPrice: price }]);
+  const removeBillItem = (i: number) =>
+    setBillItems((prev) => prev.filter((_, idx) => idx !== i));
+
+  const billSubtotal   = billItems.reduce((s, l) => s + l.qty * l.unitPrice, 0);
+  const billReductionN = Math.max(0, parseFloat(billReduction.replace(",", ".")) || 0);
+  const billTotal      = Math.max(0, billSubtotal - billReductionN);
+  const billCollectedN = Math.min(billTotal, Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0));
+  const billRemaining  = Math.max(0, billTotal - billCollectedN);
+
   // ── Payment confirm ───────────────────────────────────────────────────────
   const handlePaymentConfirm = () => {
-    const amount = parseFloat(paymentAmount.replace(",", "."));
-    if (!isNaN(amount) && amount > 0) {
+    if (!appt) return;
+    if (payMode === "topup") {
+      const amt = Math.max(0, parseFloat(billCollected.replace(",", ".")) || 0);
+      if (amt <= 0) { setShowPayment(false); return; }
       tapSuccess();
-      billAppointment(appt, amount);
+      recordPayment(appt, amt, payMethod);
+      setShowPayment(false);
+      return;
     }
+    if (billTotal <= 0) { setShowPayment(false); return; }
+    tapSuccess();
+    billAppointmentItemized(appt, {
+      items: billItems.map((l) => ({ label: l.label.trim() || t(`agenda.types.${appt.type}`), qty: Math.max(1, Math.round(l.qty) || 1), unitPrice: Number(l.unitPrice) || 0 })),
+      reduction: billReductionN,
+      collected: billCollectedN,
+      method: payMethod,
+    });
     setShowPayment(false);
   };
 
@@ -1354,6 +1408,35 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
             );
           })()}
 
+          {/* ── Billing / payment status ── */}
+          {(() => {
+            const s = paymentSummary(appt);
+            if (!appt.billedAt) {
+              return (
+                <ScalePressable scaleTo={0.97} style={styles.billCta} onPress={() => { tapLight(); openBillSheet(); }}>
+                  <Icon name="dollarSign" size={16} color={colors.textOnDark} />
+                  <Text style={styles.billCtaText}>{t("billing.billNow")}</Text>
+                </ScalePressable>
+              );
+            }
+            const statusColor = s.status === "paid" ? colors.success : s.status === "partial" ? colors.gold : colors.danger;
+            return (
+              <View style={styles.billStatusCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.billStatusAmount}>{s.due.toLocaleString("fr-FR")} MAD</Text>
+                  <Text style={[styles.billStatusLabel, { color: statusColor }]}>
+                    {s.status === "paid" ? t("billing.paid") : s.status === "partial" ? `${t("billing.partial")} · ${s.balance.toLocaleString("fr-FR")} MAD` : `${t("billing.deferred")} · ${s.balance.toLocaleString("fr-FR")} MAD`}
+                  </Text>
+                </View>
+                {s.balance > 0 && (
+                  <ScalePressable scaleTo={0.96} style={styles.billCollectBtn} onPress={() => { tapLight(); openTopupSheet(); }}>
+                    <Text style={styles.billCollectText}>{t("billing.collect")}</Text>
+                  </ScalePressable>
+                )}
+              </View>
+            );
+          })()}
+
           {/* ── Note d'honoraires ── */}
           <ScalePressable
             scaleTo={0.97}
@@ -1491,22 +1574,96 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                 </Pressable>
               </View>
 
-              {/* Amount input */}
-              <TextInput
-                style={styles.payInput}
-                value={paymentAmount}
-                onChangeText={setPaymentAmount}
-                keyboardType="decimal-pad"
-                placeholder={t("agenda.paymentAmountPlaceholder")}
-                placeholderTextColor={colors.textTertiary}
-                autoFocus
-                selectTextOnFocus
-              />
+              <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
+                {payMode === "bill" ? (
+                  <>
+                    {/* Act chips (from the doctor's act list) */}
+                    {(doctorProfile.acteCodes?.length ?? 0) > 0 && (
+                      <View style={styles.actPickerRow}>
+                        {doctorProfile.acteCodes!.map((a) => (
+                          <Pressable key={a.id} style={styles.actChip} onPress={() => addBillAct(a.label, a.price ?? 0)}>
+                            <Text style={styles.actChipText}>+ {a.code}{a.price != null ? ` · ${a.price}` : ""}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                    {/* Itemized lines */}
+                    {billItems.map((l, i) => (
+                      <View key={i} style={styles.billLine}>
+                        <Text style={styles.billLineLabel} numberOfLines={1}>{l.label}</Text>
+                        <TextInput
+                          style={styles.billLinePrice}
+                          value={String(l.unitPrice)}
+                          onChangeText={(v) => setBillItems((prev) => prev.map((x, idx) => idx === i ? { ...x, unitPrice: parseFloat(v.replace(",", ".")) || 0 } : x))}
+                          keyboardType="decimal-pad"
+                        />
+                        <Pressable hitSlop={8} disabled={billItems.length <= 1} onPress={() => removeBillItem(i)}>
+                          <Icon name="close" size={16} color={billItems.length <= 1 ? colors.border : colors.textTertiary} />
+                        </Pressable>
+                      </View>
+                    ))}
+                    {/* Reduction */}
+                    <View style={styles.billLine}>
+                      <Text style={styles.billLineLabel}>{t("billing.reduction")}</Text>
+                      <TextInput
+                        style={styles.billLinePrice}
+                        value={billReduction}
+                        onChangeText={setBillReduction}
+                        keyboardType="decimal-pad"
+                        placeholder="0"
+                        placeholderTextColor={colors.textTertiary}
+                      />
+                      <View style={{ width: 16 }} />
+                    </View>
+                    {/* Totals */}
+                    <View style={styles.billTotalRow}>
+                      <Text style={styles.billTotalLabel}>{t("billing.total")}</Text>
+                      <Text style={styles.billTotalValue}>{billTotal.toLocaleString("fr-FR")} MAD</Text>
+                    </View>
+                    {/* Collected */}
+                    <Text style={styles.billFieldLabel}>{t("billing.collected")}</Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                      <TextInput
+                        style={[styles.acteInput, { flex: 1 }]}
+                        value={billCollected}
+                        onChangeText={setBillCollected}
+                        keyboardType="decimal-pad"
+                      />
+                      <Pressable style={styles.billQuick} onPress={() => setBillCollected(String(billTotal))}>
+                        <Text style={styles.billQuickText}>{t("billing.full")}</Text>
+                      </Pressable>
+                      <Pressable style={styles.billQuick} onPress={() => setBillCollected("0")}>
+                        <Text style={styles.billQuickText}>{t("billing.defer")}</Text>
+                      </Pressable>
+                    </View>
+                    {billRemaining > 0 && (
+                      <Text style={styles.billRemaining}>{t("billing.remaining")}: {billRemaining.toLocaleString("fr-FR")} MAD</Text>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.billTotalRow}><Text style={styles.billTotalLabel}>{t("billing.total")}</Text><Text style={styles.billTotalValue}>{paymentSummary(appt).due.toLocaleString("fr-FR")} MAD</Text></View>
+                    <View style={styles.billLine}><Text style={styles.billLineLabel}>{t("billing.alreadyPaid")}</Text><Text style={styles.actePriceTxt}>{paymentSummary(appt).paid.toLocaleString("fr-FR")} MAD</Text></View>
+                    <View style={styles.billLine}><Text style={[styles.billLineLabel, { color: colors.danger }]}>{t("billing.remaining")}</Text><Text style={[styles.actePriceTxt, { color: colors.danger }]}>{paymentSummary(appt).balance.toLocaleString("fr-FR")} MAD</Text></View>
+                    <Text style={styles.billFieldLabel}>{t("billing.amount")}</Text>
+                    <TextInput style={styles.acteInput} value={billCollected} onChangeText={setBillCollected} keyboardType="decimal-pad" autoFocus />
+                  </>
+                )}
+                {/* Payment method */}
+                <Text style={styles.billFieldLabel}>{t("billing.method")}</Text>
+                <View style={styles.actPickerRow}>
+                  {(["cash", "card", "cheque", "transfer"] as PaymentMethod[]).map((m) => (
+                    <Pressable key={m} style={[styles.actChip, payMethod === m && styles.actChipActive]} onPress={() => setPayMethod(m)}>
+                      <Text style={[styles.actChipText, payMethod === m && styles.actChipTextActive]}>{t(`billing.method_${m}`)}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
 
               {/* Actions */}
               <ScalePressable scaleTo={0.96} style={styles.payConfirmBtn} onPress={handlePaymentConfirm}>
                 <Icon name="check" size={18} color={colors.textOnDark} />
-                <Text style={styles.payConfirmText}>{t("agenda.recordPayment")}</Text>
+                <Text style={styles.payConfirmText}>{payMode === "topup" ? t("billing.recordPayment") : t("agenda.recordPayment")}</Text>
               </ScalePressable>
               <ScalePressable scaleTo={0.96} style={styles.paySkipBtn} onPress={() => setShowPayment(false)}>
                 <Text style={styles.paySkipText}>{t("agenda.skipPayment")}</Text>
@@ -2161,6 +2318,27 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   payConfirmText: { color: colors.textOnDark, fontWeight: "700", fontSize: 15, letterSpacing: 0.2 },
   paySkipBtn: { alignItems: "center", paddingVertical: spacing.sm },
   paySkipText: { fontSize: 14, color: colors.textTertiary },
+
+  // ── Itemized billing ──────────────────────────────────────────────────
+  billLine: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
+  billLineLabel: { flex: 1, fontSize: 14, color: colors.textPrimary },
+  billLinePrice: { width: 80, textAlign: "right", fontSize: 14, fontWeight: "700", color: colors.textPrimary, paddingVertical: 2 },
+  actePriceTxt: { fontSize: 14, fontWeight: "700", color: colors.textSecondary },
+  billTotalRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8, marginTop: 2 },
+  billTotalLabel: { fontSize: 15, fontWeight: "800", color: colors.textPrimary },
+  billTotalValue: { fontSize: 17, fontWeight: "800", color: colors.brand },
+  billFieldLabel: { fontSize: 12, fontWeight: "600", color: colors.textSecondary, marginTop: spacing.sm, marginBottom: 5 },
+  acteInput: { backgroundColor: colors.bg, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: 10, fontSize: 16, fontWeight: "700", color: colors.textPrimary },
+  billQuick: { borderWidth: 1, borderColor: colors.brand, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 9 },
+  billQuickText: { fontSize: 12, fontWeight: "700", color: colors.brand },
+  billRemaining: { marginTop: 8, fontSize: 13, fontWeight: "700", color: colors.danger },
+  billCta: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, backgroundColor: colors.success, borderRadius: radii.lg, paddingVertical: 14, marginTop: spacing.md },
+  billCtaText: { color: colors.textOnDark, fontWeight: "700", fontSize: 15 },
+  billStatusCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.bg, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginTop: spacing.md },
+  billStatusAmount: { fontSize: 18, fontWeight: "800", color: colors.textPrimary },
+  billStatusLabel: { fontSize: 13, fontWeight: "700", marginTop: 2 },
+  billCollectBtn: { backgroundColor: colors.brand, borderRadius: radii.md, paddingHorizontal: 14, paddingVertical: 9 },
+  billCollectText: { color: colors.textOnDark, fontWeight: "700", fontSize: 13 },
 
   // ── Act-type chips ────────────────────────────────────────────────────
   actPickerRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginBottom: spacing.sm },

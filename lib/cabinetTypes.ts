@@ -40,7 +40,15 @@ export interface Appointment {
   locationId?: string;     // refers to DoctorProfile.locations[].id
   recurringRuleId?: string; // shared ID for all appointments in the same recurring series
   billedAt?: string;        // ISO — set when consultation fee is added to finances
-  billedAmount?: number;    // MAD — amount charged (secretary or doctor can set at the desk)
+  billedAmount?: number;    // MAD — net amount charged (base + acts − reduction)
+  // Itemized billing: consultation base + each act performed (own price).
+  billedItems?:     BillingLine[];
+  billedReduction?: number;   // MAD discount applied to the subtotal
+  // Payment tracking — patient may pay full, part, or defer entirely.
+  // paidAmount = cumulative cash collected (0 = fully deferred). Undefined on a
+  // billed appointment means a legacy record paid in full.
+  paidAmount?: number;
+  payments?:   PaymentRecord[];
   // AMO / CNOPS reimbursement tracking
   reimbursementStatus?: "pending" | "received" | "rejected";
   reimbursementAmount?: number;  // MAD — amount expected or actually received
@@ -52,6 +60,21 @@ export interface Appointment {
 
 export type PatientGender = "M" | "F";
 export type BloodType = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+
+// ── Billing ──────────────────────────────────────────────────────────────────
+export interface BillingLine {
+  label:     string;   // "Consultation", "Petite chirurgie"…
+  qty:       number;   // usually 1
+  unitPrice: number;   // MAD per unit
+}
+
+export type PaymentMethod = "cash" | "card" | "cheque" | "transfer";
+
+export interface PaymentRecord {
+  amount: number;          // MAD collected
+  date:   string;          // ISO timestamp
+  method?: PaymentMethod;
+}
 
 // ── Clinical records ─────────────────────────────────────────────────────────
 
