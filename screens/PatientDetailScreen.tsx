@@ -149,25 +149,32 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
     [patientAppointments],
   );
 
+  // Match a document to this patient by id. As a fallback for legacy documents
+  // saved with no id, match by name — but ONLY when the doc has no id at all, so
+  // a document linked to a different same-name patient never leaks onto this one.
+  const fullName = `${patient?.firstName ?? ""} ${patient?.lastName ?? ""}`.trim();
+  const belongsHere = (d: { patientId?: string; patientName?: string }) =>
+    d.patientId === patientId || (!d.patientId && d.patientName === fullName);
+
   const patientOrdonnances = useMemo(
-    () => [...ordonnances.filter((o) => o.patientId === patientId || o.patientName === `${patient?.firstName} ${patient?.lastName}`)]
+    () => [...ordonnances.filter(belongsHere)]
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 5),
-    [ordonnances, patientId, patient],
+    [ordonnances, patientId, fullName],
   );
 
   const patientCertificats = useMemo(
-    () => [...certificats.filter((c) => c.patientId === patientId || c.patientName === `${patient?.firstName} ${patient?.lastName}`)]
+    () => [...certificats.filter(belongsHere)]
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 5),
-    [certificats, patientId, patient],
+    [certificats, patientId, fullName],
   );
 
   const patientExamReqs = useMemo(
-    () => [...examRequests.filter((e) => e.patientId === patientId || e.patientName === `${patient?.firstName} ${patient?.lastName}`)]
+    () => [...examRequests.filter(belongsHere)]
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 5),
-    [examRequests, patientId, patient],
+    [examRequests, patientId, fullName],
   );
 
   const patientFullName = patient ? `${patient.firstName} ${patient.lastName}` : "";

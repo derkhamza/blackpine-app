@@ -763,9 +763,10 @@ const styles = useMemo(() => makeStyles(colors), [colors]);
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.patientPickerName}>{item.firstName} {item.lastName}</Text>
-                      {item.phone ? (
-                        <Text style={styles.patientPickerSub}>{item.phone}</Text>
-                      ) : null}
+                      {(() => {
+                        const parts = [item.dateOfBirth, item.phone].filter(Boolean);
+                        return parts.length ? <Text style={styles.patientPickerSub}>{parts.join("  ·  ")}</Text> : null;
+                      })()}
                     </View>
                   </Pressable>
                 )}
